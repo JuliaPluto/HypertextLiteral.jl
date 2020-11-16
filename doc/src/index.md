@@ -1,4 +1,4 @@
-# HypertextLiteral.jl 
+# HypertextLiteral.jl
 
 First, one must import `HypertextLiteral`
 
@@ -16,3 +16,21 @@ equivalent as their raw `HTML` equivalent.
 
     htl"<h1>Hello World!</h1>" == html"<h1>Hello World!</h1>"
     #-> true
+
+Quotes and slash characters survive this translation.
+
+    rhs = htl"""
+        <div class="bing">
+           \ " \n \"
+        </div>
+    """
+
+    lhs = html"""
+        <div class="bing">
+           \ " \n \"
+        </div>
+    """
+
+    lhs == rhs
+    #-> true
+

@@ -19,22 +19,22 @@ macro htl_str(expr)
 end
 
 function htl_str(expr::Expr, cntx::Symbol)::Expr
-    args = []
     if expr.head == :string
+        args = []
         for arg in expr.args
             if isa(arg, String)
                 push!(args, arg)
             elseif isa(arg, Symbol)
                 push!(args, Expr(:call, :htl_escape, esc(arg)))
             elseif isa(arg, Expr)
-                push!(args, htl_string(arg, cntx))
+                push!(args, htl_str(arg, cntx))
             else
-                throw(DomainError(arg, "Unconvertable string argument."))
+                throw(DomainError(arg, "unconvertable string argument"))
             end
         end
         return Expr(:string, args...)
     end
-    throw(DomainError(expr.head, "Unconvertable expression type."))
+    return Expr(:call, :htl_escape, esc(expr))
 end
 
 function htl_escape(var, ctx::Symbol = :content)::String
@@ -45,7 +45,7 @@ function htl_escape(var, ctx::Symbol = :content)::String
     elseif isa(var, Number)
         return string(var)
     else
-        throw(DomainError(var, "Don't know how to escape $(typeof(var))."))
+        throw(DomainError(var, "unescapable type $(typeof(var))"))
     end
 end
 

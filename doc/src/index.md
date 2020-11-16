@@ -35,10 +35,23 @@ Strings are escaped. In the default `:content` context only less-than
     htl"$var"
     #-> HTML{String}("3&lt;4 &amp; 5>4")
 
+Strings within subordinate expressions are also escaped.
+
+    htl"Look, Ma, $("<i>automatic escaping</i>")!"
+    #-> HTML("Look, Ma, $("&lt;i>automatic escaping&lt;/i>")!")
+
 If a variable is already a `HTML` string used in the default `:content`
 context, it is not escaped.
 
     var = html"<span>no-escape</span>"
     htl"$var"
     #-> HTML{String}("<span>no-escape</span>")
+
+Of course, more than one variable can be interpolated.
+
+    s = "World"
+    n = 42
+
+    htl"Hello $s, $n"
+    #-> HTML{String}("Hello World, 42")
 

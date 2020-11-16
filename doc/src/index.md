@@ -19,18 +19,11 @@ equivalent as their raw `HTML` equivalent.
 
 Quotes and slash characters survive this translation.
 
-    rhs = htl"""
-        <div class="bing">
-           \ " \n \"
-        </div>
-    """
-
-    lhs = html"""
-        <div class="bing">
-           \ " \n \"
-        </div>
-    """
-
-    lhs == rhs
+    htl"\"\\" == html"\"\\"
     #-> true
 
+Interpolation of variables works.
+ 
+    var = 3
+    htl"$var"
+    #-> HTML{String}("3")

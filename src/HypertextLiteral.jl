@@ -5,18 +5,17 @@ export @htl_str
 """
     @html_str -> Docs.HTML
 
-Create an `HTML` object from a string template.
+Create an `HTML` object with string interpolation.
 """
-macro htl_str(expr::String)
-    # We want to use Julia's parser to pull out string interpolations,
-    # hence we first make a string (by escaping) and then parse it.
-    qs = "\"" * replace(replace(expr, "\\" => "\\\\"), "\"" => "\\\"") * "\""
-    expr = Meta.parse(qs)
-    if typeof(expr) == String
-       return HTML(expr)
+macro htl_str(expr)
+    if isa(expr, String)
+        expr = Meta.parse("\"$(escape_string(expr))\"")
+        if typeof(expr) == String
+           return Expr(:call, :HTML, expr)
+        end
     end
     @assert typeof(expr) == Expr && expr.head == :string
-    return HTML("TODO")
+    return Expr(:call, :HTML, esc(expr))
 end
 
 end

@@ -27,3 +27,18 @@ Interpolation of variables works.
     var = 3
     htl"$var"
     #-> HTML{String}("3")
+
+Strings are escaped. In the default `:content` context only less-than
+(`<`) and amperstand (`&`) need conversion.
+
+    var = "3<4 & 5>4"
+    htl"$var"
+    #-> HTML{String}("3&lt;4 &amp; 5>4")
+
+If a variable is already a `HTML` string used in the default `:content`
+context, it is not escaped.
+
+    var = html"<span>no-escape</span>"
+    htl"$var"
+    #-> HTML{String}("<span>no-escape</span>")
+

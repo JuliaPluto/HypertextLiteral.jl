@@ -23,10 +23,15 @@ Quotes and slash characters survive this translation.
     #-> true
 
 Interpolation of variables works.
- 
+
     var = 3
     htl"$var"
     #-> HTML{String}("3")
+
+To include a literal `$` in the output string, use `$$`.
+
+    htl"$$42.50"
+    #-> HTML{String}("\$42.50")
 
 Strings are escaped. In the default `:content` context only less-than
 (`<`) and amperstand (`&`) need conversion.
@@ -34,11 +39,6 @@ Strings are escaped. In the default `:content` context only less-than
     var = "3<4 & 5>4"
     htl"$var"
     #-> HTML{String}("3&lt;4 &amp; 5>4")
-
-Strings within subordinate expressions are also escaped.
-
-    htl"Look, Ma, $("<i>automatic escaping</i>")!"
-    #-> HTML("Look, Ma, $("&lt;i>automatic escaping&lt;/i>")!")
 
 If a variable is already a `HTML` string used in the default `:content`
 context, it is not escaped.

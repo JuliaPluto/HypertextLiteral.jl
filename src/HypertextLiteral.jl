@@ -9,7 +9,7 @@ Create an `HTML` object with string interpolation.
 """
 macro htl_str(expr)
     if isa(expr, String)
-        expr = Meta.parse("\"$(escape_string(expr))\"")
+        expr = Meta.parse("\"$(replace(escape_string(expr),"\$\$"=>"\\\$"))\"")
         if typeof(expr) == String
            return Expr(:call, :HTML, expr)
         end

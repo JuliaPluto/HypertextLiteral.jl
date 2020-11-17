@@ -41,33 +41,24 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
                 throw(DomainError(arg, "unconvertable string argument"))
             end
         end
-        return Expr(:call, :htl_fold, args...)
+        return Expr(:call, :string, args...)
     end
+
+    #  htl"""<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"""
     if expr.head == :do
        @assert expr.args[2].head == Symbol("->")
        scope = expr.args[2].args[1]
        @assert scope.head == :tuple
+       @assert length(scope.args) == 1
        nested_locals = [scope.args[1], locals...]
        block = expr.args[2].args[2]
        @assert block.head == :block
        @assert length(block.args) == 2
        block.args[2] = htl_str(block.args[2], cntx, nested_locals)
-      return expr
+       return Expr(:call, :join, expr)
     end
-    return Expr(:call, :htl_escape, esc(expr))
-end
 
-function htl_fold(args...)::String
-    chunks = String[]
-    for part in args
-       if typeof(part) == String
-           push!(chunks, part)
-           continue
-       end
-       @assert isa(part, Vector)
-       push!(chunks, htl_fold(part...))
-    end
-    return string(chunks...)
+    return Expr(:call, :htl_escape, esc(expr))
 end
 
 function htl_escape(var, ctx::Symbol = :content)::String

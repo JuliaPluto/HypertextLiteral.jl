@@ -12,5 +12,5 @@ push!(subs, r"Int64" => s"Int(32|64)")
 ENV["COLUMNS"] = "72"
 
 package_path(x) = relpath(joinpath(dirname(abspath(PROGRAM_FILE)), "..", x))
-default = package_path.(["doc/src", "README.md"])
+default = package_path.(["README.md"])
 runtests(; default=default, subs=subs)

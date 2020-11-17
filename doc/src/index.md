@@ -24,7 +24,8 @@ Quotes and slash characters survive this translation.
     htl"\"\\" == html"\"\\"
     #-> true
 
-Interpolation of variables works.
+Interpolation of variables works. There is an implicit conversion of
+`Number` values to their `String` representation.
 
     var = 3
     htl"$var"
@@ -35,8 +36,8 @@ To include a literal `$` in the output string, use `$$`.
     htl"$$42.50"
     #-> HTML{String}("\$42.50")
 
-Strings are escaped. In the default `:content` context only less-than
-(`<`) and amperstand (`&`) need conversion.
+Interpolated strings are escaped. In the default `:content` context, the
+less-than (`<`) and amperstand (`&`) characters require conversion.
 
     var = "3<4 & 5>4"
     htl"$var"
@@ -56,6 +57,46 @@ Of course, more than one variable can be interpolated.
 
     htl"Hello $s, $n"
     #-> HTML{String}("Hello World, 42")
+
+Functions returning values can be included in an interpolation.
+
+    sq(x) = x*x
+
+    htl"3 squared is $(sq(3))"
+    #-> HTML{String}("3 squared is 9")
+
+Functions returning string values will be escaped.
+
+    company() = "Smith & Johnson"
+
+    htl"$(company())"
+    #-> HTML{String}("Smith &amp; Johnson")
+
+Functions returning HTML fragments are passed on, as-is.
+
+    frag() = html"<span>Hello!</span>"
+
+    htl"$(frag())"
+    #-> HTML{String}("<span>Hello!</span>")
+
+Functions returning vectors of HTML fragments are joined without
+intervening space.
+
+    htl"""$([HTML("<span>"), HTML("</span")])"""
+    #-> HTML{String}("<span></span")
+
+## List Comprehensions
+
+In Julia, one could build a string list using the following.
+
+    "<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"
+    #-> "<ul>[\"<li>1</li>\", \"<li>2</li>\"]</ul>"
+
+Since all of the expressions here should be seen as HTML objects, we can
+combine them. Note that a triple quote is needed in our case.
+
+    htl"""<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"""
+    #-> HTML{String}("<ul><li>1</li><li>2</li></ul>")
 
 ## Quirks
 

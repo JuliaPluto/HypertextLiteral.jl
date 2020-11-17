@@ -25,23 +25,21 @@ end
 
 function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
     if expr.head == :string
-        args = []
-        for arg in expr.args
+        for (idx, arg) in enumerate(expr.args)
             if isa(arg, String)
-                push!(args, arg)
+                continue
             elseif isa(arg, Symbol)
-                if arg in locals
-                    push!(args, Expr(:call, :htl_escape, arg))
-                else
-                    push!(args, Expr(:call, :htl_escape, esc(arg)))
+                if !in(arg, locals)
+                    arg = esc(arg)
                 end
+                expr.args[idx] = Expr(:call, :htl_escape, arg)
             elseif isa(arg, Expr)
-                push!(args, htl_str(arg, cntx, locals))
+                expr.args[idx] = htl_str(arg, cntx, locals)
             else
-                throw(DomainError(arg, "unconvertable string argument"))
+                throw(DomainError(arg, "unexpected string argument"))
             end
         end
-        return Expr(:call, :string, args...)
+        return expr
     end
 
     #  htl"""<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"""

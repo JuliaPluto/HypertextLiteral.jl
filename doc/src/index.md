@@ -79,12 +79,6 @@ Functions returning HTML fragments are passed on, as-is.
     htl"$(frag())"
     #-> HTML{String}("<span>Hello!</span>")
 
-Functions returning vectors of HTML fragments are joined without
-intervening space.
-
-    htl"""$([HTML("<span>"), HTML("</span")])"""
-    #-> HTML{String}("<span></span")
-
 ## List Comprehensions
 
 In Julia, one could build a string list using the following.

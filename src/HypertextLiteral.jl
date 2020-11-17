@@ -36,7 +36,7 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
             elseif isa(arg, Expr)
                 expr.args[idx] = htl_str(arg, cntx, locals)
             else
-                throw(DomainError(arg, "unexpected string argument"))
+                @assert false # this shouldn't happen
             end
         end
         return expr
@@ -56,7 +56,13 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
        return Expr(:call, :join, expr)
     end
 
-    return Expr(:call, :htl_escape, esc(expr))
+    # TODO: improve translation to handle local variables
+    if expr.head == :call && length(locals) == 0
+        return Expr(:call, :htl_escape, esc(expr))
+    end
+
+    # unless it is well defined, let's not translate it
+    return throw(DomainError(expr, "undefined interpolation"))
 end
 
 function htl_escape(var, ctx::Symbol = :content)::String
@@ -66,8 +72,6 @@ function htl_escape(var, ctx::Symbol = :content)::String
         return replace(replace(var, "&" => "&amp;"), "<" => "&lt;")
     elseif isa(var, Number)
         return string(var)
-    elseif isa(var, AbstractVector) && eltype(var) == HTML{String}
-        return join([i.content for i in var])
     else
         throw(DomainError(var, "unescapable type $(typeof(var))"))
     end

@@ -5,11 +5,16 @@ export @htl_str htl_escape
 """
     @html_str -> Docs.HTML
 
-Create an `HTML` object with string interpolation.
+Create an `HTML` object with string interpolation. The dollar-sign
+character may be escaped by doubling it. Due to Julia parser, we have
+no way to distinguish a quoted string subexpression from
 """
 macro htl_str(expr)
     if isa(expr, String)
-        expr = Meta.parse("\"$(replace(escape_string(expr),"\$\$"=>"\\\$"))\"")
+        expr = Meta.parse(
+            "\"\"\"" *
+            replace(replace(expr, "\\" => "\\\\"), "\$\$" => "\\\$") *
+            "\"\"\"")
         if typeof(expr) == String
            return Expr(:call, :HTML, expr)
         end

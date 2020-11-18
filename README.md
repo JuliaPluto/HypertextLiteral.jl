@@ -9,23 +9,18 @@ provides handy conversions dependent upon context.*
 > ([@mbostock][@mbostock]). You can read more about it
 > [here][observablehq].
 
-This package provides a string literal macro, `htl` which builds an
-`HTML` object from a string template using Julia's interpolation syntax.
-This works by using Julia's parser to generate an Abstract Syntax Tree
-(AST). As hypertext fragments are discovered in a string expression, an
-escaping context is tracked. Then, interpolation patterns discovered in
-the AST are converted to use the correct form of escaping based upon the
-hypertext's context.
-
-After installing this Julia package, you could use it.
-
-    using HypertextLiteral
+This package provides a Julia string literal macro, `htl`, that builds
+an `HTML` object from a string template using Julia's interpolation
+syntax. We use Julia's parser to generate an Abstract Syntax Tree (AST),
+and then convert this tree to add variable escaping that takes into
+account the hypertext context. Since this is somewhat challenging, we
+only support a subset of interpolation patterns where intent is clear.
 
 ## Introduction
 
 The Julia ecosystem provides an `HTML` object type as part of its
-built-in documentation package. This enables us to work with a string
-knowing it is intended to be syntactically valid hypertext.
+built-in documentation package. This lets us indicate that a given
+value is intended to be syntactically correct hypertext.
 
     html"<span>Hello World!</span>"
     #-> HTML{String}("<span>Hello World!</span>")
@@ -44,27 +39,28 @@ proper escaping in the context of hypertext content.
     book = "Strunk & White"
     #-> "Strunk & White"
 
-    "<span>Book Recommendation: $book</span>"
-    #-> "<span>Book Recommendation: Strunk & White</span>"
+    "<span>Today's Reading: $book</span>"
+    #-> "<span>Today's Reading: Strunk & White</span>"
 
 Conversely, the built-in the `html` string literal doesn't provide
 interpolation, the `$` character is simply that, a dollar sign.
 
-    html"<span>Book Recommendation: $book</span>"
-    #-> HTML{String}("<span>Book Recommendation: \$book</span>")
+    html"<span>Today's Reading: $book</span>"
+    #-> HTML{String}("<span>Today's Reading: \$book</span>")
 
 This package, `HypertextLiteral` provides an `htl` string literal which
 produces an `HTML` object, implementing common interpolation patterns
 and convenient data conversions.
 
-    htl"<span>Book Recommendation: $book</span>"
-    #-> HTML{String}("<span>Book Recommendation: Strunk &amp; White</span>")
+    using HypertextLiteral
+
+    htl"<span>Today's Reading: $book</span>"
+    #-> HTML{String}("<span>Today's Reading: Strunk &amp; White</span>")
 
 The remainder of this documentation reviews functionality provided by
-the `htl` string macro. We use [NarrativeTest][nt] to ensure that the
-examples provided here work as part of our regression tests. After each
-command is a comment (staring with the pound sign `#`) that indicates
-the output expected.
+the `htl` string macro. We use [NarrativeTest][nt] to ensure that
+examples provided here are executable. After each command is a comment
+(staring with the pound sign `#`) that indicates the output expected.
 
 ## Basic Operations
 
@@ -114,10 +110,10 @@ uses the Julia syntax `$(expr)`.
 
 Functions returning string values will be escaped.
 
-    company() = "Smith & Johnson"
+    input() = "<script>alert('ouch!')"
 
-    htl"$(company())"
-    #-> HTML{String}("Smith &amp; Johnson")
+    htl"$(input())"
+    #-> HTML{String}("&lt;script>alert('ouch!')")
 
 Functions returning HTML fragments are passed on, as-is.
 
@@ -132,14 +128,15 @@ This package attempts to convert common string literal conventions from
 their Julia equivalent. For example, using string interpolation in
 Julia, one could build a string list using the following.
 
-    "<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"
-    #-> "<ul>[\"<li>1</li>\", \"<li>2</li>\"]</ul>"
+    """<ul>$(map(["A&B","C"]) do x "<li>$x</li>" end)</ul>"""
+    #-> "<ul>[\"<li>A&B</li>\", \"<li>C</li>\"]</ul>"
 
 Since all of the expressions here should be seen as HTML objects, we can
 concatenate them. Note that a triple quote is needed in our case.
 
-    htl"""<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"""
-    #-> HTML{String}("<ul><li>1</li><li>2</li></ul>")
+    htl"""<ul>$(map(["A&B","C"]) do x "<li>$x</li>" end)</ul>"""
+    #-> HTML{String}("<ul><li>A&amp;B</li><li>C</li></ul>")
+
 
 ## Quirks
 
@@ -175,6 +172,21 @@ with output wrapped as a `HTML` string object.
 That said, we are unable to automatically escape strings provided this
 way (as found in mbostock's examples) since Julia's AST provides no
 distinction between `"""$("<tag/>")"""` and just `"<tag/>"`.
+
+## Edge Cases & Regression Tests
+
+We need to handle nested macro calls.
+
+    htl"""$(htl"hi")"""
+    #-> HTML{String}("hi")
+
+    book = "Strunk & White";
+
+    htl"""<span>$(htl"$book")</span>"""
+    #-> HTML{String}("<span>Strunk &amp; White</span>")
+
+
+
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

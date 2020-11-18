@@ -61,6 +61,15 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
         return Expr(:call, :htl_escape, esc(expr))
     end
 
+    if expr.head == :macrocall && expr.args[1] == Symbol("@htl_str")
+        @assert typeof(expr.args[3]) == String
+        expr = Meta.parse("\"" * escape_string(expr.args[3]) * "\"")
+        if typeof(expr) == String
+           return Expr(:string, expr)
+        end
+        return htl_str(expr, cntx, locals)
+    end
+
     # unless it is well defined, let's not translate it
     return throw(DomainError(expr, "undefined interpolation"))
 end

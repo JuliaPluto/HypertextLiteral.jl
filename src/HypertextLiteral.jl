@@ -6,15 +6,13 @@ export @htl_str htl_escape
     @html_str -> Docs.HTML
 
 Create an `HTML` object with string interpolation. The dollar-sign
-character may be escaped by doubling it. Due to Julia parser, we have
-no way to distinguish a quoted string subexpression from
+character may be escaped by doubling it. Due to Julia parser, we have no
+way to distinguish a quoted string subexpression from
 """
 macro htl_str(expr)
     if isa(expr, String)
-        expr = Meta.parse(
-            "\"\"\"" *
-            replace(replace(expr, "\\" => "\\\\"), "\$\$" => "\\\$") *
-            "\"\"\"")
+        rstr = ("\"" * replace(expr, "\$\$" => "\\\$") * "\"")
+        expr = Meta.parse(rstr)
         if typeof(expr) == String
            return Expr(:call, :HTML, expr)
         end
@@ -63,15 +61,20 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
 
     if expr.head == :macrocall && expr.args[1] == Symbol("@htl_str")
         @assert typeof(expr.args[3]) == String
-        expr = Meta.parse("\"" * escape_string(expr.args[3]) * "\"")
+        expr = Meta.parse("\"" * expr.args[3] * "\"")
         if typeof(expr) == String
            return Expr(:string, expr)
         end
         return htl_str(expr, cntx, locals)
     end
 
+    # so this is basically when we have failed to parse...
+    if expr.head == :incomplete
+        throw(ErrorException("unable to handle escape sequences"))
+    end
+
     # unless it is well defined, let's not translate it
-    return throw(DomainError(expr, "undefined interpolation"))
+    throw(DomainError(expr, "undefined interpolation"))
 end
 
 function htl_escape(var, ctx::Symbol = :content)::String

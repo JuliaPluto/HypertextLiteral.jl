@@ -37,7 +37,6 @@ or arbitrary expressions be accessed. However, it doesn't know about
 proper escaping in the context of hypertext content.
 
     book = "Strunk & White"
-    #-> "Strunk & White"
 
     "<span>Today's Reading: $book</span>"
     #-> "<span>Today's Reading: Strunk & White</span>"
@@ -175,18 +174,26 @@ distinction between `"""$("<tag/>")"""` and just `"<tag/>"`.
 
 ## Edge Cases & Regression Tests
 
+Escaped strings should just pass-though. Except that this would require
+a customized parser, at this time, we just raise an error.
+
+    htl"\"\\".content
+    #-> ERROR: LoadError: unable to handle escape sequences⋮
+
+We double-up on `$` to escape it.
+
+    println(htl"$$42.00".content)
+    #-> $42.00
+
 We need to handle nested macro calls.
 
-    htl"""$(htl"hi")"""
-    #-> HTML{String}("hi")
+    htl"""$(htl"test")"""
+    #-> HTML{String}("test")
 
-    book = "Strunk & White";
+    book = "Strunk & White"
 
     htl"""<span>$(htl"$book")</span>"""
     #-> HTML{String}("<span>Strunk &amp; White</span>")
-
-
-
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

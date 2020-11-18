@@ -168,24 +168,24 @@ with output wrapped as a `HTML` string object.
     htl"""$("Hello")"""
     #-> HTML{String}("Hello")
 
-That said, we are unable to automatically escape strings provided this
-way (as found in mbostock's examples) since Julia's AST provides no
-distinction between `"""$("<tag/>")"""` and just `"<tag/>"`.
+Only that internal string literals like this are properly escaped.
+
+    htl"""Look, Ma, $("<i>automatic escaping</i>")!"""
+    #-> HTML{String}("Look, Ma, &lt;i>automatic escaping&lt;/i>!")
 
 ## Edge Cases & Regression Tests
 
-Escaped strings should just pass-though. Except that this would require
-a customized parser, at this time, we just raise an error.
+Escaped strings should just pass-though.
 
     htl"\"\\".content
-    #-> ERROR: LoadError: unable to handle escape sequences⋮
+    #-> "\"\\"
 
 We double-up on `$` to escape it.
 
     println(htl"$$42.00".content)
     #-> $42.00
 
-We need to handle nested macro calls.
+We handle nested macro calls.
 
     htl"""$(htl"test")"""
     #-> HTML{String}("test")
@@ -194,6 +194,15 @@ We need to handle nested macro calls.
 
     htl"""<span>$(htl"$book")</span>"""
     #-> HTML{String}("<span>Strunk &amp; White</span>")
+
+A string ending with `$` is an syntax error since it is an incomplete
+interpolation.
+
+    htl"$"
+    #-> ERROR: LoadError: "incomplete interpolation"⋮
+
+    htl"Foo$"
+    #-> ERROR: LoadError: "incomplete interpolation"⋮
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

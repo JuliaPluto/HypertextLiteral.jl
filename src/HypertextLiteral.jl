@@ -6,23 +6,64 @@ export @htl_str htl_escape
     @html_str -> Docs.HTML
 
 Create an `HTML` object with string interpolation. The dollar-sign
-character may be escaped by doubling it. Due to Julia parser, we have no
-way to distinguish a quoted string subexpression from
+character may be escaped by doubling it.
 """
-macro htl_str(expr)
-    if isa(expr, String)
-        rstr = ("\"" * replace(expr, "\$\$" => "\\\$") * "\"")
-        expr = Meta.parse(rstr)
-        if typeof(expr) == String
-           return Expr(:call, :HTML, expr)
-        end
+macro htl_str(expr::String)
+    if !occursin("\$", expr)
+        return Expr(:call, :HTML, expr)
     end
-    @assert typeof(expr) == Expr
     return Expr(:call, :HTML, htl_str(expr, :content, Symbol[]))
+end
+
+function htl_str(expr::String, cntx::Symbol, locals::Vector{Symbol})::Expr
+    start = 1
+    mixed = false
+    args = []
+    while start <= length(expr)
+        next = findnext("\$", expr, start)
+        if next == nothing
+            push!(args, expr[start:end])
+            break
+        end
+        next = next[end]
+        if next > start
+            push!(args, expr[start:next-1])
+        end
+        start = next + 1
+        if start > length(expr)
+            throw("incomplete interpolation")
+        end
+        if expr[start] == '$'
+            push!(args, "\$")
+            start += 1
+            continue
+        end
+        (nest, start) = Meta.parse(expr, start;
+                            greedy=false, raise=true, depwarn=true)
+        if isa(nest, String)
+            @assert !occursin("\$", nest) # permit regular interpolation?
+            push!(args, htl_escape(nest, cntx))
+            continue
+        end
+        mixed = true
+        if isa(nest, Symbol)
+            if !in(nest, locals)
+                nest = esc(nest)
+            end
+            push!(args, Expr(:call, :htl_escape, nest))
+            continue
+        end
+        push!(args, htl_str(nest, cntx, locals))
+    end
+    if mixed
+        return Expr(:call, :string, args...)
+    end
+    return Expr(:call, :string, join(args))
 end
 
 function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
     if expr.head == :string
+        #TODO: this is duplicate, can it be removed?
         for (idx, arg) in enumerate(expr.args)
             if isa(arg, String)
                 continue
@@ -60,12 +101,7 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
     end
 
     if expr.head == :macrocall && expr.args[1] == Symbol("@htl_str")
-        @assert typeof(expr.args[3]) == String
-        expr = Meta.parse("\"" * expr.args[3] * "\"")
-        if typeof(expr) == String
-           return Expr(:string, expr)
-        end
-        return htl_str(expr, cntx, locals)
+        return htl_str(expr.args[3], cntx, locals)
     end
 
     # so this is basically when we have failed to parse...
@@ -77,7 +113,7 @@ function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
     throw(DomainError(expr, "undefined interpolation"))
 end
 
-function htl_escape(var, ctx::Symbol = :content)::String
+function htl_escape(var, ctx::Symbol=:content)::String
     if isa(var, HTML{String})
         return var.content
     elseif isa(var, AbstractString)

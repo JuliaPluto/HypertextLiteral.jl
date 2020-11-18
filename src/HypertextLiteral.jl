@@ -41,7 +41,6 @@ function htl_str(expr::String, cntx::Symbol)::Expr
         (nest, start) = Meta.parse(expr, start;
                             greedy=false, raise=true, depwarn=true)
         if isa(nest, String)
-            @assert !occursin("\$", nest) # permit regular interpolation?
             push!(args, htl_escape(nest, cntx))
             continue
         end

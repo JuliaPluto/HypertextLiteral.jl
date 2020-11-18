@@ -172,6 +172,18 @@ Only that internal string literals like this are properly escaped.
     htl"""Look, Ma, $("<i>automatic escaping</i>")!"""
     #-> HTML{String}("Look, Ma, &lt;i>automatic escaping&lt;/i>!")
 
+We can nest literal expressions, so long as the outer nesting uses
+triple quotes.
+
+    htl"""$( htl"Hello" )"""
+    #-> HTML{String}("Hello")
+
+We should be able to nest these arbitrarily deep. Perhaps this is
+something we can fix...
+
+    htl"""$( htl"$( htl"Hello" )" )"""
+    #-> ERROR: LoadError: Base.Meta.ParseError⋮
+
 ## Edge Cases & Regression Tests
 
 Escaped strings should just pass-though.

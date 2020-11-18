@@ -133,9 +133,8 @@ Julia, one could build a string list using the following.
 Since all of the expressions here should be seen as HTML objects, we can
 concatenate them. Note that a triple quote is needed in our case.
 
-    htl"""<ul>$(map(["A&B","C"]) do x "<li>$x</li>" end)</ul>"""
+    htl"""<ul>$(map(["A&B","C"]) do x htl"<li>$x</li>" end)</ul>"""
     #-> HTML{String}("<ul><li>A&amp;B</li><li>C</li></ul>")
-
 
 ## Quirks
 

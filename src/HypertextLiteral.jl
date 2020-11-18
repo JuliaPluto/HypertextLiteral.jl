@@ -62,26 +62,8 @@ function htl_str(expr::String, cntx::Symbol, locals::Vector{Symbol})::Expr
 end
 
 function htl_str(expr::Expr, cntx::Symbol, locals::Vector{Symbol})::Expr
-    if expr.head == :string
-        #TODO: this is duplicate, can it be removed?
-        for (idx, arg) in enumerate(expr.args)
-            if isa(arg, String)
-                continue
-            elseif isa(arg, Symbol)
-                if !in(arg, locals)
-                    arg = esc(arg)
-                end
-                expr.args[idx] = Expr(:call, :htl_escape, arg)
-            elseif isa(arg, Expr)
-                expr.args[idx] = htl_str(arg, cntx, locals)
-            else
-                @assert false # this shouldn't happen
-            end
-        end
-        return expr
-    end
 
-    #  htl"""<ul>$(map([1,2]) do x "<li>$x</li>" end)</ul>"""
+    #  htl"""<ul>$(map([1,2]) do x htl"<li>$x</li>" end)</ul>"""
     if expr.head == :do
        @assert expr.args[2].head == Symbol("->")
        scope = expr.args[2].args[1]

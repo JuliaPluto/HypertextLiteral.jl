@@ -124,17 +124,15 @@ Functions returning HTML fragments are passed on, as-is.
 ## Expression Translation
 
 This package attempts to convert common string literal conventions from
-their Julia equivalent. For example, using string interpolation in
-Julia, one could build a string list using the following.
+their Julia equivalent.
 
-    """<ul>$(map(["A&B","C"]) do x "<li>$x</li>" end)</ul>"""
-    #-> "<ul>[\"<li>A&B</li>\", \"<li>C</li>\"]</ul>"
+    htl"""<ul>$([ htl"<li>$x</li>" for x in ["A", "B&C"]])</ul>"""
+    #-> HTML{String}("<ul><li>A</li><li>B&amp;C</li></ul>")
 
-Since all of the expressions here should be seen as HTML objects, we can
-concatenate them. Note that a triple quote is needed in our case.
+This technique works with arbitrary Julia expressions.
 
-    htl"""<ul>$(map(["A&B","C"]) do x htl"<li>$x</li>" end)</ul>"""
-    #-> HTML{String}("<ul><li>A&amp;B</li><li>C</li></ul>")
+    htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
+    #-> HTML{String}("<ul><li>A</li><li>B&amp;C</li></ul>")
 
 ## Quirks
 
@@ -196,15 +194,18 @@ We double-up on `$` to escape it.
     println(htl"$$42.00".content)
     #-> $42.00
 
-We handle nested macro calls.
+Interpolation should handle splat and concatinate.
 
-    htl"""$(htl"test")"""
-    #-> HTML{String}("test")
+    htl"""$([x for x in [1,2,3]]...)"""
+    #-> HTML{String}("123")
 
-    book = "Strunk & White"
+However, it shouldn't concatinate by default.
 
-    htl"""<span>$(htl"$book")</span>"""
-    #-> HTML{String}("<span>Strunk &amp; White</span>")
+    htl"""$([x for x in [1,2,3]])"""
+    #=>
+    ERROR: DomainError with [1, 2, 3]:
+    unescapable type Array{Int64,1}
+    =#
 
 A string ending with `$` is an syntax error since it is an incomplete
 interpolation.

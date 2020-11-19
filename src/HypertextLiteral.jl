@@ -1,6 +1,6 @@
 module HypertextLiteral
 
-export @htl_str htl_escape
+export @htl_str, htl_escape
 
 """
     @htl_str -> Docs.HTML
@@ -41,11 +41,11 @@ function htl_str(expr::String, cntx::Symbol)::Expr
         end
         (nest, start) = Meta.parse(expr, start; greedy=false)
         if isa(nest, String)
-            push!(args, htl_escape(nest, cntx))
+            push!(args, htl_escape(cntx, nest))
             continue
         end
         mixed = true
-        push!(args, Expr(:call, :htl_escape, esc(nest), QuoteNode(cntx)))
+        push!(args, Expr(:call, :htl_escape, QuoteNode(cntx), esc(nest)))
     end
     if mixed
         return Expr(:call, :string, args...)
@@ -53,7 +53,11 @@ function htl_str(expr::String, cntx::Symbol)::Expr
     return Expr(:call, :string, join(args))
 end
 
-function htl_escape(var, ctx::Symbol=:content)::String
+function htl_escape(ctx::Symbol, var...)::String
+    return join([htl_escape(ctx, x) for x in var])
+end
+
+function htl_escape(ctx::Symbol, var)::String
     # TODO: take hypertext context into account while escaping
     if isa(var, HTML{String})
         return var.content

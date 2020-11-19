@@ -3,7 +3,7 @@ module HypertextLiteral
 export @htl_str htl_escape
 
 """
-    @html_str -> Docs.HTML
+    @htl_str -> Docs.HTML
 
 Create an `HTML` object with string interpolation. The dollar-sign
 character may be escaped by doubling it.
@@ -38,8 +38,7 @@ function htl_str(expr::String, cntx::Symbol)::Expr
             start += 1
             continue
         end
-        (nest, start) = Meta.parse(expr, start;
-                            greedy=false, raise=true, depwarn=true)
+        (nest, start) = Meta.parse(expr, start; greedy=false)
         if isa(nest, String)
             push!(args, htl_escape(nest, cntx))
             continue

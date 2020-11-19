@@ -16,6 +16,7 @@ macro htl_str(expr::String)
 end
 
 function htl_str(expr::String, cntx::Symbol)::Expr
+    # TODO: track hypertext context for proper escaping
     start = 1
     mixed = false
     args = []
@@ -44,7 +45,7 @@ function htl_str(expr::String, cntx::Symbol)::Expr
             continue
         end
         mixed = true
-        push!(args, Expr(:call, :htl_escape, esc(nest)))
+        push!(args, Expr(:call, :htl_escape, esc(nest), QuoteNode(cntx)))
     end
     if mixed
         return Expr(:call, :string, args...)
@@ -53,6 +54,7 @@ function htl_str(expr::String, cntx::Symbol)::Expr
 end
 
 function htl_escape(var, ctx::Symbol=:content)::String
+    # TODO: take hypertext context into account while escaping
     if isa(var, HTML{String})
         return var.content
     elseif isa(var, Vector{HTML{String}})

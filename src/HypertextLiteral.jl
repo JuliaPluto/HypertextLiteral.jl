@@ -53,10 +53,6 @@ function htl_str(expr::String, cntx::Symbol)::Expr
     return Expr(:call, :string, join(args))
 end
 
-function htl_escape(ctx::Symbol, var...)::String
-    return join([htl_escape(ctx, x) for x in var])
-end
-
 function htl_escape(ctx::Symbol, var)::String
     # TODO: take hypertext context into account while escaping
     if isa(var, HTML{String})
@@ -68,8 +64,20 @@ function htl_escape(ctx::Symbol, var)::String
     elseif isa(var, Number)
         return string(var)
     else
-        throw(DomainError(var, "unescapable type $(typeof(var))"))
+        extra = ""
+        if isa(var, AbstractVector)
+            extra = ("\nPerhaps use splatting? e.g. " *
+                     "htl\"\"\"\$([x for x in 1:3]...)\"\"\"")
+        end
+        throw(DomainError(var,
+         "Type $(typeof(var)) lacks an `htl_escape` specialization.$(extra)"))
     end
 end
+
+function htl_escape(ctx::Symbol, var...)::String
+    # htl"""$([x for x in [1:3]]...)"""
+    return join([htl_escape(ctx, x) for x in var])
+end
+
 
 end

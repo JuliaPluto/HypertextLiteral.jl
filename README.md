@@ -201,10 +201,11 @@ Interpolation should handle splat and concatinate.
 
 However, it shouldn't concatinate by default.
 
-    htl"""$([x for x in [1,2,3]])"""
+    htl"""$([x for x in 1:3])"""
     #=>
     ERROR: DomainError with [1, 2, 3]:
-    unescapable type Array{Int64,1}
+    Type Array{Int64,1} lacks an `htl_escape` specialization.
+    Perhaps use splatting? e.g. htl"""$([x for x in 1:3]...)"""
     =#
 
 A string ending with `$` is an syntax error since it is an incomplete

@@ -2,8 +2,8 @@
 
 *HypertextLiteral is a Julia package for generating [HTML][html],
 [SVG][svg], and other [SGML][sgml] tagged content. It works similar to
-Julia string interpolation, only that it tracks escaping needs and
-provides handy conversions dependent upon context.*
+Julia string interpolation, only that it tracks hypertext escaping needs
+and provides handy conversions dependent upon context.*
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]). You can read more about it
@@ -13,8 +13,53 @@ This package provides a Julia string literal macro, `htl`, that builds
 an `HTML` object from a string template using Julia's interpolation
 syntax. We use Julia's parser to generate an Abstract Syntax Tree (AST),
 and then convert this tree to add variable escaping that takes into
-account the hypertext context. Since this is somewhat challenging, we
-only support a subset of interpolation patterns where intent is clear.
+account the hypertext context. Here is an example usage.
+
+    database = [
+      (name = "POLICE",
+       employee = [
+        (name = "ANTHONY A", position = "POLICE OFFICER", salary = 72510),
+        (name = "JEFFERY A", position = "SERGEANT", salary = 101442),
+        (name = "NANCY A", position = "POLICE OFFICER", salary = 80016)]),
+      (name = "FIRE",
+       employee = [
+        (name = "DANIEL A", position = "FIREFIGHTER & EMT", salary = 95484),
+        (name = "ROBERT K", position = "FIREFIGHTER", salary = 103272)])]
+
+    using HypertextLiteral
+
+    section(dept) = htl"""
+    <tbody>
+        <tr><th colspan=3 scope=rowgroup> $(dept.name)
+        $([htl"<tr><td>$(emp.name)<td>$(emp.position)<td>$(emp.salary)"
+            for emp in dept.employee])
+    </tbody>
+    """
+
+    rendered = htl"""
+    <table>
+        <caption><h3>$("Police & Fire Department")</h3></caption>
+        <thead><tr><th>Name<th>Position<th>Salary</thead>
+        $([section(d) for d in database])
+    </table>
+    """
+
+    println(rendered.content)
+    #=>
+    <table>
+        <caption><h3>Police &amp; Fire Department</h3></caption>
+        <thead><tr><th>Name<th>Position<th>Salary</thead>
+        <tbody>
+        <tr><th colspan=3 scope=rowgroup> POLICE
+        <tr><td>ANTHONY A<td>POLICE OFFICER<td>72510<tr><td>JEFFERY A<td>SERGEANT<td>101442<tr><td>NANCY A<td>POLICE OFFICER<td>80016
+    </tbody>
+    <tbody>
+        <tr><th colspan=3 scope=rowgroup> FIRE
+        <tr><td>DANIEL A<td>FIREFIGHTER &amp; EMT<td>95484<tr><td>ROBERT K<td>FIREFIGHTER<td>103272
+    </tbody>
+
+    </table>
+    =#
 
 ## Introduction
 

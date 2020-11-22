@@ -13,52 +13,37 @@ This package provides a Julia string literal macro, `htl`, that builds
 an `HTML` object from a string template using Julia's interpolation
 syntax. We use Julia's parser to generate an Abstract Syntax Tree (AST),
 and then convert this tree to add variable escaping that takes into
-account the hypertext context. Here is an example usage.
-
-    database = [
-      (name = "POLICE",
-       employee = [
-        (name = "ANTHONY A", position = "POLICE OFFICER", salary = 72510),
-        (name = "JEFFERY A", position = "SERGEANT", salary = 101442),
-        (name = "NANCY A", position = "POLICE OFFICER", salary = 80016)]),
-      (name = "FIRE",
-       employee = [
-        (name = "DANIEL A", position = "FIREFIGHTER & EMT", salary = 95484),
-        (name = "ROBERT K", position = "FIREFIGHTER", salary = 103272)])]
+account the hypertext context.
 
     using HypertextLiteral
 
-    section(dept) = htl"""
-    <tbody>
-        <tr><th colspan=3 scope=rowgroup> $(dept.name)
-        $([htl"<tr><td>$(emp.name)<td>$(emp.position)<td>$(emp.salary)"
-            for emp in dept.employee])
-    </tbody>
+    books = [
+     (name="Who Gets What and Why", year=2012, authors=["Alvin Roth"]),
+     (name="Switch", year=2010, authors=["Chip Heath", "Dan Heath"]),
+     (name="Governing The Commons", year=1990, authors=["Elinor Ostrom"]),
+     (name="Peopleware", year=1987, authors=["Tom Demarco", "Tim Lister"]),
+     (name="Innovation & Entrepreneurship", year=1985, 
+      authors=["Peter Drucker"])]
+
+    render_row(book) = htl"""
+      <tr><td>$(book.name) ($(book.year))<td>$(join(book.authors, " & "))
     """
 
-    rendered = htl"""
-    <table>
-        <caption><h3>$("Police & Fire Department")</h3></caption>
-        <thead><tr><th>Name<th>Position<th>Salary</thead>
-        $([section(d) for d in database])
-    </table>
-    """
+    render_table(books) = htl"""
+      <table><caption><h3>Selected Books</h3></caption>
+      <thead><tr><th>Book<th>Authors<tbody>
+      $([render_row(b) for b in books])</tbody></table>"""
 
-    println(rendered.content)
+    display("text/html", render_table(books))
     #=>
-    <table>
-        <caption><h3>Police &amp; Fire Department</h3></caption>
-        <thead><tr><th>Name<th>Position<th>Salary</thead>
-        <tbody>
-        <tr><th colspan=3 scope=rowgroup> POLICE
-        <tr><td>ANTHONY A<td>POLICE OFFICER<td>72510<tr><td>JEFFERY A<td>SERGEANT<td>101442<tr><td>NANCY A<td>POLICE OFFICER<td>80016
-    </tbody>
-    <tbody>
-        <tr><th colspan=3 scope=rowgroup> FIRE
-        <tr><td>DANIEL A<td>FIREFIGHTER &amp; EMT<td>95484<tr><td>ROBERT K<td>FIREFIGHTER<td>103272
-    </tbody>
-
-    </table>
+    <table><caption><h3>Selected Books</h3></caption>
+    <thead><tr><th>Book<th>Authors<tbody>
+      <tr><td>Who Gets What and Why (2012)<td>Alvin Roth
+      <tr><td>Switch (2010)<td>Chip Heath &amp; Dan Heath
+      <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
+      <tr><td>Peopleware (1987)<td>Tom Demarco &amp; Tim Lister
+      <tr><td>Innovation &amp; Entrepreneurship (1985)<td>Peter Drucker
+    </tbody></table>
     =#
 
 ## Introduction

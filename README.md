@@ -18,12 +18,10 @@ account the hypertext context.
     using HypertextLiteral
 
     books = [
-     (name="Who Gets What and Why", year=2012, authors=["Alvin Roth"]),
+     (name="Who Gets What & Why", year=2012, authors=["Alvin Roth"]),
      (name="Switch", year=2010, authors=["Chip Heath", "Dan Heath"]),
      (name="Governing The Commons", year=1990, authors=["Elinor Ostrom"]),
-     (name="Peopleware", year=1987, authors=["Tom Demarco", "Tim Lister"]),
-     (name="Innovation & Entrepreneurship", year=1985, 
-      authors=["Peter Drucker"])]
+     (name="Peopleware", year=1987, authors=["Tom Demarco", "Tim Lister"])]
 
     render_row(book) = htl"""
       <tr><td>$(book.name) ($(book.year))<td>$(join(book.authors, " & "))
@@ -38,60 +36,29 @@ account the hypertext context.
     #=>
     <table><caption><h3>Selected Books</h3></caption>
     <thead><tr><th>Book<th>Authors<tbody>
-      <tr><td>Who Gets What and Why (2012)<td>Alvin Roth
+      <tr><td>Who Gets What &amp; Why (2012)<td>Alvin Roth
       <tr><td>Switch (2010)<td>Chip Heath &amp; Dan Heath
       <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
       <tr><td>Peopleware (1987)<td>Tom Demarco &amp; Tim Lister
-      <tr><td>Innovation &amp; Entrepreneurship (1985)<td>Peter Drucker
     </tbody></table>
     =#
 
-## Introduction
+We use [NarrativeTest][nt] to ensure our examples are correct. After
+each command is a comment with the expected output. This README can be
+validated by running `./test/runtests.jl` on the command line.
 
-The Julia ecosystem provides an `HTML` object type as part of its
-built-in documentation package. This lets us indicate that a given
-value is intended to be syntactically correct hypertext.
+## Basic Operations
 
-    html"<span>Hello World!</span>"
-    #-> HTML{String}("<span>Hello World!</span>")
-
-An the underlying string for a given `HTML` object can be accessed using
-the `content` attribute. However, there's little else, besides marking a
-string as hypertext, that is provided by the `html` syntax literal.
-
-    html"<span>Hello World</span>".content
-    #-> "<span>Hello World</span>"
-
-Julia uses `$` for string interpolation syntax, letting local variables
-or arbitrary expressions be accessed. However, it doesn't know about
-proper escaping in the context of hypertext content.
-
-    book = "Strunk & White"
-
-    "<span>Today's Reading: $book</span>"
-    #-> "<span>Today's Reading: Strunk & White</span>"
-
-Conversely, the built-in the `html` string literal doesn't provide
-interpolation, the `$` character is simply that, a dollar sign.
-
-    html"<span>Today's Reading: $book</span>"
-    #-> HTML{String}("<span>Today's Reading: \$book</span>")
-
-This package, `HypertextLiteral` provides an `htl` string literal which
-produces an `HTML` object, implementing common interpolation patterns
-and convenient data conversions.
+This package, `HypertextLiteral` provides an `htl` string literal and
+`@htl` function macro which produce `HTML` objects, implementing common
+interpolation patterns and convenient data conversions.
 
     using HypertextLiteral
 
+    book = "Strunk & White"
+
     htl"<span>Today's Reading: $book</span>"
     #-> HTML{String}("<span>Today's Reading: Strunk &amp; White</span>")
-
-The remainder of this documentation reviews functionality provided by
-the `htl` string macro. We use [NarrativeTest][nt] to ensure that
-examples provided here are executable. After each command is a comment
-(staring with the pound sign `#`) that indicates the output expected.
-
-## Basic Operations
 
 Besides simple string interpolation, there is an implicit conversion of
 `Number` values to their `String` representation.
@@ -100,6 +67,24 @@ Besides simple string interpolation, there is an implicit conversion of
 
     htl"$var"
     #-> HTML{String}("3")
+
+Within an `htl` strinThis
+
+    htl"2+2 = $(2+2)"
+    #-> HTML{String}("2+2 = 4")
+
+So that `HTML` objects are more easily viewed, let's create a `render`
+macro that displays the result using the `"text/html"` mimetype.
+
+    macro render(expr::Expr)
+        Expr(:call, :display, :("text/html"), expr)
+    end
+
+    @render htl"<span>Today's Reading: $book</span>"
+    #-> <span>Today's Reading: Strunk &amp; White</span>
+
+    @render htl"$(3)"
+    #-> 3
 
 To include a literal `$` in the output string, use `$$`. This differs
 from normal Julia strings where you would instead use `\$`.
@@ -163,6 +148,45 @@ This technique works with arbitrary Julia expressions.
 
     htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
     #-> HTML{String}("<ul><li>A</li><li>B&amp;C</li></ul>")
+
+## Design Discussion
+
+The Julia ecosystem provides an `HTML` data type as part of its built-in
+documentation package. We use this data type to indicate that a string
+value is intended to be syntactically valid hypertext.
+
+    html"<span>Hello World!</span>"
+    #-> HTML{String}("<span>Hello World!</span>")
+
+Since the display of `HTML` objects to the terminal is wrapped, we
+create a `render` macro that displays using the `"text/html"` mimetype.
+
+    macro render(expr::Expr)
+        Expr(:call, :display, :("text/html"), expr)
+    end
+
+    @render html"<span>Hello World!</span>"
+    #-> <span>Hello World!</span>
+
+Julia uses `$` for string interpolation syntax, letting local variables
+or arbitrary expressions be accessed. However, it doesn't know about
+proper escaping in the context of hypertext content.
+
+    book = "Strunk & White"
+
+    "<span>Today's Reading: $book</span>"
+    #-> "<span>Today's Reading: Strunk & White</span>"
+
+Conversely, the built-in the `html` string literal doesn't provide
+interpolation, the `$` character is simply that, a dollar sign.
+
+    html"<span>Today's Reading: $book</span>"
+    #-> HTML{String}("<span>Today's Reading: \$book</span>")
+
+The remainder of this documentation reviews functionality provided by
+the `htl` string macro. We use [NarrativeTest][nt] to ensure that
+examples provided here are executable. After each command is a comment
+(staring with the pound sign `#`) that indicates the output expected.
 
 ## Quirks
 

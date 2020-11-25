@@ -86,10 +86,9 @@ macro that displays the result using the `"text/html"` mimetype.
     @render htl"$(3)"
     #-> 3
 
-To include a literal `$` in the output string, use `$$`. This differs
-from normal Julia strings where you would instead use `\$`.
+To include a literal `$` in the output string, use `\$`.
 
-    htl"$$42.50"
+    htl"\$42.50"
     #-> HTML{String}("\$42.50")
 
 Interpolated strings are escaped.
@@ -238,14 +237,28 @@ something we can fix...
 
 ## Edge Cases & Regression Tests
 
+In Julia, to support regular expressions and other formats, string
+literals don't provide regular escaping semantics. This package adds
+those semantics.
+
+    htl"Hello\World"
+    #-> ERROR: LoadError: ArgumentError: invalid escape sequence⋮
+
 Escaped strings should just pass-though.
 
-    htl"\"\\".content
-    #-> "\"\\"
+    htl"\"\\\n".content
+    #-> "\"\\\n"
 
-We double-up on `$` to escape it.
+Note that Julia has interesting rules when an escape precedes a double
+quote, see `raw_str` for details. This is one case where the `htl`
+string macro cannot be made equivalent to regular string interpretation.
 
-    println(htl"$$42.00".content)
+    htl"\\\"\n".content
+    #-> "\"\n"
+
+To prevent interpolation, use `\` for an escape.
+
+    println(htl"\$42.00".content)
     #-> $42.00
 
 Interpolation should handle splat and concatinate.
@@ -266,10 +279,10 @@ A string ending with `$` is an syntax error since it is an incomplete
 interpolation.
 
     htl"$"
-    #-> ERROR: LoadError: "incomplete interpolation"⋮
+    #-> ERROR: LoadError: "invalid interpolation syntax"⋮
 
     htl"Foo$"
-    #-> ERROR: LoadError: "incomplete interpolation"⋮
+    #-> ERROR: LoadError: "invalid interpolation syntax"⋮
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

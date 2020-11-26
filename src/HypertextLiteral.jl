@@ -2,23 +2,44 @@
     HypertextLiteral
 
 This library provides for a `@htl()` macro and a `htl` string literal,
-implementing interpolation that is aware of hypertext escape context.
-The `@htl` macro has the advantage of using Julia's native string
-parsing, so that it can handle arbitrarily deep nesting. However, it is
-a more verbose than the `htl` string literal and doesn't permit
+both implementing interpolation that is aware of hypertext escape
+context. The `@htl` macro has the advantage of using Julia's native
+string parsing, so that it can handle arbitrarily deep nesting. However,
+it is a more verbose than the `htl` string literal and doesn't permit
 interpolated string literals. Conversely, the `htl` string literal,
 `@htl_str`, uses custom parsing letting it handle string literal
 escaping, however, it can only be used two levels deep (using three
 quotes for the outer nesting, and a single double quote for the inner).
 
-Both macros use the same hypertext lexing algorithm and call
-`htl_escape` to perform context sensitive hypertext escaping. User
-defined methods could be added to `htl_escape` so that this library
-could be made aware of custom data types.
+Both macros use the same hypertext lexing algorithm, implemented in
+`HypertextLiteral.htl_convert` and call `HypertextLiteral.htl_escape` to
+perform context sensitive hypertext escaping. User defined methods could
+be added to `htl_escape` so that this library could be made aware of
+custom data types.
 """
 module HypertextLiteral
 
-export @htl_str, @htl, htl_escape
+export @htl_str, @htl
+
+"""
+    htl_convert(context, exprs[])::Expr
+
+Transform a vector consisting of string literals (leave as-is) and
+interpolated expressions (that are to be escaped) into an expression
+with context-sensitive escaping.
+"""
+function htl_convert(context::Symbol, exprs::Vector{Any})::Expr
+    args = Union{String, Expr}[]
+    for expr in exprs
+        if expr isa String
+            # update the context....
+            push!(args, expr)
+            continue
+        end
+        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(expr)))
+    end
+    return Expr(:call, :HTML, Expr(:string, args...))
+end
 
 """
     @htl string-expression
@@ -29,32 +50,23 @@ is performed by `htl_escape`. Rather than escaping interpolated string
 literals, e.g. `\$("Strunk & White")`, they are treated as errors since
 they cannot be reliably detected (see Julia issue #38501).
 """
-macro htl(expr)
-    # The implementation tracks hypertext context and wraps calls to any
-    # other object to `htl_escape`. It attempts to identify interpolated
-    # string literals, raising an error if they are discovered.
+macro htl(expr, context=:content)
     if expr isa String
         return HTML(expr)
     end
+    # Find cases where we may have an interpolated string literal and
+    # raise an exception (till Julia issue #38501 is addressed)
     @assert expr isa Expr
     @assert expr.head == :string
-    cntx = :content
-    last = nothing
     if length(expr.args) == 1 && expr.args[1] isa String
         throw("interpolated string literals are not supported")
     end
-    for (idx, nest) in enumerate(expr.args)
-        if nest isa String        
-            if last isa String
-                throw("interpolated string literals are not supported")
-            end
-            last = nest
-            continue
+    for idx in 2:length(expr.args)
+        if expr.args[idx] isa String && expr.args[idx-1] isa String
+            throw("interpolated string literals are not supported")
         end
-        last = nest
-        expr.args[idx] = Expr(:call, :htl_escape, QuoteNode(cntx), esc(nest))
     end
-    return Expr(:call, :HTML, expr)
+    return htl_convert(context, expr.args)
 end
 
 """
@@ -66,7 +78,7 @@ is performed by `htl_escape`. Escape sequences should work identically
 to Julia strings, except in cases where a slash immediately precedes the
 double quote (see `@raw_str` and Julia issue #22926 for details).
 """
-macro htl_str(expr::String)
+macro htl_str(expr::String, context=:content)
     # The implementation of this macro attempts to emulate Julia's string
     # processing behavior by: (a) unescaping strings, (b) searching for
     # unescaped `\$` and using `parse()` to treat the subordinate
@@ -78,7 +90,6 @@ macro htl_str(expr::String)
     if !occursin("\$", expr)
         return HTML(unescape_string(expr))
     end
-    cntx = :content
     args = Union{String, Expr}[]
     svec = String[]
     start = idx = 1
@@ -111,14 +122,14 @@ macro htl_str(expr::String)
         end
         start = idx
         if nest isa AbstractString
-            push!(svec, htl_escape(cntx, nest))
+            push!(svec, htl_escape(context, nest))
             continue
         end
         if !isempty(svec)
             push!(args, join(svec))
             empty!(svec)
         end
-        push!(args, Expr(:call, :htl_escape, QuoteNode(cntx), esc(nest)))
+        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(nest)))
     end
     if start <= strlen
         push!(svec, unescape_string(SubString(expr, start:strlen)))

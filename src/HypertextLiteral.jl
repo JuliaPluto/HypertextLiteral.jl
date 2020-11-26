@@ -22,31 +22,6 @@ module HypertextLiteral
 export @htl_str, @htl
 
 """
-    htl_convert(context, exprs[])::Expr
-
-Transform a vector consisting of string literals (leave as-is) and
-interpolated expressions (that are to be escaped) into an expression
-with context-sensitive escaping.
-"""
-function htl_convert(context::Symbol, exprs::Vector{Any})::Expr
-    args = Union{String, Expr}[]
-    for expr in exprs
-        if expr isa String
-            # update the context....
-            push!(args, expr)
-            continue
-        end
-        if expr isa Expr && expr.head == :string && length(expr.args) == 1
-            # we can escape interpolated string literals early
-            push!(args, htl_escape(context, expr.args[1]))
-            continue
-        end
-        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(expr)))
-    end
-    return Expr(:call, :HTML, Expr(:string, args...))
-end
-
-"""
     @htl string-expression
 
 Create a `HTML{String}` with string interpolation (`\$`) that uses
@@ -134,6 +109,31 @@ macro htl_str(expr::String, context=:content)
 end
 
 """
+    htl_convert(context, exprs[])::Expr
+
+Transform a vector consisting of string literals (leave as-is) and
+interpolated expressions (that are to be escaped) into an expression
+with context-sensitive escaping.
+"""
+function htl_convert(context::Symbol, exprs::Vector{Any})::Expr
+    args = Union{String, Expr}[]
+    for expr in exprs
+        if expr isa String
+            # update the context....
+            push!(args, expr)
+            continue
+        end
+        if expr isa Expr && expr.head == :string && length(expr.args) == 1
+            # we can escape interpolated string literals early
+            push!(args, htl_escape(context, expr.args[1]))
+            continue
+        end
+        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(expr)))
+    end
+    return Expr(:call, :HTML, Expr(:string, args...))
+end
+
+"""
     htl_escape(context::Symbol, obj)::String
 
 For a given HTML lexical context and an arbitrary Julia object, return
@@ -162,7 +162,7 @@ function htl_escape(context::Symbol, obj)::String
         extra = ""
         if obj isa AbstractVector
             extra = ("\nPerhaps use splatting? e.g. " *
-                     "htl\"\"\"\$([x for x in 1:3]...)\"\"\"")
+                     "htl\"\$([x for x in 1:3]...)\"")
         end
         throw(DomainError(obj,
          "Type $(typeof(obj)) lacks an `htl_escape` specialization.$(extra)"))
@@ -173,5 +173,7 @@ function htl_escape(context::Symbol, obj...)::String
     # support splatting interpolation via concatenation
     return join([htl_escape(context, x) for x in obj])
 end
+
+
 
 end

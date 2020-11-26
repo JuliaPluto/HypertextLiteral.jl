@@ -9,11 +9,12 @@ and provides handy conversions dependent upon context.*
 > ([@mbostock][@mbostock]). You can read more about it
 > [here][observablehq].
 
-This package provides a Julia string literal macro, `htl`, that builds
-an `HTML` object from a string template using Julia's interpolation
-syntax. We use Julia's parser to generate an Abstract Syntax Tree (AST),
-and then convert this tree to add variable escaping that takes into
-account the hypertext context.
+This package provides a Julia string literal, `htl`, and macro `@htl`
+that build an `HTML` object from a string template using Julia's
+interpolation syntax. These operations take the hypertext syntax into
+account, providing context-sensitive escaping and object serializations.
+Here we show an example using triple-quoted `htl` string literal, notice
+how ampersands are properly escaped in the book name and author listing.
 
     using HypertextLiteral
 
@@ -68,7 +69,7 @@ Besides simple string interpolation, there is an implicit conversion of
     htl"$var"
     #-> HTML{String}("3")
 
-Within an `htl` strinThis
+Within an `htl` string, Julia results can be interpolated.
 
     htl"2+2 = $(2+2)"
     #-> HTML{String}("2+2 = 4")
@@ -148,6 +149,20 @@ This technique works with arbitrary Julia expressions.
     htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
     #-> HTML{String}("<ul><li>A</li><li>B&amp;C</li></ul>")
 
+## HTL Macro
+
+These same operations can be invoked using the `@htl` macro. Note that
+unlike the string literal, arbitrary nesting is possible even while
+using only single quotes.
+
+    book = "Strunk & White"
+
+    @htl("<span>Today's Reading: $book</span>")
+    #-> HTML{String}("<span>Today's Reading: Strunk &amp; White</span>")
+
+    @htl("<ul>$([ @htl("<li>$x</li>") for x in ["A", "B&C"]])</ul>")
+    #-> HTML{String}("<ul><li>A</li><li>B&amp;C</li></ul>")
+
 ## Design Discussion
 
 The Julia ecosystem provides an `HTML` data type as part of its built-in
@@ -223,6 +238,17 @@ Only that internal string literals like this are properly escaped.
     htl"""Look, Ma, $("<i>automatic escaping</i>")!"""
     #-> HTML{String}("Look, Ma, &lt;i>automatic escaping&lt;/i>!")
 
+We cannot reliably detect interpolated string literals using the `@htl`
+macro, so they are errors (in the cases we can find them).
+
+    @htl "Look, Ma, $("<i>automatic escaping</i>")!"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+
+However, you can fix this by using a string.
+
+    @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
+    #-> HTML{String}("Look, Ma, &lt;i>automatic escaping&lt;/i>!")
+
 We can nest literal expressions, so long as the outer nesting uses
 triple quotes.
 
@@ -244,9 +270,15 @@ those semantics.
     htl"Hello\World"
     #-> ERROR: LoadError: ArgumentError: invalid escape sequence⋮
 
+    @htl "Hello\World"
+    #-> ERROR: syntax: invalid escape sequence⋮
+
 Escaped strings should just pass-though.
 
     htl"\"\\\n".content
+    #-> "\"\\\n"
+
+    @htl("\"\\\n").content
     #-> "\"\\\n"
 
 Note that Julia has interesting rules when an escape precedes a double
@@ -256,24 +288,45 @@ string macro cannot be made equivalent to regular string interpretation.
     htl"\\\"\n".content
     #-> "\"\n"
 
+    @htl("\\\"\n").content
+    #-> "\\\"\n"
+
 To prevent interpolation, use `\` for an escape.
 
     println(htl"\$42.00".content)
     #-> $42.00
 
-Interpolation should handle splat and concatinate.
+    println(@htl("\$42.00").content)
+    #-> $42.00
 
-    htl"""$([x for x in [1,2,3]]...)"""
+Interpolation should handle splat and concatenate.
+
+    htl"$([x for x in [1,2,3]]...)"
     #-> HTML{String}("123")
 
-However, it shouldn't concatinate by default.
+    @htl "$([x for x in [1,2,3]]...)"
+    #-> HTML{String}("123")
 
-    htl"""$([x for x in 1:3])"""
+However, it shouldn't concatenate by default.
+
+    htl"$([x for x in 1:3])"
     #=>
     ERROR: DomainError with [1, 2, 3]:
     Type Array{Int64,1} lacks an `htl_escape` specialization.
     Perhaps use splatting? e.g. htl"""$([x for x in 1:3]...)"""
     =#
+
+    @htl "$([x for x in 1:3])"
+    #=>
+    ERROR: DomainError with [1, 2, 3]:
+    Type Array{Int64,1} lacks an `htl_escape` specialization.
+    Perhaps use splatting? e.g. htl"""$([x for x in 1:3]...)"""
+    =#
+
+Bare string literals cannot be used with macro either.
+
+    @htl "$("bare")"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 A string ending with `$` is an syntax error since it is an incomplete
 interpolation.
@@ -283,6 +336,7 @@ interpolation.
 
     htl"Foo$"
     #-> ERROR: LoadError: "invalid interpolation syntax"⋮
+
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

@@ -36,6 +36,11 @@ function htl_convert(context::Symbol, exprs::Vector{Any})::Expr
             push!(args, expr)
             continue
         end
+        if expr isa Expr && expr.head == :string && length(expr.args) == 1
+            # we can escape interpolated string literals early
+            push!(args, htl_escape(context, expr.args[1]))
+            continue
+        end
         push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(expr)))
     end
     return Expr(:call, :HTML, Expr(:string, args...))
@@ -79,19 +84,15 @@ to Julia strings, except in cases where a slash immediately precedes the
 double quote (see `@raw_str` and Julia issue #22926 for details).
 """
 macro htl_str(expr::String, context=:content)
-    # The implementation of this macro attempts to emulate Julia's string
-    # processing behavior by: (a) unescaping strings, (b) searching for
-    # unescaped `\$` and using `parse()` to treat the subordinate
-    # expression, (c) building up string literals and sending them
-    # though an hypertext lexer to track escaping context, (d)
-    # immediately escaping string values by context with `htl_escape`,
-    # and (e) wrapping dynamic expressions with a call to `htl_escape`
-    # with the given escaping context.
-    if !occursin("\$", expr)
+    # This implementation emulates Julia's string interpolation behavior
+    # as close as possible to produce an expression vector similar to
+    # what would be produced by the `@htl` macro. Unlike most text
+    # literals, we unescape content here. This logic also directly
+    # handles interpolated literals, with contextual escaping.
+    if !('$' in expr)
         return HTML(unescape_string(expr))
     end
-    args = Union{String, Expr}[]
-    svec = String[]
+    args = Any[]
     start = idx = 1
     strlen = length(expr)
     escaped = false
@@ -107,38 +108,29 @@ macro htl_str(expr::String, context=:content)
             idx += 1
             continue
         end
+        finish = idx - (escaped ? 2 : 1)
+        push!(args, unescape_string(SubString(expr, start:finish)))
+        start = idx += 1
         if escaped
             escaped = false
-            push!(svec, unescape_string(SubString(expr, start:idx-2)))
-            push!(svec, "\$")
-            start = idx += 1
+            push!(args, "\$")
             continue
         end
-        push!(svec, unescape_string(SubString(expr, start:idx-1)))
-        start = idx += 1
         (nest, idx) = Meta.parse(expr, start; greedy=false)
         if nest == nothing
             throw("invalid interpolation syntax")
         end
         start = idx
-        if nest isa AbstractString
-            push!(svec, htl_escape(context, nest))
-            continue
+        if nest isa String
+            # this is an interpolated string literal
+            nest = Expr(:string, nest)
         end
-        if !isempty(svec)
-            push!(args, join(svec))
-            empty!(svec)
-        end
-        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(nest)))
+        push!(args, nest)
     end
     if start <= strlen
-        push!(svec, unescape_string(SubString(expr, start:strlen)))
+        push!(args, unescape_string(SubString(expr, start:strlen)))
     end
-    if !isempty(svec)
-        push!(args, join(svec))
-        empty!(svec)
-    end
-    return Expr(:call, :HTML, Expr(:call, :string, args...))
+    return htl_convert(context, args)
 end
 
 """

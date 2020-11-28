@@ -30,9 +30,9 @@ is performed by `htl_escape`. Rather than escaping interpolated string
 literals, e.g. `\$("Strunk & White")`, they are treated as errors since
 they cannot be reliably detected (see Julia issue #38501).
 """
-macro htl(expr, context=:content)
+macro htl(expr)
     if expr isa String
-        return HTML(expr)
+        return htl_convert([expr])
     end
     # Find cases where we may have an interpolated string literal and
     # raise an exception (till Julia issue #38501 is addressed)
@@ -46,7 +46,7 @@ macro htl(expr, context=:content)
             throw("interpolated string literals are not supported")
         end
     end
-    return htl_convert(context, expr.args)
+    return htl_convert(expr.args)
 end
 
 """
@@ -58,16 +58,14 @@ is performed by `htl_escape`. Escape sequences should work identically
 to Julia strings, except in cases where a slash immediately precedes the
 double quote (see `@raw_str` and Julia issue #22926 for details).
 """
-macro htl_str(expr::String, context=:content)
+macro htl_str(expr::String)
     # This implementation emulates Julia's string interpolation behavior
     # as close as possible to produce an expression vector similar to
     # what would be produced by the `@htl` macro. Unlike most text
     # literals, we unescape content here. This logic also directly
     # handles interpolated literals, with contextual escaping.
-    if !('$' in expr)
-        return HTML(unescape_string(expr))
-    end
     args = Any[]
+    vstr = String[]
     start = idx = 1
     strlen = length(expr)
     escaped = false
@@ -84,11 +82,11 @@ macro htl_str(expr::String, context=:content)
             continue
         end
         finish = idx - (escaped ? 2 : 1)
-        push!(args, unescape_string(SubString(expr, start:finish)))
+        push!(vstr, unescape_string(SubString(expr, start:finish)))
         start = idx += 1
         if escaped
             escaped = false
-            push!(args, "\$")
+            push!(vstr, "\$")
             continue
         end
         (nest, idx) = Meta.parse(expr, start; greedy=false)
@@ -100,26 +98,36 @@ macro htl_str(expr::String, context=:content)
             # this is an interpolated string literal
             nest = Expr(:string, nest)
         end
+        if length(vstr) > 0
+            push!(args, join(vstr))
+            empty!(vstr)
+        end
         push!(args, nest)
     end
     if start <= strlen
-        push!(args, unescape_string(SubString(expr, start:strlen)))
+        push!(vstr, unescape_string(SubString(expr, start:strlen)))
     end
-    return htl_convert(context, args)
+    if length(vstr) > 0
+        push!(args, join(vstr))
+        empty!(vstr)
+    end
+    return htl_convert(args)
 end
 
 """
-    htl_convert(context, exprs[])::Expr
+    htl_convert(exprs[])::Expr
 
-Transform a vector consisting of string literals (leave as-is) and
-interpolated expressions (that are to be escaped) into an expression
-with context-sensitive escaping.
+Transform a vector consisting of hypertext fragments and interpolated
+expressions (that are to be escaped) into an expression with
+context-sensitive escaping. The fragments are typically passed along
+as-is, however, they could be transformed and/or normalized.
 """
-function htl_convert(context::Symbol, exprs::Vector{Any})::Expr
+function htl_convert(exprs)::Expr
+    context = :content
     args = Union{String, Expr}[]
     for expr in exprs
         if expr isa String
-            # update the context....
+            # the html fragment may be modified
             push!(args, expr)
             continue
         end
@@ -144,9 +152,9 @@ its content is returned; `Vector{HTML{String}}` are concatenated; any
 `Number` is converted to a string using `string()`; and `AbstractString`
 objects are escaped according to context.
 
-There are several escaping contexts. The `:content` context is for HTML
-content, at a minimum, the ampersand (`&`) and less-than (`<`) characters
-must be escaped.
+There are several escaping contexts. The `:content` scope is for HTML
+content, at a minimum, the ampersand (`&`) and less-than (`<`)
+characters must be escaped.
 """
 function htl_escape(context::Symbol, obj)::String
     @assert context == :content
@@ -173,7 +181,5 @@ function htl_escape(context::Symbol, obj...)::String
     # support splatting interpolation via concatenation
     return join([htl_escape(context, x) for x in obj])
 end
-
-
 
 end

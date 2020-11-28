@@ -320,7 +320,7 @@ However, it shouldn't concatenate by default.
     #=>
     ERROR: DomainError with [1, 2, 3]:
     Type Array{Int64,1} lacks an `htl_escape` specialization.
-    Perhaps use splatting? e.g. htl"""$([x for x in 1:3]...)"""
+    Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)"
     =#
 
 Bare string literals cannot be used with macro either.

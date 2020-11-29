@@ -33,6 +33,7 @@ mutable struct HTL
 end
 
 HTL(xs...) = HTL(xs)
+HTL(s::AbstractString) = HTL([s])
 
 function Base.show(io::IO, mime::MIME"text/html", h::HTL)
     for item in h.content
@@ -46,7 +47,7 @@ end
 
 Base.show(io::IO, h::HTL) =
     print(io, "HTL(\"$(escape_string(sprint() do io
-                  Base.show(io,MIME("text/html"),h) end))\")")
+                  Base.show(io, MIME("text/html"), h) end))\")")
 
 """
     @htl string-expression
@@ -58,7 +59,7 @@ since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     if expr isa String
-        return htl_convert([expr])
+        return :(HTL($expr))
     end
     # Find cases where we may have an interpolated string literal and
     # raise an exception (till Julia issue #38501 is addressed)
@@ -72,7 +73,7 @@ macro htl(expr)
             throw("interpolated string literals are not supported")
         end
     end
-    return htl_convert(expr.args)
+    return hypertext([ex isa String ? ex : esc(ex) for ex in expr.args])
 end
 
 """
@@ -136,34 +137,7 @@ macro htl_str(expr::String)
         push!(args, join(vstr))
         empty!(vstr)
     end
-    return htl_convert(args)
-end
-
-"""
-    htl_convert(exprs[])::Expr
-
-Transform a vector consisting of hypertext fragments and interpolated
-expressions (that are to be escaped) into an expression with
-context-sensitive escaping. The fragments are typically passed along
-as-is, however, they could be transformed and/or normalized. This logic
-inlines the splat operator.
-"""
-function htl_convert(exprs)::Expr
-    local args = Union{String, Expr}[]
-    for expr in exprs
-        if expr isa String
-            push!(args, expr)
-            continue
-        end
-        if expr isa Expr && expr.head == :...
-            # TODO: handle splat...
-            #for part in $(esc(expr.args[1]))
-            #    push!(args, Escaped(part))
-            #end
-        end
-        push!(args, esc(expr))
-    end
-    return hypertext(args)
+    return hypertext([ex isa String ? ex : esc(ex) for ex in args])
 end
 
 abstract type InterpolatedValue end
@@ -295,7 +269,7 @@ function isSpaceCode(code)
     ) # normalize newlines
 end
 
-function hypertext(args::Vector{Union{String, Expr}})
+function hypertext(args)
     state = STATE_DATA
     parts = Union{String, Expr}[]
     nameStart = 0

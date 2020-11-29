@@ -11,11 +11,10 @@ interpolated string literals. Conversely, the `htl` string literal,
 escaping, however, it can only be used two levels deep (using three
 quotes for the outer nesting, and a single double quote for the inner).
 
-Both macros use the same hypertext lexing algorithm, implemented in
-`HypertextLiteral.htl_convert` and call `HypertextLiteral.htl_escape` to
-perform context sensitive hypertext escaping. User defined methods could
-be added to `htl_escape` so that this library could be made aware of
-custom data types.
+Both macros use the same conversion, `HypertextLiteral.htl_convert`,
+which calls `HypertextLiteral.htl_escape` to perform context sensitive
+hypertext escaping. User defined methods could be added to `htl_escape`
+so that this library could be made aware of custom data types.
 """
 module HypertextLiteral
 
@@ -120,25 +119,31 @@ end
 Transform a vector consisting of hypertext fragments and interpolated
 expressions (that are to be escaped) into an expression with
 context-sensitive escaping. The fragments are typically passed along
-as-is, however, they could be transformed and/or normalized.
+as-is, however, they could be transformed and/or normalized. This logic
+inlines the splat operator.
 """
 function htl_convert(exprs)::Expr
-    context = :content
-    args = Union{String, Expr}[]
-    for expr in exprs
-        if expr isa String
-            # the html fragment may be modified
-            push!(args, expr)
-            continue
-        end
-        if expr isa Expr && expr.head == :string && length(expr.args) == 1
-            # we can escape interpolated string literals early
-            push!(args, htl_escape(context, expr.args[1]))
-            continue
-        end
-        push!(args, Expr(:call, :htl_escape, QuoteNode(context), esc(expr)))
+    quote
+        local args = Any[]
+        $(map(exprs) do expr
+            if expr isa String
+                quote
+                    push!(args, $(expr))
+                end
+            elseif expr isa Expr && expr.head == :...
+                quote
+                    for part in $(esc(expr.args[1]))
+                        push!(args, htl_escape(part))
+                    end
+                end
+            else
+                quote
+                    push!(args, htl_escape($(esc(expr))))
+                end
+            end
+        end...)
+        HTML(string(args...))
     end
-    return Expr(:call, :HTML, Expr(:string, args...))
 end
 
 """
@@ -156,8 +161,7 @@ There are several escaping contexts. The `:content` scope is for HTML
 content, at a minimum, the ampersand (`&`) and less-than (`<`)
 characters must be escaped.
 """
-function htl_escape(context::Symbol, obj)::String
-    @assert context == :content
+function htl_escape(obj)::String
     if obj isa HTML{String}
         return obj.content
     elseif obj isa Vector{HTML{String}}
@@ -175,11 +179,6 @@ function htl_escape(context::Symbol, obj)::String
         throw(DomainError(obj,
          "Type $(typeof(obj)) lacks an `htl_escape` specialization.$(extra)"))
     end
-end
-
-function htl_escape(context::Symbol, obj...)::String
-    # support splatting interpolation via concatenation
-    return join([htl_escape(context, x) for x in obj])
 end
 
 #

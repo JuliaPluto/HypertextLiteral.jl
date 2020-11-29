@@ -259,21 +259,21 @@ those semantics.
 
 Escaped strings should just pass-though.
 
-    htl"\"\\\n".content
-    #-> "\"\\\n"
+    htl"\"\\\n"
+    #-> HTL("\"\\\n")
 
-    @htl("\"\\\n").content
-    #-> "\"\\\n"
+    @htl("\"\\\n")
+    #-> HTL("\"\\\n")
 
 Note that Julia has interesting rules when an escape precedes a double
 quote, see `raw_str` for details. This is one case where the `htl`
 string macro cannot be made equivalent to regular string interpretation.
 
-    htl"\\\"\n".content
-    #-> "\"\n"
+    htl"\\\"\n"
+    #-> HTL("\"\n")
 
-    @htl("\\\"\n").content
-    #-> "\\\"\n"
+    @htl("\\\"\n")
+    #-> HTL("\\\"\n")
 
 To prevent interpolation, use `\` for an escape.
 

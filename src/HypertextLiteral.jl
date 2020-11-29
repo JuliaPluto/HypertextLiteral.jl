@@ -13,7 +13,40 @@ quotes for the outer nesting, and a single double quote for the inner).
 """
 module HypertextLiteral
 
-export @htl_str, @htl
+export HTL, @htl_str, @htl
+
+"""
+`HTL(s)`: Create an array of objects that render as html.
+
+    HTL("<div>foo</div>")
+
+This is similar `HTML{Vector}` with a few exceptions. First, the
+contents of the vector are concatinated. Second, direct rendering is
+limited to `AbstractString`, others are delegated to `show`. Third, the
+splat constructor converts arguments to the `HTL` vector.
+
+Finally, regular display of the value to the terminal renders the
+objects and produces the equivalent string representation (unwise?).
+"""
+mutable struct HTL
+    content::Vector
+end
+
+HTL(xs...) = HTL(xs)
+
+function Base.show(io::IO, mime::MIME"text/html", h::HTL)
+    for item in h.content
+        if item isa AbstractString
+            print(io, item)
+        else
+            Base.show(io, mime, item)
+        end
+    end
+end
+
+Base.show(io::IO, h::HTL) =
+    print(io, "HTL(\"$(escape_string(sprint() do io
+                  Base.show(io,MIME("text/html"),h) end))\")")
 
 """
     @htl string-expression
@@ -160,6 +193,8 @@ struct AttributeDoubleQuoted <: InterpolatedValue value end
 struct AttributeSingleQuoted <: InterpolatedValue value end
 struct BeforeAttributeName <: InterpolatedValue value end
 
+StateData(args...) = HTL([StateData(item) for item in args])
+
 function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
     if x.value isa Dict
         for (key, value) in pairs(x.value)
@@ -174,63 +209,6 @@ function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
     end
 end
 
-struct InterpolateArray
-    arr::Array
-end
-
-function show_interpolation(arr::InterpolateArray)
-    for value in arr.arr
-        if value isa InterpolatedValue
-            return sprint(dump, value) |> Text
-        end
-    end
-end
-
-const HtlString = InterpolateArray
-
-function Base.:*(arr::InterpolateArray, string::String)
-    if isempty(arr.arr)
-        InterpolateArray([string])
-    elseif typeof(last(arr.arr)) == String
-        InterpolateArray([
-            arr.arr[begin:end-1]...,
-            last(arr.arr) * string
-        ])
-    else
-        InterpolateArray([arr.arr..., string])
-    end
-end
-
-function Base.:*(arr::InterpolateArray, something::InterpolatedValue)
-    InterpolateArray([arr.arr..., something])
-end
-
-function Base.length(arr::InterpolateArray)
-    sum(map(arr.arr) do x
-        if x isa AbstractString
-            length(x)
-        else
-            1
-        end
-    end)
-end
-
-function Base.getindex(arr::InterpolateArray, range::UnitRange)
-    InterpolateArray([
-        arr.arr[begin:end-1]...,
-        arr.arr[end][range]
-    ])
-end
-
-function Base.show(io::IO, mime::MIME"text/html", array::InterpolateArray)
-    for item in array.arr
-        if item isa AbstractString
-            print(io, item)
-        else
-            show(io, mime, item)
-        end
-    end
-end
 
 begin
     const CODE_TAB = 9
@@ -277,7 +255,7 @@ end
 function Base.show(io::IO, mime::MIME"text/html", child::StateData)
     if showable(MIME("text/html"), child.value)
         show(io, mime, child.value)
-    elseif child.value isa AbstractArray{HtlString}
+    elseif child.value isa AbstractArray{<:HTL}
         for subchild in child.value
             show(io, mime, subchild)
         end
@@ -595,7 +573,7 @@ function hypertext(args::Vector{Union{String, Expr}})
 
     end
 
-    return Expr(:call, :InterpolateArray, Expr(:vect, parts...))
+    return Expr(:call, :HTL, Expr(:vect, parts...))
 end
 
 function isObjectLiteral(value)

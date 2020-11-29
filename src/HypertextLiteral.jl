@@ -116,34 +116,22 @@ as-is, however, they could be transformed and/or normalized. This logic
 inlines the splat operator.
 """
 function htl_convert(exprs)::Expr
-    quote
-        local args = Any[]
-        $(map(exprs) do expr
-            if expr isa String
-                quote
-                    push!(args, $(expr))
-                end
-            elseif expr isa Expr && expr.head == :...
-                quote
-                    for part in $(esc(expr.args[1]))
-                        push!(args, Escaped(part))
-                    end
-                end
-            else
-                quote
-                    push!(args, Escaped($(esc(expr))))
-                end
-            end
-        end...)
-        hypertext(args)
+    local args = Union{String, Expr}[]
+    for expr in exprs
+        if expr isa String
+            push!(args, expr)
+            continue
+        end
+        if expr isa Expr && expr.head == :...
+            # TODO: handle splat...
+            #for part in $(esc(expr.args[1]))
+            #    push!(args, Escaped(part))
+            #end
+        end
+        push!(args, esc(expr))
     end
+    return hypertext(args)
 end
-
-#
-# Code imported from Michiel Dral
-#
-
-struct Escaped value end
 
 abstract type InterpolatedValue end
 
@@ -329,51 +317,36 @@ function isSpaceCode(code)
     ) # normalize newlines
 end
 
-function hypertext(args)
+function hypertext(args::Vector{Union{String, Expr}})
     state = STATE_DATA
-    string = InterpolateArray([])
+    parts = Union{String, Expr}[]
     nameStart = 0
     nameEnd = 0
 
     for j in 1:length(args)
-        if args[j] isa Escaped
-            value = args[j].value
-
+        input = args[j]
+        if input isa Expr
             if state == STATE_DATA
-                string *= StateData(value)
-
+                push!(parts, :(StateData($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
-
-                name = args[j - 1][nameStart:nameEnd]
-                prefixlength = length(string) - nameStart
-
-                string = InterpolateArray([
-                    string.arr[begin:end-1]...,
-                    string.arr[end][begin:nameStart - 1]
-                ])
-
-
-                # string = string[1:(nameStart - length(strings[j - 1]))]
-                string *= AttributeValue(name, value)
-
+                # rewrite previous text string to remove `attname=`
+                name = parts[end][nameStart:nameEnd]
+                parts[end] = parts[end][begin:nameStart - 1]
+                push!(parts, :(AttributeValue($name, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
-                string *= AttributeUnquoted(value)
-
+                push!(parts, :(AttributeUnquoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                string *= AttributeSingleQuoted(value)
-
+                push!(parts, :(AttributeSingleQuoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                string *= AttributeDoubleQuoted(value)
-
+                push!(parts, :(AttributeDoubleQuoted($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
-                string *= BeforeAttributeName(value)
-
+                push!(parts, :(BeforeAttributeName($input)))
             elseif state == STATE_COMMENT || true
                 throw("invalid binding #1 $(state)")
             end
         else
-            input = args[j]
+            @assert input isa String
             inputlength = length(input)
             i = 1
             while i <= inputlength
@@ -616,12 +589,13 @@ function hypertext(args)
 
                 i = i + 1
             end
-        string *= input
+
+            push!(parts, input)
         end
 
     end
 
-    return string
+    return Expr(:call, :InterpolateArray, Expr(:vect, parts...))
 end
 
 function isObjectLiteral(value)

@@ -59,7 +59,7 @@ since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     if expr isa String
-        return :(HTL($expr))
+        return hypertext([expr])
     end
     # Find cases where we may have an interpolated string literal and
     # raise an exception (till Julia issue #38501 is addressed)
@@ -161,13 +161,13 @@ end
 Base.show(io::IO, mime::MIME"application/javascript", js::Javascript) =
     print(io, js.content)
 
-struct StateData <: InterpolatedValue value end
+struct ElementContent <: InterpolatedValue value end
 struct AttributeUnquoted <: InterpolatedValue value end
 struct AttributeDoubleQuoted <: InterpolatedValue value end
 struct AttributeSingleQuoted <: InterpolatedValue value end
 struct BeforeAttributeName <: InterpolatedValue value end
 
-StateData(args...) = HTL([StateData(item) for item in args])
+ElementContent(args...) = HTL([ElementContent(item) for item in args])
 
 function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
     if x.value isa Dict
@@ -226,15 +226,27 @@ entity(ch::Char) = begin
     end
 end
 
-function Base.show(io::IO, mime::MIME"text/html", child::StateData)
+function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
     if showable(MIME("text/html"), child.value)
         show(io, mime, child.value)
     elseif child.value isa AbstractArray{<:HTL}
         for subchild in child.value
             show(io, mime, subchild)
         end
-    else
+    elseif child.value isa AbstractString
+        print(io, replace(child.value, r"[<&]" => entity))
+    elseif child.value isa Number
         print(io, replace(string(child.value), r"[<&]" => entity))
+    elseif child.value isa AbstractVector
+        throw(DomainError(child.value, """
+          Type $(typeof(child.value)) lacks a show method for text/html.
+          Perhaps use splatting? e.g. htl"\$([x for x in 1:3]...)
+        """))
+    else
+        throw(DomainError(child.value, """
+          Type $(typeof(child.value)) lacks a show method for text/html.
+          Alternatively, you can cast the value to a string first.
+        """))
     end
 end
 
@@ -279,7 +291,7 @@ function hypertext(args)
         input = args[j]
         if input isa Expr
             if state == STATE_DATA
-                push!(parts, :(StateData($input)))
+                push!(parts, :(ElementContent($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`

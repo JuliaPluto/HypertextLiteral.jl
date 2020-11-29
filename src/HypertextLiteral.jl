@@ -10,11 +10,6 @@ interpolated string literals. Conversely, the `htl` string literal,
 `@htl_str`, uses custom parsing letting it handle string literal
 escaping, however, it can only be used two levels deep (using three
 quotes for the outer nesting, and a single double quote for the inner).
-
-Both macros use the same conversion, `HypertextLiteral.htl_convert`,
-which calls `HypertextLiteral.htl_escape` to perform context sensitive
-hypertext escaping. User defined methods could be added to `htl_escape`
-so that this library could be made aware of custom data types.
 """
 module HypertextLiteral
 
@@ -24,10 +19,9 @@ export @htl_str, @htl
     @htl string-expression
 
 Create a `HTML{String}` with string interpolation (`\$`) that uses
-context-sensitive hypertext escaping. Escaping of interpolated results
-is performed by `htl_escape`. Rather than escaping interpolated string
-literals, e.g. `\$("Strunk & White")`, they are treated as errors since
-they cannot be reliably detected (see Julia issue #38501).
+context-sensitive hypertext escaping. Rather than escaping interpolated
+string literals, e.g. `\$("Strunk & White")`, they are treated as errors
+since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     if expr isa String
@@ -52,10 +46,9 @@ end
     @htl_str -> Base.Docs.HTML{String}
 
 Create a `HTML{String}` with string interpolation (`\$`) that uses
-context-sensitive hypertext escaping. Escaping of interpolated results
-is performed by `htl_escape`. Escape sequences should work identically
-to Julia strings, except in cases where a slash immediately precedes the
-double quote (see `@raw_str` and Julia issue #22926 for details).
+context-sensitive hypertext escaping. Escape sequences should work
+identically to Julia strings, except in cases where a slash immediately
+precedes the double quote (see `@raw_str` and Julia issue #22926).
 """
 macro htl_str(expr::String)
     # This implementation emulates Julia's string interpolation behavior
@@ -133,51 +126,16 @@ function htl_convert(exprs)::Expr
             elseif expr isa Expr && expr.head == :...
                 quote
                     for part in $(esc(expr.args[1]))
-                        push!(args, htl_escape(part))
+                        push!(args, Escaped(part))
                     end
                 end
             else
                 quote
-                    push!(args, htl_escape($(esc(expr))))
+                    push!(args, Escaped($(esc(expr))))
                 end
             end
         end...)
-        HTML(string(args...))
-    end
-end
-
-"""
-    htl_escape(context::Symbol, obj)::String
-
-For a given HTML lexical context and an arbitrary Julia object, return
-a `String` value that is properly escaped. Splatting interpolation
-concatenates these escaped values. This fallback implements:
-`HTML{String}` objects are assumed to be properly escaped, and hence
-its content is returned; `Vector{HTML{String}}` are concatenated; any
-`Number` is converted to a string using `string()`; and `AbstractString`
-objects are escaped according to context.
-
-There are several escaping contexts. The `:content` scope is for HTML
-content, at a minimum, the ampersand (`&`) and less-than (`<`)
-characters must be escaped.
-"""
-function htl_escape(obj)::String
-    if obj isa HTML{String}
-        return obj.content
-    elseif obj isa Vector{HTML{String}}
-        return join([part.content for part in obj])
-    elseif obj isa AbstractString
-        return replace(replace(obj, "&" => "&amp;"), "<" => "&lt;")
-    elseif obj isa Number
-        return string(obj)
-    else
-        extra = ""
-        if obj isa AbstractVector
-            extra = ("\nPerhaps use splatting? e.g. " *
-                     "htl\"\$([x for x in 1:3]...)\"")
-        end
-        throw(DomainError(obj,
-         "Type $(typeof(obj)) lacks an `htl_escape` specialization.$(extra)"))
+        hypertext(args)
     end
 end
 
@@ -314,7 +272,19 @@ function entity(str::AbstractString)
     entity(str[1])
 end
 
-entity(character::Char) = "&#$(Int(character));"
+entity(ch::Char) = begin
+    if ch == '&'
+        "&amp;"
+    elseif ch == '<'
+        "&lt;"
+    elseif ch == '>'
+        "&gt;"
+    elseif ch == '"'
+        "&quot;"
+    else
+        "&#$(Int(ch));"
+    end
+end
 
 function Base.show(io::IO, mime::MIME"text/html", child::StateData)
     if showable(MIME("text/html"), child.value)

@@ -37,10 +37,10 @@ ampersands are properly escaped in the book name and author listing.
     #=>
     <table><caption><h3>Selected Books</h3></caption>
     <thead><tr><th>Book<th>Authors<tbody>
-      <tr><td>Who Gets What &amp; Why (2012)<td>Alvin Roth
-      <tr><td>Switch (2010)<td>Chip Heath &amp; Dan Heath
+      <tr><td>Who Gets What &#38; Why (2012)<td>Alvin Roth
+      <tr><td>Switch (2010)<td>Chip Heath &#38; Dan Heath
       <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
-      <tr><td>Peopleware (1987)<td>Tom Demarco &amp; Tim Lister
+      <tr><td>Peopleware (1987)<td>Tom Demarco &#38; Tim Lister
     </tbody></table>
     =#
 
@@ -71,7 +71,7 @@ mimetype, implementing interpolation with convenient data conversions.
     book = "Strunk & White"
 
     @print htl"<span>Today's Reading: $book</span>"
-    #-> <span>Today's Reading: Strunk &amp; White</span>
+    #-> <span>Today's Reading: Strunk &#38; White</span>
 
 Besides simple string interpolation, there is an implicit conversion of
 `Number` values to their `String` representation.
@@ -96,7 +96,7 @@ Interpolated strings are escaped.
     var = "3<4 & 5>4"
 
     @print htl"$var"
-    #-> 3&lt;4 &amp; 5>4
+    #-> 3&#60;4 &#38; 5>4
 
 If a variable is already processed, it is not further escaped.
 
@@ -118,7 +118,7 @@ Functions returning string values will be escaped.
     input() = "<script>alert('ouch!')"
 
     @print htl"$(input())"
-    #-> &lt;script>alert('ouch!')
+    #-> &#60;script>alert('ouch!')
 
 Functions returning HTML fragments are passed on, without escaping.
 
@@ -136,7 +136,7 @@ quote is escaped. Within single quotes, the single quote is escaped.
     qval = "\"h&b'"
 
     @print htl"""<tag double="$qval" single='$qval' />"""
-    #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
+    #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
 
 Unquoted attributes are supported. Here the escaping is extensive,
 including whitespace. Note that adjacent expressions (not separated by a
@@ -146,7 +146,7 @@ space) are permitted, the resulting attribute value is concatinated.
     two = "bing >"
 
     @print htl"<tag bare=$one$two />"
-    #-> <tag bare=key&#61;bing&#32;&gt; />
+    #-> <tag bare=key&#61;bing&#32;&#62; />
 
 Symbols and numbers are automatically converted within attributes.
 
@@ -195,12 +195,12 @@ This package attempts to convert common string literal conventions from
 their Julia equivalent.
 
     @print htl"""<ul>$([ htl"<li>$x</li>" for x in ["A", "B&C"]])</ul>"""
-    #-> <ul><li>A</li><li>B&amp;C</li></ul>
+    #-> <ul><li>A</li><li>B&#38;C</li></ul>
 
 This technique works with arbitrary Julia expressions.
 
     @print htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
-    #-> <ul><li>A</li><li>B&amp;C</li></ul>
+    #-> <ul><li>A</li><li>B&#38;C</li></ul>
 
 Within element content and attribute values, `Symbol` and `Number`
 values are treated as string content (and escaped).
@@ -220,10 +220,10 @@ using only single quotes.
     book = "Strunk & White"
 
     @print @htl("<span>Today's Reading: $book</span>")
-    #-> <span>Today's Reading: Strunk &amp; White</span>
+    #-> <span>Today's Reading: Strunk &#38; White</span>
 
     @print @htl("<ul>$([ @htl("<li>$x</li>") for x in ["A", "B&C"]])</ul>")
-    #-> <ul><li>A</li><li>B&amp;C</li></ul>
+    #-> <ul><li>A</li><li>B&#38;C</li></ul>
 
 ## Design Discussion
 
@@ -283,7 +283,7 @@ with output wrapped as a `HTML` string object.
 Only that internal string literals like this are properly escaped.
 
     @print htl"""Look, Ma, $("<i>automatic escaping</i>")!"""
-    #-> Look, Ma, &lt;i>automatic escaping&lt;/i>!
+    #-> Look, Ma, &#60;i>automatic escaping&#60;/i>!
 
 We cannot reliably detect interpolated string literals using the `@htl`
 macro, so they are errors (in the cases we can find them).
@@ -294,7 +294,7 @@ macro, so they are errors (in the cases we can find them).
 However, you can fix by wrapping a value in a `string` function.
 
     @print @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
-    #-> Look, Ma, &lt;i>automatic escaping&lt;/i>!
+    #-> Look, Ma, &#60;i>automatic escaping&#60;/i>!
 
 We can nest literal expressions, so long as the outer nesting uses
 triple quotes.
@@ -353,12 +353,12 @@ ampersand (&), quotation ("), greater-than (>), less-than (<), apostophe
      escape_me = " \t\n\"&><'`="
 
      @print htl"<tag quot=$escape_me/>"
-     #-> <tag quot=&#32;&#9;&#10;&quot;&amp;&gt;&lt;&apos;&#96;&#61;/>
+     #-> <tag quot=&#32;&#9;&#10;&#34;&#38;&#62;&#60;&#39;&#96;&#61;/>
 
 Symbols are also properly escaped.
 
     @print htl"""<tag at=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
-    #-> <tag at=&gt;3>a&amp;b</tag>
+    #-> <tag at=&#62;3>a&#38;b</tag>
 
 Interpolation should handle splat and concatenate.
 

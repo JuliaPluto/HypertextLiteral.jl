@@ -133,22 +133,61 @@ Escaping of Julia values depends upon the context. For attributes,
 escaping depends upon quoting style. Within double quotes, the double
 quote is escaped. Within single quotes, the single quote is escaped.
 
-    qval = """has " & '"""
+    qval = "\"h&b'"
 
-    @print htl"""<tag dq="$qval" sq='$qval' />"""
-    #-> <tag dq="has &quot; &amp; '" sq='has " &amp; &apos;' />
+    @print htl"""<tag double="$qval" single='$qval' />"""
+    #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
 
-Within bare attributes, space, ampersand, and less-than are quoted.
+Within bare attributes, the space, ampersand, and less-than are quoted.
+Moreover, adjacent bare attribute values are permitted.
 
-    @print htl"""<tag att=$("one" * " " * "& two > three") />"""
-    #-> <tag att=one&#32;&amp;&#32;two&#32;&gt;&#32;three />
+    one = "one &"
+    two = ">two"
 
-For bare attributes, when the value provided is `false` then the
-attribute is removed. When the value is `true` then the attribute is
-kept, with value being an empty string (`''`).
+    @print htl"<tag bare=$one$two />"
+    #-> <tag bare=one&#32;&amp;&gt;two />
 
-    @print htl"""<div keep=$(true) discard=$(false) other=$("a&b")/>"""
-    #-> <div keep='' other=a&amp;b/>
+Further, a single or double quote beginning a bare attribute is escaped
+to ensure that it is not treated as a quoted attribute.
+
+    hello = "\"Hello\""
+    world = "'World'"
+
+    @print htl"<tag one=$hello two=$world />"
+    #-> <tag one=&quot;Hello" two=&apos;World' />
+
+Symbols and numbers are automatically converted within attributes.
+
+    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)' />"
+    #-> <tag one=0 sym=sym qone='1.0' qsym='sym' />
+
+Within bare attributes, boolean values provide special support for
+boolean HTML properties, such as `"disabled"`. When a bare value `false`
+then the attribute is removed. When the value is `true` then the
+attribute is kept, with value being an empty string (`''`).
+
+    @print htl"<button checked=$(true) disabled=$(false)>"
+    #-> <button checked=''>
+
+Within attributes, regardless of quoting, other datatypes are treated as
+an error.
+
+    htl"<tag att='$([1,2,3])'"
+    #=>
+    ERROR: DomainError with [1, 2, 3]:
+      Unable to convert Array{Int64,1} to an attribute; either expressly
+      cast as a string, or provide an `htl_render_attribute` method
+    =#
+
+Even though booleans are considered numeric in Julia, we treat them as
+an error to guard against accidental use in boolean HTML attributes.
+
+    htl"<button checked='$(true)'"
+    #=>
+    ERROR: DomainError with true:
+      Unable to convert Bool to an attribute; either expressly
+      cast as a string, or provide an `htl_render_attribute` method
+    =#
 
 Dictionaries provided as a `"style" attribute are expanded within a
 `"style"` attribute Dictionaries w
@@ -157,10 +196,6 @@ Dictionaries provided as a `"style" attribute are expanded within a
 
     @print htl"<div style=$header_styles/>"
     #-> <div style=font-size:&#32;25px;padding-left:&#32;10px;/>
-
-
-
-
 
 ## Expression Translation
 
@@ -361,7 +396,6 @@ interpolation.
 
     @print htl"Foo$"
     #-> ERROR: LoadError: "invalid interpolation syntax"⋮
-
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

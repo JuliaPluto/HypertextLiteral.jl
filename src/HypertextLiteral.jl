@@ -140,64 +140,41 @@ macro htl_str(expr::String)
     return hypertext([ex isa String ? ex : esc(ex) for ex in args])
 end
 
+"""
+Interpolated Value
+
+This abstract type represents a value that must be escaped. The various
+subclasses provide the context for the escaping. They include:
+
+  ElementData            Values expanded as element content, including
+                         text nodes and/or subordinate HTML fragments
+  ElementAttributes      Values to be expanded as attribute/value pairs
+  AttributePair          Unquoted name/value pair for attributes; handles
+                         special cases of boolean attributes
+  AttributeUnquoted      Value serialized within a bare attribute value;
+                         this is used subsequent to AttributePair
+  AttributeDoubleQuoted  Value serialized within double quoted attribute
+  AttributeSingleQuoted  Value serialized within single quoted attribute
+
+The string interpolation is here is conservative. To provide express
+data type conversions for `ElementData`, override `show` `"text/html"`.
+"""
 abstract type InterpolatedValue end
 
-struct AttributeValue <: InterpolatedValue
+struct ElementData <: InterpolatedValue value end
+struct ElementAttributes <: InterpolatedValue value end
+struct AttributeUnquoted <: InterpolatedValue value end
+struct AttributeDoubleQuoted <: InterpolatedValue value end
+struct AttributeSingleQuoted <: InterpolatedValue value end
+struct AttributePair <: InterpolatedValue
     name::String
     value
 end
 
-struct Javascript
-    content
-end
+# handle splat operation e.g. htl"$([1,2,3]...)" by concatinating
+ElementData(args...) = HTL([ElementData(item) for item in args])
 
-Base.show(io::IO, mime::MIME"application/javascript", js::Javascript) =
-    print(io, js.content)
-
-struct ElementContent <: InterpolatedValue value end
-struct AttributeUnquoted <: InterpolatedValue value end
-struct AttributeDoubleQuoted <: InterpolatedValue value end
-struct AttributeSingleQuoted <: InterpolatedValue value end
-struct BeforeAttributeName <: InterpolatedValue value end
-
-ElementContent(args...) = HTL([ElementContent(item) for item in args])
-
-function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
-    if x.value isa Dict
-        for (key, value) in pairs(x.value)
-            show(io, mime, AttributeValue(name=key, value=value))
-            print(io, " ")
-        end
-    elseif x.value isa Pair
-        show(io, mime, AttributeValue(name=x.value.first, value=x.value.second))
-        print(io, " ")
-    else
-        throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
-    end
-end
-
-function entity(str::AbstractString)
-    @assert length(str) == 1
-    entity(str[1])
-end
-
-entity(ch::Char) = begin
-    if ch == '&'
-        "&amp;"
-    elseif ch == '<'
-        "&lt;"
-    elseif ch == '>'
-        "&gt;"
-    elseif ch == '"'
-        "&quot;"
-    elseif ch == '\''
-        "&apos;"
-    else
-        "&#$(Int(ch));"
-    end
-end
-
-function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
+function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
     if showable(MIME("text/html"), child.value)
         show(io, mime, child.value)
     elseif child.value isa AbstractArray{<:HTL}
@@ -221,30 +198,56 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
     end
 end
 
-function render_attribute(v)
+"""
+    htl_render_attribute(v)
+
+Convert a value `v` to a string suitable for inclusion into an attribute
+value. Note that escaping is done separately. By default, symbols and
+numbers (but not booleans) are automatically converted to strings.
+Provide a method implementation of this for custom datatypes.
+"""
+function htl_render_attribute(v)
     if v isa AbstractString
          return v
     end
-    if v isa Symbol || v isa Number
+    if (v isa Symbol || v isa Number) && !(isa(v, Bool))
          return string(v)
     end
     throw(DomainError(v, """
-      Unable to convert $(typeof(v)) to an attribute, either
-      expressly cast as a string, or provide an `render_attribute`
+      Unable to convert $(typeof(v)) to an attribute; either expressly
+      cast as a string, or provide an `htl_render_attribute` method
     """))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeUnquoted)
-    print(io, replace(render_attribute(x.value), r"[\s>&]" => entity))
+    print(io, replace(htl_render_attribute(x.value), r"[\s>&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(render_attribute(x.value), r"[\"&]" => entity))
+    print(io, replace(htl_render_attribute(x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(render_attribute(x.value), r"['&]" => entity))
+    print(io, replace(htl_render_attribute(x.value), r"['&]" => entity))
 end
+
+function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
+    if x.value isa Dict
+        for (key, value) in pairs(x.value)
+            show(io, mime, AttributePair(name=key, value=value))
+            print(io, " ")
+        end
+    elseif x.value isa Pair
+        show(io, mime, AttributePair(name=x.value.first, value=x.value.second))
+        print(io, " ")
+    else
+        throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
+    end
+end
+
+
+
+
 
 function isObjectLiteral(value)
     typeof(value) == Dict
@@ -282,7 +285,7 @@ function render_inline_css((key, value)::Pair)
     "$(css_key(key)): $(css_value(key, value));"
 end
 
-function Base.show(io::IO, mime::MIME"text/html", attribute::AttributeValue)
+function Base.show(io::IO, mime::MIME"text/html", attribute::AttributePair)
     value = attribute.value
     if value === nothing || value === false
         return
@@ -296,9 +299,30 @@ function Base.show(io::IO, mime::MIME"text/html", attribute::AttributeValue)
        hasmethod(render_inline_css, Tuple{typeof(value)})
         value = render_inline_css(value)
     else
-        value = render_attribute(value)
+        value = htl_render_attribute(value)
     end
     print(io, replace(value, r"^['\"]|[\s>&]" => entity))
+end
+
+function entity(str::AbstractString)
+    @assert length(str) == 1
+    entity(str[1])
+end
+
+entity(ch::Char) = begin
+    if ch == '&'
+        "&amp;"
+    elseif ch == '<'
+        "&lt;"
+    elseif ch == '>'
+        "&gt;"
+    elseif ch == '"'
+        "&quot;"
+    elseif ch == '\''
+        "&apos;"
+    else
+        "&#$(Int(ch));"
+    end
 end
 
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BOGUS_COMMENT STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
@@ -354,13 +378,13 @@ function hypertext(args)
         input = args[j]
         if input isa Expr
             if state == STATE_DATA
-                push!(parts, :(ElementContent($input)))
+                push!(parts, :(ElementData($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
                 name = parts[end][nameStart:nameEnd]
                 parts[end] = parts[end][begin:nameStart - 2]
-                push!(parts, :(AttributeValue($name, $input)))
+                push!(parts, :(AttributePair($name, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 push!(parts, :(AttributeUnquoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
@@ -368,7 +392,7 @@ function hypertext(args)
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                 push!(parts, :(AttributeDoubleQuoted($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
-                push!(parts, :(BeforeAttributeName($input)))
+                push!(parts, :(ElementAttributes($input)))
             elseif state == STATE_COMMENT || true
                 throw("invalid binding #1 $(state)")
             end

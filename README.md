@@ -180,7 +180,7 @@ an error.
     =#
 
 Even though booleans are considered numeric in Julia, we treat them as
-an error to guard against accidental use in boolean HTML attributes.
+an error to guard against quoted use in boolean HTML attributes.
 
     htl"<button checked='$(true)'"
     #=>

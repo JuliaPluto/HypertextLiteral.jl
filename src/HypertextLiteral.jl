@@ -59,7 +59,7 @@ since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     if expr isa String
-        return hypertext([expr])
+        return interpolate([expr])
     end
     # Find cases where we may have an interpolated string literal and
     # raise an exception (till Julia issue #38501 is addressed)
@@ -73,7 +73,7 @@ macro htl(expr)
             throw("interpolated string literals are not supported")
         end
     end
-    return hypertext([ex isa String ? ex : esc(ex) for ex in expr.args])
+    return interpolate(expr.args)
 end
 
 """
@@ -137,7 +137,7 @@ macro htl_str(expr::String)
         push!(args, join(vstr))
         empty!(vstr)
     end
-    return hypertext([ex isa String ? ex : esc(ex) for ex in args])
+    return interpolate(args)
 end
 
 """
@@ -243,14 +243,6 @@ function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     else
         throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
     end
-end
-
-
-
-
-
-function isObjectLiteral(value)
-    typeof(value) == Dict
 end
 
 function camelcase_to_dashes(str::String)
@@ -368,7 +360,22 @@ function isSpaceCode(code)
 end
 
 
-function hypertext(args)
+"""
+    interpolate(args):Expr
+
+Take an interweaved set of Julia expressions and strings, tokenizing the
+strings according to the HTML specification [1], wrapping the
+expressions with wrappers based upon the escaping context, and returning
+an expression that combines the result with an `HTL` wrapper.
+
+For these purposes, a `Symbol` is treated as an expression to be
+resolved; while a `String` is treated as a literal string that won't be
+escaped. Critically, interpolated strings to be escaped are represented
+as an `Expr` with `head` of `:string`.
+
+[1] https://html.spec.whatwg.org/multipage/parsing.html#tokenization
+"""
+function interpolate(args)
     state = STATE_DATA
     parts = Union{String, Expr}[]
     nameStart = 0
@@ -376,7 +383,8 @@ function hypertext(args)
 
     for j in 1:length(args)
         input = args[j]
-        if input isa Expr
+        if !isa(input, String)
+            input = esc(input)
             if state == STATE_DATA
                 push!(parts, :(ElementData($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
@@ -386,6 +394,8 @@ function hypertext(args)
                 parts[end] = parts[end][begin:nameStart - 2]
                 push!(parts, :(AttributePair($name, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
+                @assert length(parts) > 1 && parts[end] isa Expr
+                @assert parts[end].args[1] == :AttributePair
                 push!(parts, :(AttributeUnquoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                 push!(parts, :(AttributeSingleQuoted($input)))
@@ -397,8 +407,10 @@ function hypertext(args)
                 throw("invalid binding #1 $(state)")
             end
         else
-            @assert input isa String
             inputlength = length(input)
+            if inputlength < 1
+                continue
+            end
             i = 1
             while i <= inputlength
                 code = Int(input[i])
@@ -640,10 +652,8 @@ function hypertext(args)
 
                 i = i + 1
             end
-
             push!(parts, input)
         end
-
     end
 
     return Expr(:call, :HTL, Expr(:vect, parts...))

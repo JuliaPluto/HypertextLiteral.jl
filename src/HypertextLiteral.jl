@@ -293,7 +293,7 @@ function Base.show(io::IO, mime::MIME"text/html", attribute::AttributePair)
     else
         value = htl_render_attribute(value)
     end
-    print(io, replace(value, r"^['\"]|[\s>&]" => entity))
+    print(io, replace(value, r"[\"\s<>&'`=]" => entity))
 end
 
 function entity(str::AbstractString)

@@ -138,23 +138,15 @@ quote is escaped. Within single quotes, the single quote is escaped.
     @print htl"""<tag double="$qval" single='$qval' />"""
     #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
 
-Within bare attributes, the space, ampersand, and less-than are quoted.
-Moreover, adjacent bare attribute values are permitted.
+Unquoted attributes are supported. Here the escaping is extensive,
+including whitespace. Note that adjacent expressions (not separated by a
+space) are permitted, the resulting attribute value is concatinated.
 
-    one = "one &"
-    two = ">two"
+    one = "key="
+    two = "bing >"
 
     @print htl"<tag bare=$one$two />"
-    #-> <tag bare=one&#32;&amp;&gt;two />
-
-Further, a single or double quote beginning a bare attribute is escaped
-to ensure that it is not treated as a quoted attribute.
-
-    hello = "\"Hello\""
-    world = "'World'"
-
-    @print htl"<tag one=$hello two=$world />"
-    #-> <tag one=&quot;Hello" two=&apos;World' />
+    #-> <tag bare=key&#61;bing&#32;&gt; />
 
 Symbols and numbers are automatically converted within attributes.
 
@@ -353,6 +345,15 @@ To prevent interpolation, use `\` for an escape.
 
     @print @htl("\$42.00")
     #-> $42.00
+
+Within an unquoted attribute value, we must escape whitespace, the
+ampersand (&), quotation ("), greater-than (>), less-than (<), apostophe
+('), grave accent (`), and equals (=) characters.
+
+     escape_me = " \t\n\"&><'`="
+
+     @print htl"<tag quot=$escape_me/>"
+     #-> <tag quot=&#32;&#9;&#10;&quot;&amp;&gt;&lt;&apos;&#96;&#61;/>
 
 Symbols are also properly escaped.
 

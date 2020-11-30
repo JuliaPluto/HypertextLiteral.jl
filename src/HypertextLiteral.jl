@@ -251,7 +251,7 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
     end
 end
 
-function as_attribute_value(v)
+function render_attribute(v)
     if v isa AbstractString
          return v
     end
@@ -260,20 +260,20 @@ function as_attribute_value(v)
     end
     throw(DomainError(v, """
       Unable to convert $(typeof(v)) to an attribute, either
-      expressly cast as a string, or provide an `as_attribute_value`
+      expressly cast as a string, or provide an `render_attribute`
     """))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeUnquoted)
-    print(io, replace(as_attribute_value(x.value), r"[\s>&]" => entity))
+    print(io, replace(render_attribute(x.value), r"[\s>&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(as_attribute_value(x.value), r"[\"&]" => entity))
+    print(io, replace(render_attribute(x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(as_attribute_value(x.value), r"['&]" => entity))
+    print(io, replace(render_attribute(x.value), r"['&]" => entity))
 end
 
 function isAsciiAlphaCode(code::Int)::Bool
@@ -307,9 +307,10 @@ function hypertext(args)
             if state == STATE_DATA
                 push!(parts, :(ElementContent($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
+                state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
                 name = parts[end][nameStart:nameEnd]
-                parts[end] = parts[end][begin:nameStart - 1]
+                parts[end] = parts[end][begin:nameStart - 2]
                 push!(parts, :(AttributeValue($name, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 push!(parts, :(AttributeUnquoted($input)))
@@ -613,26 +614,21 @@ end
 
 function Base.show(io::IO, mime::MIME"text/html", attribute::AttributeValue)
     value = attribute.value
-    result = if value === nothing || value == false
-        ""
-    else
-        righthandside = if value === true
-            "\"\""
-        elseif (
-            attribute.name === "style" &&
-            hasmethod(render_inline_css, Tuple{typeof(attribute.value)})
-        )
-            render_inline_css(attribute.value)
-        elseif showable(MIME("application/javascript"), attribute.value)
-            sprint(show, MIME("application/javascript"), attribute.value)
-        else
-            string(attribute.value)
-        end
-        escaped = replace(righthandside, r"^['\"]|[\s>&]" => entity)
-        "$(attribute.name)=$(escaped)"
+    if value === nothing || value === false
+        return
     end
-
-    print(io, result)
+    print(io, " $(attribute.name)=")
+    if value === true
+        print(io, "''")
+        return
+    end
+    if attribute.name == "style" &&
+       hasmethod(render_inline_css, Tuple{typeof(value)})
+        value = render_inline_css(value)
+    else
+        value = render_attribute(value)
+    end
+    print(io, replace(value, r"^['\"]|[\s>&]" => entity))
 end
 
 end

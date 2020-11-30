@@ -55,7 +55,7 @@ define `@print` as follows.
     end
 
 We could then see output of `htl"<span>Hello</span>"` using `@print` on
-the subsequent line, prefixed by `"->`.
+the subsequent line, prefixed by `#->`.
 
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
@@ -98,28 +98,20 @@ Interpolated strings are escaped.
     @print htl"$var"
     #-> 3&lt;4 &amp; 5>4
 
-If a variable is already a `HTML` object, it is not further escaped.
+If a variable is already processed, it is not further escaped.
 
-    var = html"<span>no-escape</span>"
+    var = htl"<span>no-escape</span>"
 
     @print htl"$var"
     #-> <span>no-escape</span>
 
-Of course, more than one variable can be interpolated.
-
-    s = "World"
-    n = 42
-
-    @print htl"Hello $s, $n"
-    #-> Hello World, 42
-
-Functions returning values can be included in an interpolation, this
-uses the Julia syntax `$(expr)`.
+Julia functions and expressions can be included in an interpolation,
+using `$(expr)` notation.
 
     sq(x) = x*x
 
-    @print htl"3 squared is $(sq(3))"
-    #-> 3 squared is 9
+    @print htl"6^2 + 6 is is $(6+sq(6))"
+    #-> 6^2 + 6 is is 42
 
 Functions returning string values will be escaped.
 
@@ -128,18 +120,18 @@ Functions returning string values will be escaped.
     @print htl"$(input())"
     #-> &lt;script>alert('ouch!')
 
-Functions returning HTML fragments are passed on, as-is.
+Functions returning HTML fragments are passed on, without escaping.
 
-    frag() = html"<span>Hello!</span>"
+    frag() = htl"<span>Hello!</span>"
 
     @print htl"$(frag())"
     #-> <span>Hello!</span>
 
-## Context Sensitive Escaping
+## Value Conversion for Attributes
 
-There is extensive support for attribute generation. First, quoted
-attributes are escaped. Within double quotes, the double quote is
-escaped. Within single quotes, the single quote is escaped.
+Escaping of Julia values depends upon the context. For attributes,
+escaping depends upon quoting style. Within double quotes, the double
+quote is escaped. Within single quotes, the single quote is escaped.
 
     qval = """has " & '"""
 
@@ -151,14 +143,24 @@ Within bare attributes, space, ampersand, and less-than are quoted.
     @print htl"""<tag att=$("one" * " " * "& two > three") />"""
     #-> <tag att=one&#32;&amp;&#32;two&#32;&gt;&#32;three />
 
-Within element content and attribute values, `Symbol` and `Number`
-values are treated as string content (and escaped).
+For bare attributes, when the value provided is `false` then the
+attribute is removed. When the value is `true` then the attribute is
+kept, with value being an empty string (`''`).
 
-    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
-    #-> <tag a=one b="two" c='three'>four</tag>
+    @print htl"""<div keep=$(true) discard=$(false) other=$("a&b")/>"""
+    #-> <div keep='' other=a&amp;b/>
 
-    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
-    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
+Dictionaries provided as a `"style" attribute are expanded within a
+`"style"` attribute Dictionaries w
+
+    header_styles = Dict(:fontSize => "25px", "padding-left" => "10px")
+
+    @print htl"<div style=$header_styles/>"
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;10px;/>
+
+
+
+
 
 ## Expression Translation
 
@@ -172,6 +174,15 @@ This technique works with arbitrary Julia expressions.
 
     @print htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
     #-> <ul><li>A</li><li>B&amp;C</li></ul>
+
+Within element content and attribute values, `Symbol` and `Number`
+values are treated as string content (and escaped).
+
+    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
+    #-> <tag a=one b="two" c='three'>four</tag>
+
+    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
+    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
 
 ## HTL Macro
 
@@ -307,6 +318,11 @@ To prevent interpolation, use `\` for an escape.
 
     @print @htl("\$42.00")
     #-> $42.00
+
+Symbols are also properly escaped.
+
+    @print htl"""<tag at=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
+    #-> <tag at=&gt;3>a&amp;b</tag>
 
 Interpolation should handle splat and concatenate.
 

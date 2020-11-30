@@ -52,7 +52,7 @@ Base.show(io::IO, h::HTL) =
 """
     @htl string-expression
 
-Create a `HTML{String}` with string interpolation (`\$`) that uses
+Create a `HTL` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Rather than escaping interpolated
 string literals, e.g. `\$("Strunk & White")`, they are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
@@ -79,7 +79,7 @@ end
 """
     @htl_str -> Base.Docs.HTML{String}
 
-Create a `HTML{String}` with string interpolation (`\$`) that uses
+Create a `HTL` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Escape sequences should work
 identically to Julia strings, except in cases where a slash immediately
 precedes the double quote (see `@raw_str` and Julia issue #22926).
@@ -142,13 +142,6 @@ end
 
 abstract type InterpolatedValue end
 
-function Base.show(io::IO, mime::MIME"text/html", x::InterpolatedValue)
-    throw("""
-        show text/html should be override for InterpolatedValue.
-        Got a $(typeof(x)) without html show overload.
-    """)
-end
-
 struct AttributeValue <: InterpolatedValue
     name::String
     value
@@ -182,29 +175,6 @@ function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
         throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
     end
 end
-
-begin
-    const CODE_TAB = 9
-    const CODE_LF = 10
-    const CODE_FF = 12
-    const CODE_CR = 13
-    const CODE_SPACE = 32
-    const CODE_UPPER_A = 65
-    const CODE_UPPER_Z = 90
-    const CODE_LOWER_A = 97
-    const CODE_LOWER_Z = 122
-    const CODE_LT = 60
-    const CODE_GT = 62
-    const CODE_SLASH = 47
-    const CODE_DASH = 45
-    const CODE_BANG = 33
-    const CODE_EQ = 61
-    const CODE_DQUOTE = 34
-    const CODE_SQUOTE = 39
-    const CODE_QUESTION = 63
-end
-
-@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BOGUS_COMMENT STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
 
 function entity(str::AbstractString)
     @assert length(str) == 1
@@ -276,6 +246,84 @@ function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
     print(io, replace(render_attribute(x.value), r"['&]" => entity))
 end
 
+function isObjectLiteral(value)
+    typeof(value) == Dict
+end
+
+function camelcase_to_dashes(str::String)
+    # eg :fontSize => "font-size"
+    replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))"))
+end
+
+css_value(key, value) = string(value)
+css_value(key, value::Real) = "$(value)px"
+css_value(key, value::AbstractString) = value
+
+css_key(key::Symbol) = camelcase_to_dashes(string(key))
+css_key(key::String) = key
+
+function render_inline_css(styles::Dict)
+    result = ""
+    for (key, value) in pairs(styles)
+        result *= render_inline_css(key => value)
+    end
+    result
+end
+
+function render_inline_css(style::Tuple{Pair})
+    result = ""
+    for (key, value) in styles
+        result *= render_inline_css(key => value)
+    end
+    result
+end
+
+function render_inline_css((key, value)::Pair)
+    "$(css_key(key)): $(css_value(key, value));"
+end
+
+function Base.show(io::IO, mime::MIME"text/html", attribute::AttributeValue)
+    value = attribute.value
+    if value === nothing || value === false
+        return
+    end
+    print(io, " $(attribute.name)=")
+    if value === true
+        print(io, "''")
+        return
+    end
+    if attribute.name == "style" &&
+       hasmethod(render_inline_css, Tuple{typeof(value)})
+        value = render_inline_css(value)
+    else
+        value = render_attribute(value)
+    end
+    print(io, replace(value, r"^['\"]|[\s>&]" => entity))
+end
+
+@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BOGUS_COMMENT STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
+
+begin
+    const CODE_TAB = 9
+    const CODE_LF = 10
+    const CODE_FF = 12
+    const CODE_CR = 13
+    const CODE_SPACE = 32
+    const CODE_UPPER_A = 65
+    const CODE_UPPER_Z = 90
+    const CODE_LOWER_A = 97
+    const CODE_LOWER_Z = 122
+    const CODE_LT = 60
+    const CODE_GT = 62
+    const CODE_SLASH = 47
+    const CODE_DASH = 45
+    const CODE_BANG = 33
+    const CODE_EQ = 61
+    const CODE_DQUOTE = 34
+    const CODE_SQUOTE = 39
+    const CODE_QUESTION = 63
+end
+
 function isAsciiAlphaCode(code::Int)::Bool
   return (
         CODE_UPPER_A <= code
@@ -294,6 +342,7 @@ function isSpaceCode(code)
         || code === CODE_CR
     ) # normalize newlines
 end
+
 
 function hypertext(args)
     state = STATE_DATA
@@ -574,61 +623,6 @@ function hypertext(args)
     end
 
     return Expr(:call, :HTL, Expr(:vect, parts...))
-end
-
-function isObjectLiteral(value)
-    typeof(value) == Dict
-end
-
-function camelcase_to_dashes(str::String)
-    # eg :fontSize => "font-size"
-    replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))"))
-end
-
-css_value(key, value) = string(value)
-css_value(key, value::Real) = "$(value)px"
-css_value(key, value::AbstractString) = value
-
-css_key(key::Symbol) = camelcase_to_dashes(string(key))
-css_key(key::String) = key
-
-function render_inline_css(styles::Dict)
-    result = ""
-    for (key, value) in pairs(styles)
-        result *= render_inline_css(key => value)
-    end
-    result
-end
-
-function render_inline_css(style::Tuple{Pair})
-    result = ""
-    for (key, value) in styles
-        result *= render_inline_css(key => value)
-    end
-    result
-end
-
-function render_inline_css((key, value)::Pair)
-    "$(css_key(key)): $(css_value(key, value));"
-end
-
-function Base.show(io::IO, mime::MIME"text/html", attribute::AttributeValue)
-    value = attribute.value
-    if value === nothing || value === false
-        return
-    end
-    print(io, " $(attribute.name)=")
-    if value === true
-        print(io, "''")
-        return
-    end
-    if attribute.name == "style" &&
-       hasmethod(render_inline_css, Tuple{typeof(value)})
-        value = render_inline_css(value)
-    else
-        value = render_attribute(value)
-    end
-    print(io, replace(value, r"^['\"]|[\s>&]" => entity))
 end
 
 end

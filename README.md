@@ -12,7 +12,7 @@ and provides handy conversions dependent upon context.*
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `"text/html"` displays.
 Unlike the built-in `HTML` object, this macro supports interpolation to
-support context-sensitive escaping and other clever fatures. Here we
+support context-sensitive escaping and other clever features. Here we
 show an example using triple-quoted `htl` string literal, notice how
 ampersands are properly escaped in the book name and author listing.
 
@@ -140,7 +140,7 @@ quote is escaped. Within single quotes, the single quote is escaped.
 
 Unquoted attributes are supported. Here the escaping is extensive,
 including whitespace. Note that adjacent expressions (not separated by a
-space) are permitted, the resulting attribute value is concatinated.
+space) are permitted, the resulting attribute value is concatenated.
 
     one = "key="
     two = "bing >"
@@ -347,7 +347,7 @@ To prevent interpolation, use `\` for an escape.
     #-> $42.00
 
 Within an unquoted attribute value, we must escape whitespace, the
-ampersand (&), quotation ("), greater-than (>), less-than (<), apostophe
+ampersand (&), quotation ("), greater-than (>), less-than (<), apostrophe
 ('), grave accent (`), and equals (=) characters.
 
      escape_me = " \t\n\"&><'`="

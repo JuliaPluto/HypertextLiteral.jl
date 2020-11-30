@@ -21,7 +21,7 @@ export HTL, @htl_str, @htl
     HTL("<div>foo</div>")
 
 This is similar `HTML{Vector}` with a few exceptions. First, the
-contents of the vector are concatinated. Second, direct rendering is
+contents of the vector are concatenated. Second, direct rendering is
 limited to `AbstractString`, others are delegated to `show`. Third, the
 splat constructor converts arguments to the `HTL` vector.
 
@@ -171,7 +171,7 @@ struct AttributePair <: InterpolatedValue
     value
 end
 
-# handle splat operation e.g. htl"$([1,2,3]...)" by concatinating
+# handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
 ElementData(args...) = HTL([ElementData(item) for item in args])
 
 function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
@@ -349,7 +349,7 @@ end
 """
     interpolate(args):Expr
 
-Take an interweaved set of Julia expressions and strings, tokenizing the
+Take an interweaved set of Julia expressions and strings, tokenize the
 strings according to the HTML specification [1], wrapping the
 expressions with wrappers based upon the escaping context, and returning
 an expression that combines the result with an `HTL` wrapper.

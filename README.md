@@ -347,18 +347,22 @@ To prevent interpolation, use `\` for an escape.
     #-> $42.00
 
 Within an unquoted attribute value, we must escape whitespace, the
-ampersand (&), quotation ("), greater-than (>), less-than (<), apostrophe
-('), grave accent (`), and equals (=) characters.
+ampersand (&), quotation ("), greater-than (>), less-than (<),
+apostrophe ('), grave accent (`), and equals (=) characters.
 
      escape_me = " \t\n\"&><'`="
 
      @print htl"<tag quot=$escape_me/>"
      #-> <tag quot=&#32;&#9;&#10;&#34;&#38;&#62;&#60;&#39;&#96;&#61;/>
 
-Symbols are also properly escaped.
+Symbols are also properly handled; e.g. escaping happens after
+conversion of numbers, symbols and custom types to strings.
 
     @print htl"""<tag at=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
     #-> <tag at=&#62;3>a&#38;b</tag>
+
+
+
 
 Interpolation should handle splat and concatenate.
 
@@ -368,7 +372,8 @@ Interpolation should handle splat and concatenate.
     @print @htl "$([x for x in [1,2,3]]...)"
     #-> 123
 
-However, it shouldn't concatenate by default.
+However, it shouldn't concatenate lists by default, or assume treatment
+of any other sorts of native Julia objects.
 
     @print htl"$([x for x in 1:3])"
     #=>
@@ -377,16 +382,40 @@ However, it shouldn't concatenate by default.
       Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)
     =#
 
-    @print @htl "$([x for x in 1:3])"
-    #=>
-    ERROR: DomainError with [1, 2, 3]:
-      Type Array{Int64,1} lacks a show method for text/html.
-      Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)
-    =#
+String literals should not be used within the macro style since we
+cannot reliably detect them. Here is an example usage where the macro
+style lets an unescaped string literal though the gaps; this requires
+Julia issue #38501 to be addressed before we could catch this case.
+Observe that the string macro form can detect and properly escape.
 
-Bare string literals cannot be used with macro either.
+    x = ""
 
-    @print @htl "$("bare")"
+    @print htl"""$x$("should escape (<)")"""
+    #-> should escape (&#60;)
+
+    @print @htl("$x$("should escape (<)")")
+    #-> should escape (<)
+
+Hence, for a cases where we could detect a string literal, we raise an
+error condition to discourage its use. The string macro form works.
+
+    @print @htl "$("escape&me")"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+
+    @print htl"""$("escape&me")"""
+    #-> escape&#38;me
+
+In particular, these three cases have the same representation provided to
+the interpolation code, and since we can't distinguish among them, we
+raise an error for all.
+
+    @print @htl "one$("two")"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+
+    @print @htl "$("one")two"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+
+    @print @htl "$("one")$("two")"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 A string ending with `$` is an syntax error since it is an incomplete

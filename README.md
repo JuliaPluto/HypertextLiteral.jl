@@ -135,6 +135,31 @@ Functions returning HTML fragments are passed on, as-is.
     @print htl"$(frag())"
     #-> <span>Hello!</span>
 
+## Context Sensitive Escaping
+
+There is extensive support for attribute generation. First, quoted
+attributes are escaped. Within double quotes, the double quote is
+escaped. Within single quotes, the single quote is escaped.
+
+    qval = """has " & '"""
+
+    @print htl"""<tag dq="$qval" sq='$qval' />"""
+    #-> <tag dq="has &quot; &amp; '" sq='has " &amp; &apos;' />
+
+Within bare attributes, space, ampersand, and less-than are quoted.
+
+    @print htl"""<tag att=$("one" * " " * "& two > three") />"""
+    #-> <tag att=one&#32;&amp;&#32;two&#32;&gt;&#32;three />
+
+Within element content and attribute values, `Symbol` and `Number`
+values are treated as string content (and escaped).
+
+    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
+    #-> <tag a=one b="two" c='three'>four</tag>
+
+    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
+    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
+
 ## Expression Translation
 
 This package attempts to convert common string literal conventions from

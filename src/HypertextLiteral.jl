@@ -183,7 +183,6 @@ function Base.show(io::IO, mime::MIME"text/html", x::BeforeAttributeName)
     end
 end
 
-
 begin
     const CODE_TAB = 9
     const CODE_LF = 10
@@ -221,6 +220,8 @@ entity(ch::Char) = begin
         "&gt;"
     elseif ch == '"'
         "&quot;"
+    elseif ch == '\''
+        "&apos;"
     else
         "&#$(Int(ch));"
     end
@@ -235,7 +236,7 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
         end
     elseif child.value isa AbstractString
         print(io, replace(child.value, r"[<&]" => entity))
-    elseif child.value isa Number
+    elseif child.value isa Number || child.value isa Symbol
         print(io, replace(string(child.value), r"[<&]" => entity))
     elseif child.value isa AbstractVector
         throw(DomainError(child.value, """
@@ -250,16 +251,29 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementContent)
     end
 end
 
+function as_attribute_value(v)
+    if v isa AbstractString
+         return v
+    end
+    if v isa Symbol || v isa Number
+         return string(v)
+    end
+    throw(DomainError(v, """
+      Unable to convert $(typeof(v)) to an attribute, either
+      expressly cast as a string, or provide an `as_attribute_value`
+    """))
+end
+
 function Base.show(io::IO, ::MIME"text/html", x::AttributeUnquoted)
-    print(io, replace(x.value, r"[\s>&]" => entity))
+    print(io, replace(as_attribute_value(x.value), r"[\s>&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(x.value, r"[\"&]" => entity))
+    print(io, replace(as_attribute_value(x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(x.value, r"['&]" => entity))
+    print(io, replace(as_attribute_value(x.value), r"['&]" => entity))
 end
 
 function isAsciiAlphaCode(code::Int)::Bool
@@ -293,7 +307,6 @@ function hypertext(args)
             if state == STATE_DATA
                 push!(parts, :(ElementContent($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
-                state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
                 name = parts[end][nameStart:nameEnd]
                 parts[end] = parts[end][begin:nameStart - 1]

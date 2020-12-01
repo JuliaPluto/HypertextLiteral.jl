@@ -156,8 +156,6 @@ subclasses provide the context for the escaping. They include:
   ElementAttributes      Values to be expanded as attribute/value pairs
   AttributePair          Unquoted name/value pair for attributes; handles
                          special cases of boolean attributes
-  AttributeUnquoted      Value serialized within a bare attribute value;
-                         this is used subsequent to AttributePair
   AttributeDoubleQuoted  Value serialized within double quoted attribute
   AttributeSingleQuoted  Value serialized within single quoted attribute
 
@@ -168,12 +166,11 @@ abstract type InterpolatedValue end
 
 struct ElementData <: InterpolatedValue value end
 struct ElementAttributes <: InterpolatedValue value end
-struct AttributeUnquoted <: InterpolatedValue value end
 struct AttributeDoubleQuoted <: InterpolatedValue value end
 struct AttributeSingleQuoted <: InterpolatedValue value end
 struct AttributePair <: InterpolatedValue
     name::String
-    value
+    values::Vector
 end
 
 # handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
@@ -224,10 +221,6 @@ function htl_render_attribute(v)
     """))
 end
 
-function Base.show(io::IO, ::MIME"text/html", x::AttributeUnquoted)
-    print(io, replace(htl_render_attribute(x.value), r"[\s>&]" => entity))
-end
-
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
     print(io, replace(htl_render_attribute(x.value), r"[\"&]" => entity))
 end
@@ -239,11 +232,11 @@ end
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     if x.value isa Dict
         for (key, value) in pairs(x.value)
-            show(io, mime, AttributePair(name=key, value=value))
+            show(io, mime, AttributePair(key, [value]))
             print(io, " ")
         end
     elseif x.value isa Pair
-        show(io, mime, AttributePair(name=x.value.first, value=x.value.second))
+        show(io, mime, AttributePair(x.value.first, [x.value.second]))
         print(io, " ")
     else
         throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
@@ -255,50 +248,43 @@ function camelcase_to_dashes(str::String)
     replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))"))
 end
 
-css_value(key, value) = string(value)
-css_value(key, value::Real) = "$(value)px"
+css_value(key, value::Symbol) = string(value)
+css_value(key, value::Number) = string(value) # numeric and boolean
 css_value(key, value::AbstractString) = value
 
 css_key(key::Symbol) = camelcase_to_dashes(string(key))
 css_key(key::String) = key
 
-function render_inline_css(styles::Dict)
-    result = ""
-    for (key, value) in pairs(styles)
-        result *= render_inline_css(key => value)
-    end
-    result
-end
+render_inline_css(styles::Dict) =
+    join([render_inline_css(pair) for pair in pairs(styles)])
 
-function render_inline_css(style::Tuple{Pair})
-    result = ""
-    for (key, value) in styles
-        result *= render_inline_css(key => value)
-    end
-    result
-end
+render_inline_css(styles::Tuple{Pair, Vararg{Pair}}) =
+    join([render_inline_css(pair) for pair in styles])
 
-function render_inline_css((key, value)::Pair)
+render_inline_css((key, value)::Pair) =
     "$(css_key(key)): $(css_value(key, value));"
-end
 
 function Base.show(io::IO, mime::MIME"text/html", attribute::AttributePair)
-    value = attribute.value
-    if value === nothing || value === false
+    first = attribute.values[1]
+    if first === nothing || first === false || first === true
+        if length(attribute.values) > 1
+          throw("Too many values for boolean attribute `$(attribute.name)`")
+        end
+        if first == true
+            print(io, " $(attribute.name)=''")
+        end
         return
     end
     print(io, " $(attribute.name)=")
-    if value === true
-        print(io, "''")
-        return
+    for value in attribute.values
+        if attribute.name == "style" &&
+           hasmethod(render_inline_css, Tuple{typeof(value)})
+            value = render_inline_css(value)
+        else
+            value = htl_render_attribute(value)
+        end
+        print(io, replace(value, r"[\"\s<>&'`=]" => entity))
     end
-    if attribute.name == "style" &&
-       hasmethod(render_inline_css, Tuple{typeof(value)})
-        value = render_inline_css(value)
-    else
-        value = htl_render_attribute(value)
-    end
-    print(io, replace(value, r"[\"\s<>&'`=]" => entity))
 end
 
 function entity(str::AbstractString)
@@ -383,11 +369,11 @@ function interpolate(args)
                 # rewrite previous text string to remove `attname=`
                 name = parts[end][nameStart:nameEnd]
                 parts[end] = parts[end][begin:nameStart - 2]
-                push!(parts, :(AttributePair($name, $input)))
+                push!(parts, :(AttributePair($name, Any[$input])))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 @assert length(parts) > 1 && parts[end] isa Expr
                 @assert parts[end].args[1] == :AttributePair
-                push!(parts, :(AttributeUnquoted($input)))
+                push!(parts[end].args[3].args, input)
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                 push!(parts, :(AttributeSingleQuoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED

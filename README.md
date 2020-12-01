@@ -54,8 +54,8 @@ readability, we define the following macro.
 ## Introduction to Hypertext Literal
 
 `HypertextLiteral` provides an `htl` string literal and equivalent
-`@htl` macro which produce `HTL` objects that render to `"text/html",
-implementing relevant escaping and providing expression interpolation.
+`@htl` macro that implement contextual escaping and expression
+interpolation, producing `HTL` objects that render to `"text/html"`.
 
     htl"<span>Hello World</span>"
     #-> HTL("<span>Hello World</span>")
@@ -90,14 +90,14 @@ a regular Julia string. Other escape sequences, such as `\"` also work.
     @print htl"They said, \"your total is \$42.50\"."
     #-> They said, "your total is $42.50".
 
-String literals can also be triple-quoted, as seen in the multi-line
-opening examples. We could write the example above as follows. Even in
-triple-quoted form, we still need to quote the dollar sign (`$`).
+String literals can also be triple-quoted, which could span multiple
+lines. Within triple quotes, single quoted strings can go unescaped,
+however, we still need to escape the dollar sign (`$`).
 
     @print htl"""They said, "your total is \$42.50"."""
     #-> They said, "your total is $42.50".
 
-Within any of these forms, Julia results can be interpolated, using
+Within any of these forms, Julia results can be interpolated using the
 `$(expr)` notation. Numeric values are automatically converted to their
 string representation.
 
@@ -119,8 +119,8 @@ us to build reusable HTML templates.
     @print htl"<div>3^2 is $(sq(3))</div>"
     #-> <div>3^2 is <span>9</span></div>
 
-Within a triple-quoted `htl` string, a single-quoted `htl` expression
-can be included. This technique only works for one level of nesting.
+Within a triple-quoted `htl` string, a single-quoted `htl` string can be
+included. This technique only works for one level of nesting.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
@@ -129,8 +129,8 @@ can be included. This technique only works for one level of nesting.
     <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
-The macro syntax supports arbitrary levels of nesting. Here we show only
-one level of nesting.
+The equivalent macro syntax supports arbitrary levels of nesting. Here
+we show only one level of nesting.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
@@ -177,7 +177,7 @@ attribute is kept, with value being an empty string (`''`).
     #-> <button checked=''>
 
 Within attributes, independent of quoting style, other datatypes are
-treated as an error. This includes hypertext objects and also lists.
+treated as an error. This includes `Vector` as well as `HTL` objects.
 
     htl"<tag att='$([1,2,3])'"
     #=>
@@ -186,13 +186,20 @@ treated as an error. This includes hypertext objects and also lists.
       convert to a string, or provide an `htl_render_attribute` method
     =#
 
-There is special support for the `"style"` attribute. In this case,
-dictionaries are expanded, with `camelCase` conversion to `camel-case`.
+There is special support for the unquoted `"style"` attribute. In this
+case, `Pair` and `Dict` objects are expanded as style attributes, with
+`camelCase` conversion to `camel-case`.
 
-    header_styles = Dict(:fontSize => "25px", "padding-left" => "10px")
+    header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
 
     @print htl"<div style=$header_styles/>"
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;10px;/>
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+
+    @print @htl("<div style=$(:fontSize=>"25px")$("padding-left"=>"2em")/>")
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+
+    @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
 ## Design Discussion
 
@@ -283,10 +290,10 @@ In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
 those semantics.
 
-    @print htl"Hello\World"
+    htl"Hello\World"
     #-> ERROR: LoadError: ArgumentError: invalid escape sequence⋮
 
-    @print @htl "Hello\World"
+    @htl "Hello\World"
     #-> ERROR: syntax: invalid escape sequence⋮
 
 Escaped strings should just pass-though.
@@ -327,8 +334,16 @@ apostrophe ('), grave accent (`), and equals (=) characters.
 Symbols are also properly handled; e.g. escaping happens after
 conversion of numbers, symbols and custom types to strings.
 
-    @print htl"""<tag at=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
-    #-> <tag at=&#62;3>a&#38;b</tag>
+    @print htl"""<tag att=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
+    #-> <tag att=&#62;3>a&#38;b</tag>
+
+Boolean valued attributes should not have two interpolated values.
+
+    htl"<tag att=$(true)$(:anything)/>"
+    #-> ERROR: "Too many values for boolean attribute `att`"
+
+    htl"<tag att=$(false)$(1.0)/>"
+    #-> ERROR: "Too many values for boolean attribute `att`"
 
 Even though booleans are considered numeric in Julia, we treat them as
 an error to guard against quoted use in boolean HTML attributes.
@@ -337,7 +352,7 @@ an error to guard against quoted use in boolean HTML attributes.
     #=>
     ERROR: DomainError with true:
       Unable to convert Bool to an attribute; either expressly
-      cast as a string, or provide an `htl_render_attribute` method
+      convert to a string, or provide an `htl_render_attribute` method
     =#
 
 Interpolation should handle splat and concatenate.

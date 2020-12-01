@@ -21,8 +21,7 @@ ampersands are properly escaped in the book name and author listing.
     books = [
      (name="Who Gets What & Why", year=2012, authors=["Alvin Roth"]),
      (name="Switch", year=2010, authors=["Chip Heath", "Dan Heath"]),
-     (name="Governing The Commons", year=1990, authors=["Elinor Ostrom"]),
-     (name="Peopleware", year=1987, authors=["Tom Demarco", "Tim Lister"])]
+     (name="Governing The Commons", year=1990, authors=["Elinor Ostrom"])]
 
     render_row(book) = htl"""
       <tr><td>$(book.name) ($(book.year))<td>$(join(book.authors, " & "))
@@ -40,15 +39,27 @@ ampersands are properly escaped in the book name and author listing.
       <tr><td>Who Gets What &#38; Why (2012)<td>Alvin Roth
       <tr><td>Switch (2010)<td>Chip Heath &#38; Dan Heath
       <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
-      <tr><td>Peopleware (1987)<td>Tom Demarco &#38; Tim Lister
     </tbody></table>
     =#
 
+### Notation
+
 We use [NarrativeTest][nt] to ensure our examples are correct. After
-each command is a comment with the expected output. This README can be
-validated by running `./test/runtests.jl` on the command line. So that
-we can more easily see content as rendered to `"text/html"`, let's
-define `@print` as follows.
+each command is a comment with the expected output. This tool ensures
+the README can be validated by running `./test/runtests.jl`. For one
+line output, the expected results are prefixed by "`#-> `".
+
+    htl"<span>Hello World</span>"
+    #-> HTL("<span>Hello World</span>")
+
+The hypertext string macro produces an `HTL` object, which renders its
+output when displayed to a `"text/html"` output.
+
+    display("text/html", htl"<span>Hello World</span>")
+    #-> <span>Hello World</span>
+
+So that we can focus attention on the input/outputs, let's define
+`@print` as follows.
 
     macro print(expr)
         :(display("text/html", $expr))
@@ -60,72 +71,82 @@ the subsequent line, prefixed by `#->`.
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
 
-## Basic Operations
+With that out of the way, let's start again from the top.
 
-This package, `HypertextLiteral` provides an `htl` string literal and
-`@htl` function macro which produce objects that render to `"text/html"
-mimetype, implementing interpolation with convenient data conversions.
+## Introduction to Hypertext
 
-    using HypertextLiteral
+`HypertextLiteral` provides an `htl` string literal and equivalent
+`@htl` macro which produce objects that render to `"text/html" mimetype,
+implementing relevant escaping and providing expression interpolation.
 
     book = "Strunk & White"
 
     @print htl"<span>Today's Reading: $book</span>"
     #-> <span>Today's Reading: Strunk &#38; White</span>
 
-Besides simple string interpolation, there is an implicit conversion of
-`Number` values to their `String` representation.
+Equivalently, in macro form, we can write:
 
-    var = 3
+    @print @htl("<span>Today's Reading: $book</span>")
+    #-> <span>Today's Reading: Strunk &#38; White</span>
 
-    @print htl"$var"
-    #-> 3
+To include a literal `$` in the output string, use `\$` as one would in
+a regular Julia string. Other escape sequences, such as `\"` also work.
 
-Within an `htl` string, Julia results can be interpolated.
+    @print htl"They said, \"your total is \$42.50\"."
+    #-> They said, "your total is $42.50".
+
+String literals can also be triple-quoted, as seen in the multi-line
+opening examples.  We could write the example above as follows. Note
+that we still need to quote the dollar sign.
+
+    @print htl"""They said, "your total is \$42.50"."""
+    #-> They said, "your total is $42.50".
+
+Within any of these forms, Julia results can be interpolated, using
+`$(expr)` notation. Numeric values are automatically converted to their
+string representation.
 
     @print htl"2+2 = $(2+2)"
     #-> 2+2 = 4
 
-To include a literal `$` in the output string, use `\$`.
-
-    @print htl"\$42.50"
-    #-> $42.50
-
-Interpolated strings are escaped.
-
-    var = "3<4 & 5>4"
-
-    @print htl"$var"
-    #-> 3&#60;4 &#38; 5>4
-
-If a variable is already processed, it is not further escaped.
-
-    var = htl"<span>no-escape</span>"
-
-    @print htl"$var"
-    #-> <span>no-escape</span>
-
-Julia functions and expressions can be included in an interpolation,
-using `$(expr)` notation.
-
-    sq(x) = x*x
-
-    @print htl"6^2 + 6 is is $(6+sq(6))"
-    #-> 6^2 + 6 is is 42
-
-Functions returning string values will be escaped.
+Functions returning string values will be escaped. Within regular
+content, the ampersand (`&`) and less-than (`<`) are escaped.
 
     input() = "<script>alert('ouch!')"
 
     @print htl"$(input())"
     #-> &#60;script>alert('ouch!')
 
-Functions returning HTML fragments are passed on, without escaping.
+Functions returning hypertext fragments are not further escaped. This
+permits us to build reusable HTML templates.
 
-    frag() = htl"<span>Hello!</span>"
+    sq(x) = htl"<span>$(x*x)</span>"
 
-    @print htl"$(frag())"
-    #-> <span>Hello!</span>
+    @print htl"<div>3^2 is $(sq(3))</div>"
+    #-> <div>3^2 is <span>9</span></div>
+
+## Expression Translation
+
+This package lets us work with hypertext using common Julia string
+interpolation conventions. For example, we could enumerate a list of our
+favorite books using Julia strings. Notice that the splat (`...`)
+operator is used to concatenate the list items.
+
+    books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
+
+    "Favorites: $(["$b, " for b in books]...)"
+    #-> "Favorites: Who Gets What & Why, Switch, Governing The Commons, "
+
+A translation for HTML using this package might use a unordered list
+elements, but is otherwise similar.
+
+    @print htl"""<ul>$([htl"<li>$b" for b in books]...)</ul>"""
+    #-> <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+
+This technique works with arbitrary Julia expressions.
+
+    @print htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
+    #-> <ul><li>A</li><li>B&#38;C</li></ul>
 
 ## Value Conversion for Attributes
 
@@ -138,9 +159,9 @@ quote is escaped. Within single quotes, the single quote is escaped.
     @print htl"""<tag double="$qval" single='$qval' />"""
     #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
 
-Unquoted attributes are supported. Here the escaping is extensive,
-including whitespace. Note that adjacent expressions (not separated by a
-space) are permitted, the resulting attribute value is concatenated.
+Unquoted attributes are supported. Here the escaping is extensive. Note
+that adjacent expressions (not separated by a space) are permitted, the
+resulting attribute value is concatenated.
 
     one = "key="
     two = "bing >"
@@ -161,6 +182,15 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
+Within element content and attribute values, `Symbol` and `Number`
+values are treated as string content (and escaped).
+
+    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
+    #-> <tag a=one b="two" c='three'>four</tag>
+
+    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
+    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
+
 Within attributes, regardless of quoting, other datatypes are treated as
 an error.
 
@@ -171,16 +201,6 @@ an error.
       cast as a string, or provide an `htl_render_attribute` method
     =#
 
-Even though booleans are considered numeric in Julia, we treat them as
-an error to guard against quoted use in boolean HTML attributes.
-
-    htl"<button checked='$(true)'"
-    #=>
-    ERROR: DomainError with true:
-      Unable to convert Bool to an attribute; either expressly
-      cast as a string, or provide an `htl_render_attribute` method
-    =#
-
 Dictionaries provided as a `"style" attribute are expanded within a
 `"style"` attribute Dictionaries w
 
@@ -188,42 +208,6 @@ Dictionaries provided as a `"style" attribute are expanded within a
 
     @print htl"<div style=$header_styles/>"
     #-> <div style=font-size:&#32;25px;padding-left:&#32;10px;/>
-
-## Expression Translation
-
-This package attempts to convert common string literal conventions from
-their Julia equivalent.
-
-    @print htl"""<ul>$([ htl"<li>$x</li>" for x in ["A", "B&C"]])</ul>"""
-    #-> <ul><li>A</li><li>B&#38;C</li></ul>
-
-This technique works with arbitrary Julia expressions.
-
-    @print htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
-    #-> <ul><li>A</li><li>B&#38;C</li></ul>
-
-Within element content and attribute values, `Symbol` and `Number`
-values are treated as string content (and escaped).
-
-    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
-    #-> <tag a=one b="two" c='three'>four</tag>
-
-    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
-    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
-
-## HTL Macro
-
-These same operations can be invoked using the `@htl` macro. Note that
-unlike the string literal, arbitrary nesting is possible even while
-using only single quotes.
-
-    book = "Strunk & White"
-
-    @print @htl("<span>Today's Reading: $book</span>")
-    #-> <span>Today's Reading: Strunk &#38; White</span>
-
-    @print @htl("<ul>$([ @htl("<li>$x</li>") for x in ["A", "B&C"]])</ul>")
-    #-> <ul><li>A</li><li>B&#38;C</li></ul>
 
 ## Design Discussion
 
@@ -361,8 +345,15 @@ conversion of numbers, symbols and custom types to strings.
     @print htl"""<tag at=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
     #-> <tag at=&#62;3>a&#38;b</tag>
 
+Even though booleans are considered numeric in Julia, we treat them as
+an error to guard against quoted use in boolean HTML attributes.
 
-
+    htl"<button checked='$(true)'"
+    #=>
+    ERROR: DomainError with true:
+      Unable to convert Bool to an attribute; either expressly
+      cast as a string, or provide an `htl_render_attribute` method
+    =#
 
 Interpolation should handle splat and concatenate.
 

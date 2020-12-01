@@ -42,42 +42,37 @@ ampersands are properly escaped in the book name and author listing.
     </tbody></table>
     =#
 
-### Notation
-
 We use [NarrativeTest][nt] to ensure our examples are correct. After
 each command is a comment with the expected output. This tool ensures
-the README can be validated by running `./test/runtests.jl`. For one
-line output, the expected results are prefixed by "`#-> `".
-
-    htl"<span>Hello World</span>"
-    #-> HTL("<span>Hello World</span>")
-
-The hypertext string macro produces an `HTL` object, which renders its
-output when displayed to a `"text/html"` output.
-
-    display("text/html", htl"<span>Hello World</span>")
-    #-> <span>Hello World</span>
-
-So that we can focus attention on the input/outputs, let's define
-`@print` as follows.
+the README can be validated by running `./test/runtests.jl`. To enhance
+readability, we define the following macro.
 
     macro print(expr)
         :(display("text/html", $expr))
     end
 
-We could then see output of `htl"<span>Hello</span>"` using `@print` on
-the subsequent line, prefixed by `#->`.
+## Introduction to Hypertext Literal
+
+`HypertextLiteral` provides an `htl` string literal and equivalent
+`@htl` macro which produce `HTL` objects that render to `"text/html",
+implementing relevant escaping and providing expression interpolation.
+
+    htl"<span>Hello World</span>"
+    #-> HTL("<span>Hello World</span>")
+
+An `HTL` object can be rendered to `"text/html"` with `display()`.
+
+    display("text/html", htl"<span>Hello World</span>")
+    #-> <span>Hello World</span>
+
+In this tutorial, we use the `@print` macro defined above to increase
+readability without having to type this `display` function.
 
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
 
-With that out of the way, let's start again from the top.
-
-## Introduction to Hypertext
-
-`HypertextLiteral` provides an `htl` string literal and equivalent
-`@htl` macro which produce objects that render to `"text/html" mimetype,
-implementing relevant escaping and providing expression interpolation.
+Hypertext literal provides interpolation via `$`; within interpolated
+content, both the ampersand (`&`) and less-than (`<`) are escaped.
 
     book = "Strunk & White"
 
@@ -96,8 +91,8 @@ a regular Julia string. Other escape sequences, such as `\"` also work.
     #-> They said, "your total is $42.50".
 
 String literals can also be triple-quoted, as seen in the multi-line
-opening examples.  We could write the example above as follows. Note
-that we still need to quote the dollar sign.
+opening examples. We could write the example above as follows. Even in
+triple-quoted form, we still need to quote the dollar sign (`$`).
 
     @print htl"""They said, "your total is \$42.50"."""
     #-> They said, "your total is $42.50".
@@ -109,16 +104,15 @@ string representation.
     @print htl"2+2 = $(2+2)"
     #-> 2+2 = 4
 
-Functions returning string values will be escaped. Within regular
-content, the ampersand (`&`) and less-than (`<`) are escaped.
+Functions returning string values will be escaped.
 
     input() = "<script>alert('ouch!')"
 
     @print htl"$(input())"
     #-> &#60;script>alert('ouch!')
 
-Functions returning hypertext fragments are not further escaped. This
-permits us to build reusable HTML templates.
+Functions returning `HTL` objects are not further escaped. This permits
+us to build reusable HTML templates.
 
     sq(x) = htl"<span>$(x*x)</span>"
 
@@ -128,25 +122,28 @@ permits us to build reusable HTML templates.
 ## Expression Translation
 
 This package lets us work with hypertext using common Julia string
-interpolation conventions. For example, we could enumerate a list of our
-favorite books using Julia strings. Notice that the splat (`...`)
-operator is used to concatenate the list items.
+interpolation conventions. In Julia, we could list our favorite books.
+Notice that the splat (`...`) operator concatenates list items.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
     "Favorites: $(["$b, " for b in books]...)"
     #-> "Favorites: Who Gets What & Why, Switch, Governing The Commons, "
 
-A translation for HTML using this package might use a unordered list
-elements, but is otherwise similar.
+A translation for `text/html` has similar structure.
 
     @print htl"""<ul>$([htl"<li>$b" for b in books]...)</ul>"""
-    #-> <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+    #=>
+    <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+    =#
 
-This technique works with arbitrary Julia expressions.
+This technique works with arbitrary Julia expressions. It also works
+with the macro forms.
 
-    @print htl"""<ul>$(map(["A", "B&C"]) do x htl"<li>$x</li>" end)</ul>"""
-    #-> <ul><li>A</li><li>B&#38;C</li></ul>
+    @print @htl "<ul>$(map(books) do b @htl("<li>$b") end)</ul>"
+    #=>
+    <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+    =#
 
 ## Value Conversion for Attributes
 

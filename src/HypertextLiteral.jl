@@ -32,6 +32,7 @@ mutable struct HTL
     content::Vector
 end
 
+HTL() = HTL([])
 HTL(xs...) = HTL(xs)
 HTL(s::AbstractString) = HTL([s])
 
@@ -644,5 +645,18 @@ function interpolate(args)
 
     return Expr(:call, :HTL, Expr(:vect, parts...))
 end
+
+# TODO: is this even a good idea? you often want to `join` HTL...
+#join(strings) = sprint(join, strings)
+#join(strings, delim) = sprint(join, strings, delim)
+#join(strings, delim, last) = sprint(join, strings, delim, last)
+function Base.join(strings::Vector{HTL})::HTL
+     retval = HTL()
+     for part in strings
+         append!(retval.content, part.content)
+     end
+     return retval
+end
+
 
 end

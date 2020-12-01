@@ -119,33 +119,30 @@ us to build reusable HTML templates.
     @print htl"<div>3^2 is $(sq(3))</div>"
     #-> <div>3^2 is <span>9</span></div>
 
-## Expression Translation
-
-This package lets us work with hypertext using common Julia string
-interpolation conventions. In Julia, we could list our favorite books.
-Notice that the splat (`...`) operator concatenates list items.
+Within a triple-quoted `htl` string, a single-quoted `htl` expression
+can be included. This technique only works for one level of nesting.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
-    "Favorites: $(["$b, " for b in books]...)"
-    #-> "Favorites: Who Gets What & Why, Switch, Governing The Commons, "
-
-A translation for `text/html` has similar structure.
-
-    @print htl"""<ul>$([htl"<li>$b" for b in books]...)</ul>"""
+    @print htl"""<ul>$([htl"<li>$b" for b in books])</ul>"""
     #=>
     <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
-This technique works with arbitrary Julia expressions. It also works
-with the macro forms.
+The macro syntax supports arbitrary levels of nesting. Here we show only
+one level of nesting.
 
-    @print @htl "<ul>$(map(books) do b @htl("<li>$b") end)</ul>"
+    books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
+
+    @print @htl("<ul>$(map(books) do b @htl("<li>$b") end)</ul>")
     #=>
     <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
-## Value Conversion for Attributes
+List comprehensions and functions returning lists work within hypertext
+literals because elements of a `Vector{HTL}` value are concatinated.
+
+## Conversion for Attributes
 
 Escaping of Julia values depends upon the context. For attributes,
 escaping depends upon quoting style. Within double quotes, the double
@@ -168,8 +165,8 @@ resulting attribute value is concatenated.
 
 Symbols and numbers are automatically converted within attributes.
 
-    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)' />"
-    #-> <tag one=0 sym=sym qone='1.0' qsym='sym' />
+    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)'/>"
+    #-> <tag one=0 sym=sym qone='1.0' qsym='sym'/>
 
 Within bare attributes, boolean values provide special support for
 boolean HTML properties, such as `"disabled"`. When a bare value `false`
@@ -179,27 +176,18 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
-Within element content and attribute values, `Symbol` and `Number`
-values are treated as string content (and escaped).
-
-    @print htl"""<tag a=$(:one) b="$(:two)" c='$(:three)'>$(:four)</tag>"""
-    #-> <tag a=one b="two" c='three'>four</tag>
-
-    @print htl"""<tag a=$(1.0) b="$(2.0)" c='$(3.0)'>$(4.0)</tag>"""
-    #-> <tag a=1.0 b="2.0" c='3.0'>4.0</tag>
-
-Within attributes, regardless of quoting, other datatypes are treated as
-an error.
+Within attributes, independent of quoting style, other datatypes are
+treated as an error. This includes hypertext objects and also lists.
 
     htl"<tag att='$([1,2,3])'"
     #=>
     ERROR: DomainError with [1, 2, 3]:
       Unable to convert Array{Int64,1} to an attribute; either expressly
-      cast as a string, or provide an `htl_render_attribute` method
+      convert to a string, or provide an `htl_render_attribute` method
     =#
 
-Dictionaries provided as a `"style" attribute are expanded within a
-`"style"` attribute Dictionaries w
+There is special support for the `"style"` attribute. In this case,
+dictionaries are expanded, with `camelCase` conversion to `camel-case`.
 
     header_styles = Dict(:fontSize => "25px", "padding-left" => "10px")
 

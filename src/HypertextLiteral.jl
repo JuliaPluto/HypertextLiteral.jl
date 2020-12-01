@@ -62,10 +62,14 @@ macro htl(expr)
     if expr isa String
         return interpolate([expr])
     end
+    @assert expr isa Expr
+    if expr.head != :string
+       # TODO: what is going on in this case...
+       @assert false
+       return interpolate([expr])
+    end
     # Find cases where we may have an interpolated string literal and
     # raise an exception (till Julia issue #38501 is addressed)
-    @assert expr isa Expr
-    @assert expr.head == :string
     if length(expr.args) == 1 && expr.args[1] isa String
         throw("interpolated string literals are not supported")
     end
@@ -216,7 +220,7 @@ function htl_render_attribute(v)
     end
     throw(DomainError(v, """
       Unable to convert $(typeof(v)) to an attribute; either expressly
-      cast as a string, or provide an `htl_render_attribute` method
+      convert to a string, or provide an `htl_render_attribute` method
     """))
 end
 
@@ -657,6 +661,5 @@ function Base.join(strings::Vector{HTL})::HTL
      end
      return retval
 end
-
 
 end

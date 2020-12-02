@@ -42,6 +42,37 @@ ampersands are properly escaped in the book name and author listing.
     </tbody></table>
     =#
 
+This package is implemented according to several design criteria.
+
+* Operation of interpolated expressions (`$`) should mirror what they
+  would do with regular Julia strings, updated with hypertext escaping
+  sensibilities including proper escaping and helpful representations.
+
+* With exception of boolean attributes (which must be removed to be
+  false), input is treated as-is and not otherwise modified.
+
+* Interpolations having string values are injected "as-is" into the
+  output (subject to context sensitive checking or escaping);
+  conversely, non-string values may be given helpful interpretations.
+
+* Given that this library will be used by content producers, it should
+  be conservative, raising an error when invalid hypertext is discovered
+  and only serializing Julia objects that have an express representation.
+
+* There should be an extension API that permits custom data types to
+  provide their own context-sensitive serialization strategies.
+
+* As much processing (e.g. hypertext lexical analysis) should be done
+  during macro expansion to reduce runtime and to report errors early.
+  Error messages should guide the user towards addressing the problem.
+
+* To be helpful, HTML tags and attributes may be recognized. Special
+  behavior may be provided to attributes such as `"style"` (CSS),
+  `"class"` and, eventually, `"script"`. What about CSS units?
+
+* Full coverage of HTML is ideal. However, during early versions there
+  will be poor coverage of `script`, CDATA, COMMENTS, etc.
+
 We use [NarrativeTest][nt] to ensure our examples are correct. After
 each command is a comment with the expected output. This tool ensures
 the README can be validated by running `./test/runtests.jl`. To enhance

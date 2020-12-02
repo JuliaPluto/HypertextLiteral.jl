@@ -185,7 +185,7 @@ struct AttributePair <: InterpolatedValue
     values::Vector
 end
 
-AttributePair(name::Symbol, values::Vector) = 
+AttributePair(name::Symbol, values::Vector) =
     AttributePair(camelcase_to_dashes(string(name)), values)
 
 # handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
@@ -311,47 +311,7 @@ end
 
 entity(ch::Char) = "&#$(Int(ch));"
 
-@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BOGUS_COMMENT STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
-
-begin
-    const CODE_TAB = 9
-    const CODE_LF = 10
-    const CODE_FF = 12
-    const CODE_CR = 13
-    const CODE_SPACE = 32
-    const CODE_UPPER_A = 65
-    const CODE_UPPER_Z = 90
-    const CODE_LOWER_A = 97
-    const CODE_LOWER_Z = 122
-    const CODE_LT = 60
-    const CODE_GT = 62
-    const CODE_SLASH = 47
-    const CODE_DASH = 45
-    const CODE_BANG = 33
-    const CODE_EQ = 61
-    const CODE_DQUOTE = 34
-    const CODE_SQUOTE = 39
-    const CODE_QUESTION = 63
-end
-
-function isAsciiAlphaCode(code::Int)::Bool
-  return (
-        CODE_UPPER_A <= code
-        && code <= CODE_UPPER_Z
-    ) || (
-        CODE_LOWER_A <= code
-        && code <= CODE_LOWER_Z
-    )
-end
-
-function isSpaceCode(code)
-  return ( code === CODE_TAB
-        || code === CODE_LF
-        || code === CODE_FF
-        || code === CODE_SPACE
-        || code === CODE_CR
-    ) # normalize newlines
-end
+@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
 
 """
     interpolate(args):Expr
@@ -371,8 +331,13 @@ as an `Expr` with `head` of `:string`.
 function interpolate(args)
     state = STATE_DATA
     parts = Union{String, Expr}[]
-    nameStart = 0
-    nameEnd = 0
+    attribute_start = element_start = nothing
+    attribute_end = element_end = nothing
+
+    is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
+    is_space(ch) = ch in ('\t', '\n', '\f', ' ')
+    normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
+    nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 
     for j in 1:length(args)
         input = args[j]
@@ -383,8 +348,8 @@ function interpolate(args)
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
-                name = parts[end][nameStart:nameEnd]
-                parts[end] = parts[end][begin:nameStart - 2]
+                name = parts[end][attribute_start:attribute_end]
+                parts[end] = parts[end][begin:attribute_start - 2]
                 push!(parts, :(AttributePair($name, Any[$input])))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 @assert length(parts) > 1 && parts[end] isa Expr
@@ -415,187 +380,197 @@ function interpolate(args)
             if inputlength < 1
                 continue
             end
+            input = normalize(input)
             i = 1
             while i <= inputlength
-                code = Int(input[i])
+                ch = input[i]
 
                 if state == STATE_DATA
-                    if code === CODE_LT
+                    if ch === '<'
                         state = STATE_TAG_OPEN
                     end
 
                 elseif state == STATE_TAG_OPEN
-                    if code === CODE_BANG
+                    if ch === '!'
                         state = STATE_MARKUP_DECLARATION_OPEN
-                    elseif code === CODE_SLASH
+                    elseif ch === '/'
                         state = STATE_END_TAG_OPEN
-                    elseif isAsciiAlphaCode(code)
+                    elseif is_alpha(ch)
                         state = STATE_TAG_NAME
+                        element_start = i
                         i -= 1
-                    elseif code === CODE_QUESTION
-                        state = STATE_BOGUS_COMMENT
-                        i -= 1
+                    elseif ch === '?'
+                        throw(DomainError(nearby(input, i-1),
+                          "unexpected question mark instead of tag name"))
                     else
-                        state = STATE_DATA
-                        i -= 1
+                        throw(DomainError(nearby(input, i-1),
+                          "invalid first character of tag name"))
                     end
 
                 elseif state == STATE_END_TAG_OPEN
-                    if isAsciiAlphaCode(code)
+                    if is_alpha(ch)
                         state = STATE_TAG_NAME
                         i -= 1
-                    elseif code === CODE_GT
+                    elseif ch === '>'
                         state = STATE_DATA
                     else
-                        state = STATE_BOGUS_COMMENT
-                        i -= 1
+                        throw(DomainError(nearby(input, i-1),
+                          "invalid first character of tag name"))
                     end
 
                 elseif state == STATE_TAG_NAME
-                    if isSpaceCode(code)
+                    if isspace(ch)
                         state = STATE_BEFORE_ATTRIBUTE_NAME
-                    elseif code === CODE_SLASH
+                    elseif ch === '/'
                         state = STATE_SELF_CLOSING_START_TAG
-                    elseif code === CODE_GT
+                    elseif ch === '>'
                         state = STATE_DATA
+                    else
+                        # note: we do not lowercase names here...
+                        element_end = i
                     end
 
                 elseif state == STATE_BEFORE_ATTRIBUTE_NAME
-                    if isSpaceCode(code)
+                    if is_space(ch)
                         nothing
-                    elseif code === CODE_SLASH || code === CODE_GT
+                    elseif ch === '/' || ch === '>'
                         state = STATE_AFTER_ATTRIBUTE_NAME
                         i -= 1
-                    elseif code === CODE_EQ
-                        state = STATE_ATTRIBUTE_NAME
-                        nameStart = i + 1
-                        nameEnd = nothing
+                    elseif ch in  '='
+                        throw(DomainError(nearby(input, i-1),
+                          "unexpected equals sign before attribute name"))
                     else
                         state = STATE_ATTRIBUTE_NAME
+                        attribute_start = i
+                        attribute_end = nothing
                         i -= 1
-                        nameStart = i + 1
-                        nameEnd = nothing
                     end
 
                 elseif state == STATE_ATTRIBUTE_NAME
-                    if isSpaceCode(code) || code === CODE_SLASH || code === CODE_GT
+                    if is_space(ch) || ch === '/' || ch === '>'
                         state = STATE_AFTER_ATTRIBUTE_NAME
-                        nameEnd = i - 1
                         i -= 1
-                    elseif code === CODE_EQ
+                    elseif ch === '='
                         state = STATE_BEFORE_ATTRIBUTE_VALUE
-                        nameEnd = i - 1
+                    elseif ch in ('"', '\"', '<')
+                        throw(DomainError(nearby(input, i-1),
+                          "unexpected character in attribute name"))
+                    else
+                        attribute_end = i
                     end
 
                 elseif state == STATE_AFTER_ATTRIBUTE_NAME
-                    if isSpaceCode(code)
-                        # ignore
-                    elseif code === CODE_SLASH
+                    if is_space(ch)
+                        nothing
+                    elseif ch === '/'
                         state = STATE_SELF_CLOSING_START_TAG
-                    elseif code === CODE_EQ
+                    elseif ch === '='
                         state = STATE_BEFORE_ATTRIBUTE_VALUE
-                    elseif code === CODE_GT
+                    elseif ch === '>'
                         state = STATE_DATA
                     else
                         state = STATE_ATTRIBUTE_NAME
+                        attribute_start = i
+                        attribute_end = nothing
                         i -= 1
-                        nameStart = i + 1
-                        nameEnd = nothing
                     end
 
                 elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
-                    if isSpaceCode(code)
-                        # continue
-                    elseif code === CODE_DQUOTE
+                    if is_space(ch)
+                        nothing
+                    elseif ch === '"'
                         state = STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                    elseif code === CODE_SQUOTE
+                    elseif ch === '\''
                         state = STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                    elseif code === CODE_GT
-                        state = STATE_DATA
+                    elseif ch === '>'
+                        throw(DomainError(nearby(input, i-1),
+                          "missing attribute valuee"))
                     else
                         state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                         i -= 1
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                    if code === CODE_DQUOTE
+                    if ch === '"'
                         state = STATE_AFTER_ATTRIBUTE_VALUE_QUOTED
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                    if code === CODE_SQUOTE
+                    if ch === '\''
                         state = STATE_AFTER_ATTRIBUTE_VALUE_QUOTED
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
-                    if isSpaceCode(code)
+                    if is_space(ch)
                         state = STATE_BEFORE_ATTRIBUTE_NAME
-                    elseif code === CODE_GT
+                    elseif ch === '>'
                         state = STATE_DATA
+                    elseif ch in ('"', '\'', "<", "=", '`')
+                        throw(DomainError(nearby(input, i-1),
+                          "unexpected character in unquoted attribute value"))
                     end
 
                 elseif state == STATE_AFTER_ATTRIBUTE_VALUE_QUOTED
-                    if isSpaceCode(code)
+                    if is_space(ch)
                         state = STATE_BEFORE_ATTRIBUTE_NAME
-                    elseif code === CODE_SLASH
+                    elseif ch === '/'
                         state = STATE_SELF_CLOSING_START_TAG
-                    elseif code === CODE_GT
+                    elseif ch === '>'
                         state = STATE_DATA
                     else
-                        state = STATE_BEFORE_ATTRIBUTE_NAME
-                        i -= 1
+                        throw(DomainError(nearby(input, i-1),
+                          "missing whitespace between attributes"))
                     end
 
                 elseif state == STATE_SELF_CLOSING_START_TAG
-                    if code === CODE_GT
+                    if ch === '>'
                         state = STATE_DATA
                     else
-                        state = STATE_BEFORE_ATTRIBUTE_NAME
-                        i -= 1
-                    end
-
-                elseif state == STATE_BOGUS_COMMENT
-                    if code === CODE_GT
-                        state = STATE_DATA
+                        throw(DomainError(nearby(input, i-1),
+                          "unexpected solidus in tag"))
                     end
 
                 elseif state == STATE_COMMENT_START
-                    if code === CODE_DASH
+                    if ch === '-'
                         state = STATE_COMMENT_START_DASH
-                    elseif code === CODE_GT
-                        state = STATE_DATA
+                    elseif ch === '>'
+                        throw(DomainError(nearby(input, i-1),
+                          "abrupt closing of empty comment"))
                     else
                         state = STATE_COMMENT
                         i -= 1
                     end
 
                 elseif state == STATE_COMMENT_START_DASH
-                    if code === CODE_DASH
+                    if ch === '-'
                         state = STATE_COMMENT_END
-                    elseif code === CODE_GT
-                        state = STATE_DATA
+                    elseif ch === '>'
+                        throw(DomainError(nearby(input, i-1),
+                          "abrupt closing of empty comment"))
                     else
                         state = STATE_COMMENT
                         i -= 1
                     end
 
                 elseif state == STATE_COMMENT
-                    if code === CODE_LT
+                    if ch === '<'
                         state = STATE_COMMENT_LESS_THAN_SIGN
-                    elseif code === CODE_DASH
+                    elseif ch === '-'
                         state = STATE_COMMENT_END_DASH
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN
-                    if code === CODE_BANG
+                    if ch == '!'
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG
-                    elseif code !== CODE_LT
+                    elseif ch == '<'
+                        nothing
+                    else
                         state = STATE_COMMENT
                         i -= 1
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG
-                    if code === CODE_DASH
+                    if ch == "-"
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
                     else
                         state = STATE_COMMENT
@@ -603,7 +578,7 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
-                    if code === CODE_DASH
+                    if ch == "-"
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
                     else
                         state = STATE_COMMENT_END
@@ -611,11 +586,16 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
-                    state = STATE_COMMENT_END
+                    if ch == ">"
+                        state = STATE_COMMENT_END
                         i -= 1
+                    else
+                        throw(DomainError(nearby(input, i-1),
+                          "nested comment"))
+                    end
 
                 elseif state == STATE_COMMENT_END_DASH
-                    if code === CODE_DASH
+                    if ch === '-'
                         state = STATE_COMMENT_END
                     else
                         state = STATE_COMMENT
@@ -623,32 +603,39 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_COMMENT_END
-                    if code === CODE_GT
+                    if ch === '>'
                         state = STATE_DATA
-                    elseif code === CODE_BANG
+                    elseif ch == '!'
                         state = STATE_COMMENT_END_BANG
-                    elseif code !== CODE_DASH
+                    elseif ch == '-'
+                        nothing
+                    else
                         state = STATE_COMMENT
                         i -= 1
                     end
 
                 elseif state == STATE_COMMENT_END_BANG
-                    if code === CODE_DASH
+                    if ch == '-'
                         state = STATE_COMMENT_END_DASH
-                    elseif code === CODE_GT
-                        state = STATE_DATA
+                    elseif ch == '>'
+                        throw(DomainError(nearby(input, i-1),
+                          "nested comment"))
                     else
                         state = STATE_COMMENT
                         i -= 1
                     end
 
                 elseif state == STATE_MARKUP_DECLARATION_OPEN
-                    if code === CODE_DASH && Int(input[i + 1]) == CODE_DASH
+                    if ch == '-' && input[i + 1] == '-'
                         state = STATE_COMMENT_START
                         i += 1
-                    else # Note: CDATA and DOCTYPE unsupported!
-                        state = STATE_BOGUS_COMMENT
-                        i -= 1
+                    elseif startswith(input[i:end], "DOCTYPE")
+                        throw("DOCTYPE not supported")
+                    elseif startswith(input[i:end], "[CDATA[")
+                        throw("CDATA not supported")
+                    else
+                        throw(DomainError(nearby(input, i-1),
+                          "incorrectly opened comment"))
                     end
                 else
                     state = nothing

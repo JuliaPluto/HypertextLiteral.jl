@@ -6,8 +6,8 @@ Julia string interpolation, only that it tracks hypertext escaping needs
 and provides handy conversions dependent upon context.*
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
-> ([@mbostock][@mbostock]). You can read more about it
-> [here][observablehq].
+> ([@mbostock][@mbostock]) available at [here][observablehq]. This work
+> is based upon a port to Julia written by Michiel Dral.
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `"text/html"` displays.
@@ -41,37 +41,6 @@ ampersands are properly escaped in the book name and author listing.
       <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
     </tbody></table>
     =#
-
-This package is implemented according to several design criteria.
-
-* Operation of interpolated expressions (`$`) should mirror what they
-  would do with regular Julia strings, updated with hypertext escaping
-  sensibilities including proper escaping and helpful representations.
-
-* With exception of boolean attributes (which must be removed to be
-  false), input is treated as-is and not otherwise modified.
-
-* Interpolations having string values are injected "as-is" into the
-  output (subject to context sensitive checking or escaping);
-  conversely, non-string values may be given helpful interpretations.
-
-* Given that this library will be used by content producers, it should
-  be conservative, raising an error when invalid hypertext is discovered
-  and only serializing Julia objects that have an express representation.
-
-* There should be an extension API that permits custom data types to
-  provide their own context-sensitive serialization strategies.
-
-* As much processing (e.g. hypertext lexical analysis) should be done
-  during macro expansion to reduce runtime and to report errors early.
-  Error messages should guide the user towards addressing the problem.
-
-* To be helpful, HTML tags and attributes may be recognized. Special
-  behavior may be provided to attributes such as `"style"` (CSS),
-  `"class"` and, eventually, `"script"`. What about CSS units?
-
-* Full coverage of HTML is ideal. However, during early versions there
-  will be poor coverage of `script`, CDATA, COMMENTS, etc.
 
 We use [NarrativeTest][nt] to ensure our examples are correct. After
 each command is a comment with the expected output. This tool ensures
@@ -250,8 +219,8 @@ while `Symbol` values go though `camelCase` case conversion.
 
 So that we could distinguish between regular strings and strings that
 are meant to be hypertext, we define the type `HTL` which is an array
-containing `String` values which are assumed to be valid hypertext, and
-any objects are [Multimedia.showable][showable] as `"text/html"`.
+containing `String` values, which are assumed to be valid hypertext, and
+objects that are [Multimedia.showable][showable] as `"text/html"`.
 
     htl"<span>Hello World!</span>"
     #-> HTL("<span>Hello World!</span>")
@@ -261,14 +230,13 @@ any objects are [Multimedia.showable][showable] as `"text/html"`.
 
 We considered using `Docs.HTML` for this purpose, but it has the wrong
 semantics. The `HTML` type it is intended to promote the `"text/plain"`
-representation of any object to something directly showable as
-`"text/html"`.
+representation of any object to something showable as `"text/html"`.
 
     display("text/html", HTML(["<span>", HTML("content"), "</span>"]))
     #-> Any["<span>", HTML{String}("content"), "</span>"]
 
-By contrast, `HTL` concatinates vectors and unwraps objects showable as
-`"text/html"`.  Like HTML, `String` values are assumed to be properly
+By contrast, `HTL` concatenates vectors and unwraps objects showable as
+`"text/html"`. Like HTML, `String` values are assumed to be properly
 escaped (the `htl` string literal and macro do this escaping).
 
     display("text/html", HTL(["<span>", HTL("content"), "</span>"]))
@@ -285,8 +253,6 @@ If one attempts to reference a user defined type, it will be an error.
     ERROR: DomainError with …Custom("a&b"):
     Elements must be strings or objects showable as "text/html".
     =#
-
-This can be addressed by implementing `show` for this method.
 
 ## Quirks
 
@@ -444,11 +410,11 @@ Observe that the string macro form can detect and properly escape.
 
     x = ""
 
-    @print htl"""$x$("should escape (<)")"""
-    #-> should escape (&#60;)
+    @print htl"""$x$("<script>alert('Hello')</script>")"""
+    #-> &#60;script>alert('Hello')&#60;/script>
 
-    @print @htl("$x$("should escape (<)")")
-    #-> should escape (<)
+    @print @htl("$x$("<script>alert(\"Hello\")</script>")")
+    #-> <script>alert("Hello")</script>
 
 Hence, for a cases where we could detect a string literal, we raise an
 error condition to discourage its use. The string macro form works.
@@ -480,6 +446,40 @@ interpolation.
 
     @print htl"Foo$"
     #-> ERROR: LoadError: "invalid interpolation syntax"⋮
+
+## Contributing
+
+We are absolutely open to suggested improvements. This package is
+implemented according to several design criteria.
+
+* Operation of interpolated expressions (`$`) should mirror what they
+  would do with regular Julia strings, updated with hypertext escaping
+  sensibilities including proper escaping and helpful representations.
+
+* With exception of boolean attributes (which must be removed to be
+  false), input is treated as-is and not otherwise modified.
+
+* Interpolations having string values are injected "as-is" into the
+  output (subject to context sensitive checking or escaping);
+  conversely, non-string values may be given helpful interpretations.
+
+* Given that this library will be used by content producers, it should
+  be conservative, raising an error when invalid hypertext is discovered
+  and only serializing Julia objects that have an express representation.
+
+* There should be an extension API that permits custom data types to
+  provide their own context-sensitive serialization strategies.
+
+* As much processing (e.g. hypertext lexical analysis) should be done
+  during macro expansion to reduce runtime and to report errors early.
+  Error messages should guide the user towards addressing the problem.
+
+* To be helpful, HTML tags and attributes may be recognized. Special
+  behavior may be provided to attributes such as `"style"` (CSS),
+  `"class"` and, eventually, `"script"`. What about CSS units?
+
+* Full coverage of HTML is ideal. However, during early versions there
+  may be poor coverage of `script`, CDATA, COMMENTS, etc.
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

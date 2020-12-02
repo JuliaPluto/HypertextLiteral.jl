@@ -129,8 +129,8 @@ however, we still need to escape the dollar sign (`$`).
     #-> They said, "your total is $42.50".
 
 Within any of these forms, Julia results can be interpolated using the
-`$(expr)` notation. Numeric values are automatically converted to their
-string representation.
+`$(expr)` notation. Numeric values (excepting `Bool`) are automatically
+converted to their string representation.
 
     @print htl"2+2 = $(2+2)"
     #-> 2+2 = 4
@@ -217,10 +217,11 @@ treated as an error. This includes `Vector` as well as `HTL` objects.
       convert to a string, or provide an `htl_render_attribute` method
     =#
 
-There is special support for the unquoted `"style"` attribute. In this
-case, `Pair` and `Dict` objects are expanded as style attributes
-separated by the semi-colon (`;`). Style names that are `Symbol` objects
-go though `camelCase` conversion to `camel-case`.
+There is special support for the *unquoted* `"style"` attribute value.
+In this case, `Pair` and `Dict` objects are expanded as style attributes
+separated by the semi-colon (`;`). Style names that are `Symbol` values
+go though `camelCase` conversion to `camel-case`, while `String` values
+are passed along as-is.
 
     header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
 
@@ -234,7 +235,7 @@ go though `camelCase` conversion to `camel-case`.
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
 Similarly, attributes may be provided by `Dict` or though `Pair`
-objects. Attribute names provided as strings are passed though as-is,
+objects. Attribute names provided as a `String` are passed though as-is,
 while `Symbol` values go though `camelCase` case conversion.
 
      attributes = Dict(:dataValue => 42, "class" => :green )
@@ -245,29 +246,47 @@ while `Symbol` values go though `camelCase` case conversion.
      @print htl"""<button $(:disabled=>false,:class=>"large shadow")>"""
      #-> <button class=large&#32;shadow>
 
-## Design Discussion
+## Design Discussion and Custom Extensions
 
-The Julia ecosystem provides an `HTML` data type as part of its built-in
-documentation package. We use this data type to indicate that a string
-value is intended to be syntactically valid hypertext.
+So that we could distinguish between regular strings and strings that
+are meant to be hypertext, we define the type `HTL` which is an array
+containing `String` values which are assumed to be valid hypertext, and
+any objects are [Multimedia.showable][showable] as `"text/html"`.
 
-    @print html"<span>Hello World!</span>"
+    htl"<span>Hello World!</span>"
+    #-> HTL("<span>Hello World!</span>")
+
+    display("text/html", HTL("<span>Hello World!</span>"))
     #-> <span>Hello World!</span>
 
-Julia uses `$` for string interpolation syntax, letting local variables
-or arbitrary expressions be accessed. However, it doesn't know about
-proper escaping in the context of hypertext content.
+We considered using `Docs.HTML` for this purpose, but it has the wrong
+semantics. The `HTML` type it is intended to promote the `"text/plain"`
+representation of any object to something directly showable as
+`"text/html"`.
 
-    book = "Strunk & White"
+    display("text/html", HTML(["<span>", HTML("content"), "</span>"]))
+    #-> Any["<span>", HTML{String}("content"), "</span>"]
 
-    "<span>Today's Reading: $book</span>"
-    #-> "<span>Today's Reading: Strunk & White</span>"
+By contrast, `HTL` concatinates vectors and unwraps objects showable as
+`"text/html"`.  Like HTML, `String` values are assumed to be properly
+escaped (the `htl` string literal and macro do this escaping).
 
-Conversely, the built-in the `html` string literal doesn't provide
-interpolation, the `$` character is simply that, a dollar sign.
+    display("text/html", HTL(["<span>", HTL("content"), "</span>"]))
+    #-> <span>content</span>
 
-    @print html"<span>Today's Reading: $book</span>"
-    #-> <span>Today's Reading: $book</span>
+If one attempts to reference a user defined type, it will be an error.
+
+    struct Custom data::String end
+
+    x = Custom("a&b")
+
+    HTL(x)
+    #=>
+    ERROR: DomainError with …Custom("a&b"):
+    Elements must be strings or objects showable as "text/html".
+    =#
+
+This can be addressed by implementing `show` for this method.
 
 ## Quirks
 
@@ -474,3 +493,5 @@ interpolation.
 [sgml]: https://en.wikipedia.org/wiki/Standard_Generalized_Markup_Language
 [svg]: https://en.wikipedia.org/wiki/Scalable_Vector_Graphics
 [html]: https://en.wikipedia.org/wiki/HTML
+[show]: https://docs.julialang.org/en/v1/base/io-network/#Base.show-Tuple{IO,Any,Any}
+[showable]: https://docs.julialang.org/en/v1/base/io-network/#Base.Multimedia.showable

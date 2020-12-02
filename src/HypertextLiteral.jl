@@ -30,11 +30,23 @@ objects and produces the equivalent string representation (unwise?).
 """
 mutable struct HTL
     content::Vector
+
+    function HTL(obj)
+        function check(item)
+            if item isa AbstractString || showable(MIME("text/html"), item)
+               return item
+            end
+            throw(DomainError(item, "Elements must be strings or " *
+                              """objects showable as "text/html"."""))
+        end
+        if obj isa AbstractVector || obj isa Tuple
+            return new([check(item) for item in obj])
+        end
+        return new([check(obj)])
+    end
 end
 
-HTL() = HTL([])
 HTL(xs...) = HTL(xs)
-HTL(s::AbstractString) = HTL([s])
 
 function Base.show(io::IO, mime::MIME"text/html", h::HTL)
     for item in h.content

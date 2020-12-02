@@ -90,9 +90,9 @@ a regular Julia string. Other escape sequences, such as `\"` also work.
     @print htl"They said, \"your total is \$42.50\"."
     #-> They said, "your total is $42.50".
 
-String literals can also be triple-quoted, which could span multiple
-lines. Within triple quotes, single quoted strings can go unescaped,
-however, we still need to escape the dollar sign (`$`).
+String literals can also be triple-quoted, allowing them to span
+multiple lines. Within triple quotes, single quoted strings can go
+unescaped, however, we still need to escape the dollar sign (`$`).
 
     @print htl"""They said, "your total is \$42.50"."""
     #-> They said, "your total is $42.50".
@@ -175,16 +175,6 @@ attribute is kept, with value being an empty string (`''`).
 
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
-
-Within attributes, independent of quoting style, other datatypes are
-treated as an error. This includes `Vector` as well as `HTL` objects.
-
-    htl"<tag att='$([1,2,3])'"
-    #=>
-    ERROR: DomainError with [1, 2, 3]:
-      Unable to convert Array{Int64,1} to an attribute; either expressly
-      convert to a string, or provide an `htl_render_attribute` method
-    =#
 
 There is special support for the *unquoted* `"style"` attribute value.
 In this case, `Pair` and `Dict` objects are expanded as style attributes
@@ -351,6 +341,16 @@ To prevent interpolation, use `\` for an escape.
     @print @htl("\$42.00")
     #-> $42.00
 
+Within attributes, independent of quoting style, other datatypes are
+treated as an error. This includes `Vector` as well as `HTL` objects.
+
+    htl"<tag att='$([1,2,3])'"
+    #=>
+    ERROR: DomainError with [1, 2, 3]:
+      Unable to convert Array{Int64,1} to an attribute; either expressly
+      convert to a string, or provide an `htl_render_attribute` method
+    =#
+
 Within an unquoted attribute value, we must escape whitespace, the
 ampersand (&), quotation ("), greater-than (>), less-than (<),
 apostrophe ('), grave accent (`), and equals (=) characters.
@@ -437,6 +437,21 @@ raise an error for all.
 
     @print @htl "$("one")$("two")"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+
+Attribute names should be non-empty and not in a list of excluded
+characters.
+
+    @htl("<tag $("" => "value")/>")
+    #=>
+    ERROR: DomainError with :
+    Attribute name must not be empty.
+    =#
+
+    @htl("<tag $("&att" => "value")/>")
+    #=>
+    ERROR: DomainError with &att:
+    Invalid character ('&') found within an attribute name.
+    =#
 
 A string ending with `$` is an syntax error since it is an incomplete
 interpolation.

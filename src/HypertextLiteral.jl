@@ -183,6 +183,22 @@ struct AttributeSingleQuoted <: InterpolatedValue value end
 struct AttributePair <: InterpolatedValue
     name::String
     values::Vector
+
+    function AttributePair(name::String, values::Vector)
+        if length(name) < 1
+            throw(DomainError(name, "Attribute name must not be empty."))
+        end 
+        # Attribute names are unquoted and do not have & escaping;
+        # the &, % and \ characters are not expressly prevented by the
+        # specification, but they likely signal a programming error.
+        for invalid in "/>='<&%\\\"\t\n\f\r\x20\x00"
+            if invalid in name
+                throw(DomainError(name, "Invalid character ('$invalid') " *
+                   "found within an attribute name."))
+            end
+        end
+        return new(name, values)
+    end
 end
 
 AttributePair(name::Symbol, values::Vector) =

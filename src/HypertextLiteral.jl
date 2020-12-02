@@ -173,6 +173,9 @@ struct AttributePair <: InterpolatedValue
     values::Vector
 end
 
+AttributePair(name::Symbol, values::Vector) = 
+    AttributePair(camelcase_to_dashes(string(name)), values)
+
 # handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
 ElementData(args...) = HTL([ElementData(item) for item in args])
 
@@ -233,11 +236,13 @@ function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     if x.value isa Dict
         for (key, value) in pairs(x.value)
             show(io, mime, AttributePair(key, [value]))
-            print(io, " ")
         end
     elseif x.value isa Pair
         show(io, mime, AttributePair(x.value.first, [x.value.second]))
-        print(io, " ")
+    elseif x.value isa Tuple{Pair, Vararg{Pair}}
+        for (key, value) in x.value
+            show(io, mime, AttributePair(key, [value]))
+        end
     else
         throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
     end
@@ -336,7 +341,6 @@ function isSpaceCode(code)
     ) # normalize newlines
 end
 
-
 """
     interpolate(args):Expr
 
@@ -379,7 +383,18 @@ function interpolate(args)
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                 push!(parts, :(AttributeDoubleQuoted($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
+                # this is interpolated element pairs; strip space before
+                # and ensure there is a space afterward
+                if parts[end] isa String && parts[end][end] == ' '
+                     parts[end] = parts[end][begin:length(parts[end])-1]
+                end
                 push!(parts, :(ElementAttributes($input)))
+                if j < length(args)
+                    next = args[j+1]
+                    if next isa String && !startswith(next, r"[\s+\/>]")
+                        args[j+1] = " " * next
+                    end
+                end
             elseif state == STATE_COMMENT || true
                 throw("invalid binding #1 $(state)")
             end

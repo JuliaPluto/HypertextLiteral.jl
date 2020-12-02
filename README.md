@@ -71,7 +71,7 @@ readability without having to type this `display` function.
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
 
-Hypertext literal provides interpolation via `$`; within interpolated
+Hypertext literal provides interpolation via `$`. Within interpolated
 content, both the ampersand (`&`) and less-than (`<`) are escaped.
 
     book = "Strunk & White"
@@ -106,10 +106,10 @@ string representation.
 
 Functions returning string values will be escaped.
 
-    input() = "<script>alert('ouch!')"
+    input() = "<script>alert('a&b!')"
 
     @print htl"$(input())"
-    #-> &#60;script>alert('ouch!')
+    #-> &#60;script>alert('a&#38;b!')
 
 Functions returning `HTL` objects are not further escaped. This permits
 us to build reusable HTML templates.
@@ -140,9 +140,9 @@ we show only one level of nesting.
     =#
 
 List comprehensions and functions returning lists work within hypertext
-literals because elements of a `Vector{HTL}` value are concatinated.
+literals because elements of a `Vector{HTL}` value are concatenated.
 
-## Conversion for Attributes
+## Attribute Interpolation
 
 Escaping of Julia values depends upon the context. For attributes,
 escaping depends upon quoting style. Within double quotes, the double
@@ -165,8 +165,8 @@ resulting attribute value is concatenated.
 
 Symbols and numbers are automatically converted within attributes.
 
-    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)'/>"
-    #-> <tag one=0 sym=sym qone='1.0' qsym='sym'/>
+    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)' />"
+    #-> <tag one=0 sym=sym qone='1.0' qsym='sym' />
 
 Within bare attributes, boolean values provide special support for
 boolean HTML properties, such as `"disabled"`. When a bare value `false`
@@ -187,8 +187,9 @@ treated as an error. This includes `Vector` as well as `HTL` objects.
     =#
 
 There is special support for the unquoted `"style"` attribute. In this
-case, `Pair` and `Dict` objects are expanded as style attributes, with
-`camelCase` conversion to `camel-case`.
+case, `Pair` and `Dict` objects are expanded as style attributes
+separated by the semi-colon (`;`). Style names that are `Symbol` objects
+go though `camelCase` conversion to `camel-case`.
 
     header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
 
@@ -200,6 +201,18 @@ case, `Pair` and `Dict` objects are expanded as style attributes, with
 
     @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+
+Similarly, attributes may be provided by `Dict` or though `Pair`
+objects. Attribute names provided as strings are passed though as-is,
+while `Symbol` values go though `camelCase` case conversion.
+
+     attributes = Dict(:dataValue => 42, "class" => :green )
+
+     @print htl"<div $attributes/>"
+     #-> <div data-value=42 class=green/>
+
+     @print htl"""<button $(:disabled=>false,:class=>"large shadow")>"""
+     #-> <button class=large&#32;shadow>
 
 ## Design Discussion
 

@@ -180,6 +180,27 @@ struct ElementData <: InterpolatedValue value end
 struct ElementAttributes <: InterpolatedValue value end
 struct AttributeDoubleQuoted <: InterpolatedValue value end
 struct AttributeSingleQuoted <: InterpolatedValue value end
+
+struct RawText <: InterpolatedValue
+    value::String
+
+    function RawText(value::String, element::Symbol)
+        if occursin("</$element>", lowercase(value))
+            throw(DomainError(repr(value), "  Content of <$element> cannot " *
+                "contain the end tag (`</$element>`)."))
+        end
+        if element == :script && occursin("<!--", value)
+            # this could be slightly more nuanced
+            throw(DomainError(repr(value), "  Content of <$element> should " *
+                "not contain a comment block (`<!--`) "))
+        end
+        new(value)
+    end
+end
+
+Base.show(io::IO, mime::MIME"text/html", wrapper::RawText) =
+    print(io, wrapper.value)
+
 struct AttributePair <: InterpolatedValue
     name::String
     values::Vector
@@ -187,7 +208,7 @@ struct AttributePair <: InterpolatedValue
     function AttributePair(name::String, values::Vector)
         if length(name) < 1
             throw(DomainError(name, "Attribute name must not be empty."))
-        end 
+        end
         # Attribute names are unquoted and do not have & escaping;
         # the &, % and \ characters are not expressly prevented by the
         # specification, but they likely signal a programming error.
@@ -327,7 +348,7 @@ end
 
 entity(ch::Char) = "&#$(Int(ch));"
 
-@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN
+@enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
 """
     interpolate(args):Expr
@@ -342,13 +363,30 @@ resolved; while a `String` is treated as a literal string that won't be
 escaped. Critically, interpolated strings to be escaped are represented
 as an `Expr` with `head` of `:string`.
 
+There are tags, "script" and "style" which are rawtext, in these cases
+there is no escaping, and instead raise an exception if the appropriate
+ending tag is in substituted content.
+
 [1] https://html.spec.whatwg.org/multipage/parsing.html#tokenization
 """
 function interpolate(args)
     state = STATE_DATA
     parts = Union{String, Expr}[]
-    attribute_start = element_start = nothing
-    attribute_end = element_end = nothing
+    attribute_start = attribute_end = 0
+    element_start = element_end = 0
+    buffer_start = buffer_end = 0
+    element_tag = nothing
+    state_tag_is_open = false
+
+    function choose_tokenizer()
+        if state_tag_is_open
+            if element_tag in (:style, :xmp, :iframe, :noembed,
+                               :noframes, :noscript, :script)
+                return STATE_RAWTEXT
+            end
+        end
+        return STATE_DATA
+    end
 
     is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
     is_space(ch) = ch in ('\t', '\n', '\f', ' ')
@@ -361,6 +399,8 @@ function interpolate(args)
             input = esc(input)
             if state == STATE_DATA
                 push!(parts, :(ElementData($input)))
+            elseif state == STATE_RAWTEXT
+                push!(parts, :(RawText($input, $(QuoteNode(element_tag)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
@@ -406,6 +446,11 @@ function interpolate(args)
                         state = STATE_TAG_OPEN
                     end
 
+                elseif state == STATE_RAWTEXT
+                    if ch === '<'
+                        state = STATE_RAWTEXT_LESS_THAN_SIGN
+                    end
+
                 elseif state == STATE_TAG_OPEN
                     if ch === '!'
                         state = STATE_MARKUP_DECLARATION_OPEN
@@ -413,9 +458,12 @@ function interpolate(args)
                         state = STATE_END_TAG_OPEN
                     elseif is_alpha(ch)
                         state = STATE_TAG_NAME
+                        state_tag_is_open = true
                         element_start = i
                         i -= 1
                     elseif ch === '?'
+                        # this is an XML processing instruction, with
+                        # recovery production called "bogus comment"
                         throw(DomainError(nearby(input, i-1),
                           "unexpected question mark instead of tag name"))
                     else
@@ -424,6 +472,7 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_END_TAG_OPEN
+                    @assert !state_tag_is_open
                     if is_alpha(ch)
                         state = STATE_TAG_NAME
                         i -= 1
@@ -435,15 +484,26 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_TAG_NAME
-                    if isspace(ch)
-                        state = STATE_BEFORE_ATTRIBUTE_NAME
-                    elseif ch === '/'
-                        state = STATE_SELF_CLOSING_START_TAG
-                    elseif ch === '>'
-                        state = STATE_DATA
+                    if isspace(ch) || ch === '/' || ch === '>'
+                        if state_tag_is_open
+                            element_tag = Symbol(lowercase(
+                                            input[element_start:element_end]))
+                            element_start = element_end = 0
+                        end
+                        if isspace(ch)
+                            state = STATE_BEFORE_ATTRIBUTE_NAME
+                            # subordinate states use state_tag_is_open flag
+                        elseif ch === '/'
+                            state = STATE_SELF_CLOSING_START_TAG
+                            state_tag_is_open = false
+                        elseif ch === '>'
+                            state = choose_tokenizer()
+                            state_tag_is_open = false
+                        end
                     else
-                        # note: we do not lowercase names here...
-                        element_end = i
+                        if state_tag_is_open
+                            element_end = i
+                        end
                     end
 
                 elseif state == STATE_BEFORE_ATTRIBUTE_NAME
@@ -483,7 +543,8 @@ function interpolate(args)
                     elseif ch === '='
                         state = STATE_BEFORE_ATTRIBUTE_VALUE
                     elseif ch === '>'
-                        state = STATE_DATA
+                        state = choose_tokenizer()
+                        state_tag_is_open = false
                     else
                         state = STATE_ATTRIBUTE_NAME
                         attribute_start = i
@@ -500,7 +561,7 @@ function interpolate(args)
                         state = STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                     elseif ch === '>'
                         throw(DomainError(nearby(input, i-1),
-                          "missing attribute valuee"))
+                          "missing attribute value"))
                     else
                         state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                         i -= 1
@@ -520,7 +581,8 @@ function interpolate(args)
                     if is_space(ch)
                         state = STATE_BEFORE_ATTRIBUTE_NAME
                     elseif ch === '>'
-                        state = STATE_DATA
+                        state = choose_tokenizer()
+                        state_tag_is_open = false
                     elseif ch in ('"', '\'', "<", "=", '`')
                         throw(DomainError(nearby(input, i-1),
                           "unexpected character in unquoted attribute value"))
@@ -532,7 +594,8 @@ function interpolate(args)
                     elseif ch === '/'
                         state = STATE_SELF_CLOSING_START_TAG
                     elseif ch === '>'
-                        state = STATE_DATA
+                        state = choose_tokenizer()
+                        state_tag_is_open = false
                     else
                         throw(DomainError(nearby(input, i-1),
                           "missing whitespace between attributes"))
@@ -544,6 +607,19 @@ function interpolate(args)
                     else
                         throw(DomainError(nearby(input, i-1),
                           "unexpected solidus in tag"))
+                    end
+
+                elseif state == STATE_MARKUP_DECLARATION_OPEN
+                    if ch === '-' && input[i + 1] == '-'
+                        state = STATE_COMMENT_START
+                        i += 1
+                    elseif startswith(input[i:end], "DOCTYPE")
+                        throw("DOCTYPE not supported")
+                    elseif startswith(input[i:end], "[CDATA[")
+                        throw("CDATA not supported")
+                    else
+                        throw(DomainError(nearby(input, i-1),
+                          "incorrectly opened comment"))
                     end
 
                 elseif state == STATE_COMMENT_START
@@ -576,9 +652,9 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN
-                    if ch == '!'
+                    if ch === '!'
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG
-                    elseif ch == '<'
+                    elseif ch === '<'
                         nothing
                     else
                         state = STATE_COMMENT
@@ -621,9 +697,9 @@ function interpolate(args)
                 elseif state == STATE_COMMENT_END
                     if ch === '>'
                         state = STATE_DATA
-                    elseif ch == '!'
+                    elseif ch === '!'
                         state = STATE_COMMENT_END_BANG
-                    elseif ch == '-'
+                    elseif ch === '-'
                         nothing
                     else
                         state = STATE_COMMENT
@@ -631,9 +707,9 @@ function interpolate(args)
                     end
 
                 elseif state == STATE_COMMENT_END_BANG
-                    if ch == '-'
+                    if ch === '-'
                         state = STATE_COMMENT_END_DASH
-                    elseif ch == '>'
+                    elseif ch === '>'
                         throw(DomainError(nearby(input, i-1),
                           "nested comment"))
                     else
@@ -641,20 +717,51 @@ function interpolate(args)
                         i -= 1
                     end
 
-                elseif state == STATE_MARKUP_DECLARATION_OPEN
-                    if ch == '-' && input[i + 1] == '-'
-                        state = STATE_COMMENT_START
-                        i += 1
-                    elseif startswith(input[i:end], "DOCTYPE")
-                        throw("DOCTYPE not supported")
-                    elseif startswith(input[i:end], "[CDATA[")
-                        throw("CDATA not supported")
+                elseif state == STATE_RAWTEXT_LESS_THAN_SIGN
+                    if ch === '/'
+                        state = STATE_RAWTEXT_END_TAG_OPEN
+                    elseif ch === '!' && element_tag == :script
+                        # RAWTEXT differs from SCRIPT here
+                        throw("script data escape is not implemented")
                     else
-                        throw(DomainError(nearby(input, i-1),
-                          "incorrectly opened comment"))
+                        state = STATE_RAWTEXT
+                        # do not "reconsume", even though spec says so
                     end
+
+                elseif state == STATE_RAWTEXT_END_TAG_OPEN
+                    if is_alpha(ch)
+                        state = STATE_RAWTEXT_END_TAG_NAME
+                        buffer_start = i
+                        i -= 1
+                    else
+                        state = STATE_RAWTEXT
+                        i -= 1
+                    end
+
+                elseif state == STATE_RAWTEXT_END_TAG_NAME
+                    if is_alpha(ch)
+                        buffer_end = i
+                    elseif ch in ('/', '>') || is_space(ch)
+                        # test for "appropriate end tag token"
+                        current = input[buffer_start:buffer_end]
+                        if Symbol(lowercase(current)) == element_tag
+                            if ch === '/'
+                                state = STATE_SELF_CLOSING_START_TAG
+                            elseif ch === '>'
+                                state = STATE_DATA
+                            else
+                                state = STATE_BEFORE_ATTRIBUTE_NAME
+                            end
+                            continue
+                        else
+                            state = STATE_RAWTEXT
+                        end
+                    else
+                        state = STATE_RAWTEXT
+                    end
+
                 else
-                    state = nothing
+                    @assert "unhandled state transition"
                 end
 
                 i = i + 1
@@ -664,18 +771,6 @@ function interpolate(args)
     end
 
     return Expr(:call, :HTL, Expr(:vect, parts...))
-end
-
-# TODO: is this even a good idea? you often want to `join` HTL...
-#join(strings) = sprint(join, strings)
-#join(strings, delim) = sprint(join, strings, delim)
-#join(strings, delim, last) = sprint(join, strings, delim, last)
-function Base.join(strings::Vector{HTL})::HTL
-     retval = HTL()
-     for part in strings
-         append!(retval.content, part.content)
-     end
-     return retval
 end
 
 end

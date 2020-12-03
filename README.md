@@ -402,6 +402,23 @@ of any other sorts of native Julia objects.
       Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)
     =#
 
+The `script` and `style` tags use a "raw text" encoding where all
+content up-to the end tag is not escaped using ampersands.
+
+    book = "Strunk & White"
+    @print htl"""<script>var book = "$book"</script>"""
+    #-> <script>var book = "Strunk & White"</script>
+
+We can return an error if the end tag is accidently included.
+
+    bad = "</style>"
+
+    htl"""<style>$bad</style>"""
+    #=>
+    ERROR: DomainError with "</style>":
+      Content of <style> cannot contain the end tag (`</style>`).
+    =#
+
 String literals should not be used within the macro style since we
 cannot reliably detect them. Here is an example usage where the macro
 style lets an unescaped string literal though the gaps; this requires

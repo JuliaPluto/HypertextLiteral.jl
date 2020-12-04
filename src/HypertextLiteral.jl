@@ -58,11 +58,11 @@ function Base.show(io::IO, mime::MIME"text/html", h::HTL)
     end
 end
 
-#function Base.show(io::IO, mime::MIME"text/html", v::Vector{HTL})
-#    for item in v
-#        Base.show(io, mime, item)
-#    end
-#end
+function Base.show(io::IO, mime::MIME"text/html", v::Vector{HTL})
+    for item in v
+        Base.show(io, mime, item)
+    end
+end
 
 Base.show(io::IO, h::HTL) =
     print(io, "HTL(\"$(escape_string(sprint() do io
@@ -72,28 +72,30 @@ Base.show(io::IO, h::HTL) =
     @htl string-expression
 
 Create a `HTL` object with string interpolation (`\$`) that uses
-context-sensitive hypertext escaping. Rather than escaping interpolated
-string literals, e.g. `\$("Strunk & White")`, they are treated as errors
+context-sensitive hypertext escaping. Before Julia 1.6, interpolated
+string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     if expr isa String
         return interpolate([expr])
     end
-    @assert expr isa Expr
     if expr.head != :string
        # TODO: what is going on in this case...
        @assert false
        return interpolate([expr])
     end
-    # Find cases where we may have an interpolated string literal and
-    # raise an exception (till Julia issue #38501 is addressed)
-    if length(expr.args) == 1 && expr.args[1] isa String
-        throw("interpolated string literals are not supported")
-    end
-    for idx in 2:length(expr.args)
-        if expr.args[idx] isa String && expr.args[idx-1] isa String
+    @assert expr isa Expr
+    if VERSION < v"1.6"
+        # Find cases where we may have an interpolated string literal and
+        # raise an exception (till Julia issue #38501 is addressed)
+        if length(expr.args) == 1 && expr.args[1] isa String
             throw("interpolated string literals are not supported")
+        end
+        for idx in 2:length(expr.args)
+            if expr.args[idx] isa String && expr.args[idx-1] isa String
+                throw("interpolated string literals are not supported")
+            end
         end
     end
     return interpolate(expr.args)

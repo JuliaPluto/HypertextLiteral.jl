@@ -42,6 +42,17 @@ ampersands are properly escaped in the book name and author listing.
     </tbody></table>
     =#
 
+This library implements many features for working with HTML data within
+the Julia language, including:
+
+* Element content (ampersand and less-than) are properly escaped
+* Single quoted, double quoted, and unquoted attribute values are escaped
+* Handles boolean valued HTML attributes, such as `disabled`, `checked`
+* Representation of Julia `Pair` and `Dict` as unquoted attributes
+* Special handling of "style" attribute via Julia `Pair` and `Dict`
+* Automatic `camelCase` => `camel-case` conversion for attributes & styles
+* Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
+
 We use [NarrativeTest][nt] to ensure our examples are correct. After
 each command is a comment with the expected output. This tool ensures
 the README can be validated by running `./test/runtests.jl`. To enhance
@@ -98,11 +109,14 @@ unescaped, however, we still need to escape the dollar sign (`$`).
     #-> They said, "your total is $42.50".
 
 Within any of these forms, Julia results can be interpolated using the
-`$(expr)` notation. Numeric values (excepting `Bool`) are automatically
-converted to their string representation.
+`$(expr)` notation. Numeric values (including `Bool`) and symbols are
+automatically converted to their string representation.
 
     @print htl"2+2 = $(2+2)"
     #-> 2+2 = 4
+
+    @print htl"<bool>$(false)</bool><sym>$(:sym)</sym>"
+    #-> <bool>false</bool><sym>sym</sym>
 
 Functions returning string values will be escaped.
 
@@ -130,7 +144,7 @@ included. This technique only works for one level of nesting.
     =#
 
 The equivalent macro syntax supports arbitrary levels of nesting,
-although we only shoe one level of nesting here.
+although we only show one level of nesting here.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
@@ -141,18 +155,17 @@ although we only shoe one level of nesting here.
 
 ## Attribute Interpolation
 
-Escaping of Julia values depends upon the context. For attributes,
-escaping depends upon quoting style. Within double quotes, the double
-quote is escaped. Within single quotes, the single quote is escaped.
+Escaping of Julia values depends upon the context: within a double
+quoted attribute value, the double quote is escaped; single quoted
+attributes are likewise escaped.
 
     qval = "\"h&b'"
 
     @print htl"""<tag double="$qval" single='$qval' />"""
     #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
 
-Unquoted attributes are supported. Here the escaping is extensive. Note
-that adjacent expressions (not separated by a space) are permitted, the
-resulting attribute value is concatenated.
+Unquoted attributes are also supported. Here the escaping is extensive.
+Note that adjacent expressions (not separated by a space) are permitted.
 
     one = "key="
     two = "bing >"
@@ -160,10 +173,24 @@ resulting attribute value is concatenated.
     @print htl"<tag bare=$one$two />"
     #-> <tag bare=key&#61;bing&#32;&#62; />
 
-Symbols and numbers are automatically converted within attributes.
+Attributes may also be provided by `Dict` or though `Pair` objects.
+Attribute names provided as a `String` are passed though as-is, while
+`Symbol` values go though `camelCase` case conversion.
 
-    @print htl"<tag one=$(0) sym=$(:sym) qone='$(1.0)' qsym='$(:sym)' />"
-    #-> <tag one=0 sym=sym qone='1.0' qsym='sym' />
+     attributes = Dict(:dataValue => 42, "data-style" => :green )
+
+     @print htl"<div $attributes/>"
+     #-> <div data-value=42 data-style=green/>
+
+     @print htl"""<div $(:dataValue=>42, "data-style"=>:green)/>"""
+     #-> <div data-value=42 data-style=green/>
+
+As you can see from this example, symbols and numbers (but not boolean
+values) are automatically converted within attributes. This works for
+quoted values as well.
+
+    @print htl"""<tag numeric="$(0)" symbol='$(:sym)'/>"""
+    #-> <tag numeric="0" symbol='sym'/>
 
 Within bare attributes, boolean values provide special support for
 boolean HTML properties, such as `"disabled"`. When a bare value `false`
@@ -173,8 +200,8 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
-There is special support for the *unquoted* `"style"` attribute value.
-In this case, `Pair` and `Dict` objects are expanded as style attributes
+There is special support for the *unquoted* `"style"` attribute. In this
+case, `Pair` and `Dict` values are expanded as style attributes
 separated by the semi-colon (`;`). Style names that are `Symbol` values
 go though `camelCase` conversion to `camel-case`, while `String` values
 are passed along as-is.
@@ -189,18 +216,6 @@ are passed along as-is.
 
     @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
-
-Similarly, attributes may be provided by `Dict` or though `Pair`
-objects. Attribute names provided as a `String` are passed though as-is,
-while `Symbol` values go though `camelCase` case conversion.
-
-     attributes = Dict(:dataValue => 42, "class" => :green )
-
-     @print htl"<div $attributes/>"
-     #-> <div data-value=42 class=green/>
-
-     @print htl"""<button $(:disabled=>false,:class=>"large shadow")>"""
-     #-> <button class=large&#32;shadow>
 
 ## Design Discussion and Custom Extensions
 
@@ -233,12 +248,40 @@ If one attempts to reference a user defined type, it will be an error.
 
     struct Custom data::String end
 
-    x = Custom("a&b")
-
-    HTL(x)
+    HTL(Custom("a&b"))
     #=>
     ERROR: DomainError with …Custom("a&b"):
     Elements must be strings or objects showable as "text/html".
+    =#
+
+However, this can be addressed by implementing `Base.show` for the
+custom type in question. In this case, be sure to escape ampersand
+(`&`) and less-than (`<`).
+
+     function Base.show(io::IO, mime::MIME"text/html", c::Custom)
+         value = replace(replace(c.data, "&" => "&amp;"), "<" => "&lt;")
+         print(io, "<custom>$(value)</custom>")
+     end
+
+     @print @htl("<span>$(Custom("a&b"))</span>")
+     #-> <span><custom>a&amp;b</custom></span>
+
+To increase usability on the command line, the default representation of
+an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
+object retains component parts so they could be inspected.
+
+    @htl("<span>$(Custom("a&b"))</span>")
+    #-> HTL("<span><custom>a&amp;b</custom></span>")
+
+    dump(@htl("<span>$(Custom("a&b"))</span>"))
+    #=>
+    HTL
+      content: Array{Any}((3,))
+        1: String "<span>"
+        2: HypertextLiteral.ElementData
+          value: ReadmeMd.Custom
+            data: String "a&b"
+        3: String "</span>"
     =#
 
 ## Quirks
@@ -251,9 +294,9 @@ these macros, hence, at a very deep level parsing is different.
     "$("Hello")"
     #-> "Hello"
 
-In this interpolation, the expression `"Hello"` is seen as a string,
-and hence Julia can produce the above output. However, Julia does not
-given this special treatment to string literals. Hence, if you try this
+In this interpolation, the expression `"Hello"` is seen as a string, and
+hence Julia can produce the above output. However, Julia does not given
+this special treatment to string literals. Hence, if you try this
 expression using `htl` you'll get an error.
 
     htl"$("Hello")"
@@ -263,23 +306,19 @@ The above expression is seen by Julia as 3 tokens, `htl"$("`, followed
 by `Hello`, and then `")`. This combination is a syntax error. One might
 correct this using triple strings.
 
-    """$("Hello")"""
-    #-> "Hello"
+    htl"""$("Hello")"""
+    #-> HTL("Hello")
 
-When processed with `htl` macro, we could make it have a similar effect,
-with output wrapped as a `HTML` string object.
+Alternatively, in Julia v1.6+, one could use the HTL macro format.
 
-    @print htl"""$("Hello")"""
-    #-> Hello
+    #? VERSION >= v"1.6"
+    @htl "$("Hello")"
+    #-> HTL("Hello")
 
-Only that internal string literals like this are properly escaped.
+Before v1.6, we cannot reliably detect interpolated string literals
+using the `@htl` macro, so they are errors (when we can detect them).
 
-    @print htl"""Look, Ma, $("<i>automatic escaping</i>")!"""
-    #-> Look, Ma, &#60;i>automatic escaping&#60;/i>!
-
-We cannot reliably detect interpolated string literals using the `@htl`
-macro, so they are errors (in the cases we can find them).
-
+    #? VERSION < v"1.6"
     @print @htl "Look, Ma, $("<i>automatic escaping</i>")!"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
@@ -288,19 +327,18 @@ However, you can fix by wrapping a value in a `string` function.
     @print @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
     #-> Look, Ma, &#60;i>automatic escaping&#60;/i>!
 
-We can nest literal expressions, so long as the outer nesting uses
-triple quotes.
+The string literal style is not without its quirks. See `@raw_str` for
+exceptional cases where a slash immediately precedes the double quote.
+This is one case where the `htl` string macro cannot be made to work in
+a manner identical to regular string interpolation.
 
-    @print htl"""$( htl"Hello" )"""
-    #-> Hello
+    htl"\\\"\n"
+    #-> HTL("\"\n")
 
-We should be able to nest these arbitrarily deep. Perhaps this is
-something we can fix...
+    @htl("\\\"\n")
+    #-> HTL("\\\"\n")
 
-    @print htl"""$( htl"$( htl"Hello" )" )"""
-    #-> ERROR: LoadError: Base.Meta.ParseError⋮
-
-## Edge Cases & Regression Tests
+## Regression Tests
 
 In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
@@ -319,24 +357,6 @@ Escaped strings should just pass-though.
 
     @htl("\"\\\n")
     #-> HTL("\"\\\n")
-
-Note that Julia has interesting rules when an escape precedes a double
-quote, see `raw_str` for details. This is one case where the `htl`
-string macro cannot be made equivalent to regular string interpretation.
-
-    htl"\\\"\n"
-    #-> HTL("\"\n")
-
-    @htl("\\\"\n")
-    #-> HTL("\\\"\n")
-
-To prevent interpolation, use `\` for an escape.
-
-    @print htl"\$42.00"
-    #-> $42.00
-
-    @print @htl("\$42.00")
-    #-> $42.00
 
 Within attributes, independent of quoting style, other datatypes are
 treated as an error. This includes `Vector` as well as `HTL` objects.
@@ -381,7 +401,7 @@ an error to guard against quoted use in boolean HTML attributes.
       convert to a string, or provide an `htl_render_attribute` method
     =#
 
-Interpolation should handle splat and concatenate.
+Interpolation should handle splat operator by concatenating results.
 
     @print htl"$([x for x in [1,2,3]]...)"
     #-> 123
@@ -406,7 +426,7 @@ content up-to the end tag is not escaped using ampersands.
     @print htl"""<script>var book = "$book"</script>"""
     #-> <script>var book = "Strunk & White"</script>
 
-We can return an error if the end tag is accidently included.
+We throw an error if the end tag is accidently included.
 
     bad = "</style>"
 
@@ -415,42 +435,6 @@ We can return an error if the end tag is accidently included.
     ERROR: DomainError with "</style>":
       Content of <style> cannot contain the end tag (`</style>`).
     =#
-
-String literals should not be used within the macro style since we
-cannot reliably detect them. Here is an example usage where the macro
-style lets an unescaped string literal though the gaps; this requires
-Julia issue #38501 to be addressed before we could catch this case.
-Observe that the string macro form can detect and properly escape.
-
-    x = ""
-
-    @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &#60;script>alert('Hello')&#60;/script>
-
-    @print @htl("$x$("<script>alert(\"Hello\")</script>")")
-    #-> <script>alert("Hello")</script>
-
-Hence, for a cases where we could detect a string literal, we raise an
-error condition to discourage its use. The string macro form works.
-
-    @print @htl "$("escape&me")"
-    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
-
-    @print htl"""$("escape&me")"""
-    #-> escape&#38;me
-
-In particular, these three cases have the same representation provided to
-the interpolation code, and since we can't distinguish among them, we
-raise an error for all.
-
-    @print @htl "one$("two")"
-    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
-
-    @print @htl "$("one")two"
-    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
-
-    @print @htl "$("one")$("two")"
-    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 Attribute names should be non-empty and not in a list of excluded
 characters.
@@ -466,6 +450,36 @@ characters.
     ERROR: DomainError with &att:
     Invalid character ('&') found within an attribute name.
     =#
+
+Before Julia v1.6 (see issue #38501), string literals should not be used
+within the macro style since we cannot reliably detect them.
+
+    x = ""
+
+    @print htl"""$x$("<script>alert('Hello')</script>")"""
+    #-> &#60;script>alert('Hello')&#60;/script>
+
+    #? VERSION >= v"1.6"
+    @print htl"""$x$("<script>alert('Hello')</script>")"""
+    #-> &#60;script>alert('Hello')&#60;/script>
+
+    #? VERSION < v"1.6"
+    @print @htl("$x$("<script>alert(\"Hello\")</script>")")
+    #-> <script>alert("Hello")</script>
+
+Hence, for a cases where we could detect a string literal, we raise an
+error condition to discourage its use. The string macro form works.
+
+    @print htl"""$("escape&me")"""
+    #-> escape&#38;me
+
+    #? VERSION >= v"1.6"
+    @print @htl "$("escape&me")"
+    #-> escape&#38;me
+
+    #? VERSION < v"1.6"
+    @print @htl "$("escape&me")"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 A string ending with `$` is an syntax error since it is an incomplete
 interpolation.

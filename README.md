@@ -51,7 +51,9 @@ the Julia language, including:
 * Representation of Julia `Pair` and `Dict` as unquoted attributes
 * Special handling of "style" attribute via Julia `Pair` and `Dict`
 * Automatic `camelCase` => `camel-case` conversion for attributes & styles
+* Detection of `script` and `style` tags to suppress escaping
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
+* Implements both string macros `@htl_str` and regular macros `@htl`
 
 We use [NarrativeTest][nt] to ensure our examples are correct. After
 each command is a comment with the expected output. This tool ensures

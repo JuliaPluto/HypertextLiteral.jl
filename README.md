@@ -30,7 +30,7 @@ ampersands are properly escaped in the book name and author listing.
     render_table(books) = htl"""
       <table><caption><h3>Selected Books</h3></caption>
       <thead><tr><th>Book<th>Authors<tbody>
-      $([render_row(b) for b in books])</tbody></table>"""
+      $(render_row(b) for b in books)</tbody></table>"""
 
     display("text/html", render_table(books))
     #=>
@@ -71,7 +71,7 @@ readability without having to type this `display` function.
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
 
-Hypertext literal provides interpolation via `$`. Within interpolated
+Hypertext literal provides interpolation via `$`. Within element
 content, both the ampersand (`&`) and less-than (`<`) are escaped.
 
     book = "Strunk & White"
@@ -84,8 +84,8 @@ Equivalently, in macro form, we can write:
     @print @htl("<span>Today's Reading: $book</span>")
     #-> <span>Today's Reading: Strunk &#38; White</span>
 
-To include a literal `$` in the output string, use `\$` as one would in
-a regular Julia string. Other escape sequences, such as `\"` also work.
+To include a literal `$` in the output, use `\$` as one would in a
+regular Julia string. Other escape sequences, such as `\"` also work.
 
     @print htl"They said, \"your total is \$42.50\"."
     #-> They said, "your total is $42.50".
@@ -129,8 +129,8 @@ included. This technique only works for one level of nesting.
     <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
-The equivalent macro syntax supports arbitrary levels of nesting. Here
-we show only one level of nesting.
+The equivalent macro syntax supports arbitrary levels of nesting,
+although we only shoe one level of nesting here.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
@@ -138,9 +138,6 @@ we show only one level of nesting.
     #=>
     <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
     =#
-
-List comprehensions and functions returning lists work within hypertext
-literals because elements of a `Vector{HTL}` value are concatenated.
 
 ## Attribute Interpolation
 

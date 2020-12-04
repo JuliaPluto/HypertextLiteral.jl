@@ -28,7 +28,7 @@ splat constructor converts arguments to the `HTL` vector.
 Finally, regular display of the value to the terminal renders the
 objects and produces the equivalent string representation (unwise?).
 """
-mutable struct HTL
+struct HTL
     content::Vector
 
     function HTL(obj)
@@ -57,6 +57,12 @@ function Base.show(io::IO, mime::MIME"text/html", h::HTL)
         end
     end
 end
+
+#function Base.show(io::IO, mime::MIME"text/html", v::Vector{HTL})
+#    for item in v
+#        Base.show(io, mime, item)
+#    end
+#end
 
 Base.show(io::IO, h::HTL) =
     print(io, "HTL(\"$(escape_string(sprint() do io
@@ -229,27 +235,36 @@ AttributePair(name::Symbol, values::Vector) =
 ElementData(args...) = HTL([ElementData(item) for item in args])
 
 function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
-    if showable(MIME("text/html"), child.value)
-        show(io, mime, child.value)
-    elseif child.value isa AbstractArray{<:HTL}
-        for subchild in child.value
-            show(io, mime, subchild)
+    value = child.value
+    if value isa AbstractString
+        return print(io, replace(child.value, r"[<&]" => entity))
+    end
+    if value isa Number || child.value isa Symbol
+        return print(io, replace(string(child.value), r"[<&]" => entity))
+    end
+    if showable(MIME("text/html"), value)
+        return show(io, mime, value)
+    end
+    if value isa Base.Generator
+        # support `$(x for x in [...])`
+        value = collect(value)
+    end
+    if value isa AbstractVector
+        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
+            for item in value
+                show(io, mime, item)
+            end
+            return
         end
-    elseif child.value isa AbstractString
-        print(io, replace(child.value, r"[<&]" => entity))
-    elseif child.value isa Number || child.value isa Symbol
-        print(io, replace(string(child.value), r"[<&]" => entity))
-    elseif child.value isa AbstractVector
-        throw(DomainError(child.value, """
-          Type $(typeof(child.value)) lacks a show method for text/html.
+        throw(DomainError(value, """
+          Type $(typeof(value)) lacks a show method for text/html.
           Perhaps use splatting? e.g. htl"\$([x for x in 1:3]...)
         """))
-    else
-        throw(DomainError(child.value, """
-          Type $(typeof(child.value)) lacks a show method for text/html.
-          Alternatively, you can cast the value to a string first.
-        """))
     end
+    throw(DomainError(value, """
+      Type $(typeof(value)) lacks a show method for text/html.
+      Alternatively, you can cast the value to a string first.
+    """))
 end
 
 """

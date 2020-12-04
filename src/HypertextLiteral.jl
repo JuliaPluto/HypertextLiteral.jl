@@ -299,18 +299,22 @@ function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
 end
 
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
-    if x.value isa Dict
-        for (key, value) in pairs(x.value)
+    value = x.value
+    if value isa Dict || value isa NamedTuple
+        for (key, value) in pairs(value)
             show(io, mime, AttributePair(key, [value]))
         end
-    elseif x.value isa Pair
-        show(io, mime, AttributePair(x.value.first, [x.value.second]))
-    elseif x.value isa Tuple{Pair, Vararg{Pair}}
-        for (key, value) in x.value
+    elseif value isa Pair
+        show(io, mime, AttributePair(value.first, [value.second]))
+    elseif value isa Tuple{Pair, Vararg{Pair}}
+        for (key, value) in value
             show(io, mime, AttributePair(key, [value]))
         end
     else
-        throw("invalid binding #2 $(typeof(x.value)) $(x.value)")
+        throw(DomainError(value, """
+          Unable to convert $(typeof(value)) to an attribute name/value pair.
+          Did you forget the trailing "," in a 1-element named tuple?
+        """))
     end
 end
 

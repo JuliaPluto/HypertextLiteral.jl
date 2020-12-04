@@ -175,9 +175,9 @@ Note that adjacent expressions (not separated by a space) are permitted.
     @print htl"<tag bare=$one$two />"
     #-> <tag bare=key&#61;bing&#32;&#62; />
 
-Attributes may also be provided by `Dict` or though `Pair` objects.
-Attribute names provided as a `String` are passed though as-is, while
-`Symbol` values go though `camelCase` case conversion.
+Attributes may also be provided by `Dict`, `NamedTuple`, or though
+`Pair` objects. Attribute names provided as a `String` are passed though
+as-is, while `Symbol` values go though `camelCase` case conversion.
 
      attributes = Dict(:dataValue => 42, "data-style" => :green )
 
@@ -185,6 +185,9 @@ Attribute names provided as a `String` are passed though as-is, while
      #-> <div data-value=42 data-style=green/>
 
      @print htl"""<div $(:dataValue=>42, "data-style"=>:green)/>"""
+     #-> <div data-value=42 data-style=green/>
+
+     @print htl"""<div $(dataValue=42, dataStyle=:green)/>"""
      #-> <div data-value=42 data-style=green/>
 
 As you can see from this example, symbols and numbers (but not boolean
@@ -451,6 +454,18 @@ characters.
     #=>
     ERROR: DomainError with &att:
     Invalid character ('&') found within an attribute name.
+    =#
+
+It's possible to forget the extra comma in a named tuple.
+
+    @print htl"""<div $(dataValue=42,)/>"""
+    #-> <div data-value=42/>
+
+    htl"""<div $(dataValue=42)/>"""
+    #=>
+    ERROR: DomainError with 42:
+      Unable to convert Int64 to an attribute name/value pair.
+      Did you forget the trailing "," in a 1-element named tuple?
     =#
 
 Before Julia v1.6 (see issue #38501), string literals should not be used

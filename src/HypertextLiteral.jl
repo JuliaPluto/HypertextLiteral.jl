@@ -186,8 +186,8 @@ abstract type InterpolatedValue end
 
 struct ElementData <: InterpolatedValue value end
 struct ElementAttributes <: InterpolatedValue value end
-struct AttributeDoubleQuoted <: InterpolatedValue value end
-struct AttributeSingleQuoted <: InterpolatedValue value end
+struct AttributeDoubleQuoted <: InterpolatedValue attribute; value end
+struct AttributeSingleQuoted <: InterpolatedValue attribute; value end
 
 struct RawText <: InterpolatedValue
     value::String
@@ -209,9 +209,42 @@ end
 Base.show(io::IO, mime::MIME"text/html", wrapper::RawText) =
     print(io, wrapper.value)
 
+"""
+    HTLAttribute{name}
+
+This parameterized type to represent HTML attributes so that we could
+dispatch serialization of custom attributes and data types. This is
+modeled upon the `MIME` data type.
+"""
+struct HTLAttribute{name} end
+
+HTLAttribute(name) = HTLAttribute{Symbol(s)}()
+
+"""
+    htl_render(::HTLAttribute, value)
+
+Convert a value `v` to a string suitable to inclusion as an attribute
+value. Escaping (according to quoting style) is done after this step.
+By default, strings are treated as-is; symbols and numbers (but not
+booleans) are automatically converted to strings.
+"""
+function htl_render(::HTLAttribute{name}, @nospecialize value) where {name}
+    if value isa AbstractString
+         return value
+    end
+    if (value isa Symbol || value isa Number) && !(isa(value, Bool))
+         return string(value)
+    end
+    throw(DomainError(value, """
+      Unable to convert $(typeof(value)) for attribute value of `$(name)`;
+      either convert to a string, or provide a `htl_render` method.
+    """))
+end
+
 struct AttributePair <: InterpolatedValue
     name::String
     values::Vector
+    attrib::HTLAttribute
 
     function AttributePair(name::String, values::Vector)
         if length(name) < 1
@@ -226,7 +259,7 @@ struct AttributePair <: InterpolatedValue
                    "found within an attribute name."))
             end
         end
-        return new(name, values)
+        return new(name, values, HTLAttribute{Symbol(lowercase(name))}())
     end
 end
 
@@ -269,46 +302,27 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
     """))
 end
 
-"""
-    htl_render_attribute(v)
-
-Convert a value `v` to a string suitable for inclusion into an attribute
-value. Note that escaping is done separately. By default, symbols and
-numbers (but not booleans) are automatically converted to strings.
-Provide a method implementation of this for custom datatypes.
-"""
-function htl_render_attribute(v)
-    if v isa AbstractString
-         return v
-    end
-    if (v isa Symbol || v isa Number) && !(isa(v, Bool))
-         return string(v)
-    end
-    throw(DomainError(v, """
-      Unable to convert $(typeof(v)) to an attribute; either expressly
-      convert to a string, or provide an `htl_render_attribute` method
-    """))
-end
-
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(htl_render_attribute(x.value), r"[\"&]" => entity))
+    attrib = HTLAttribute{Symbol(lowercase(x.attribute))}()
+    print(io, replace(htl_render(attrib, x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(htl_render_attribute(x.value), r"['&]" => entity))
+    attrib = HTLAttribute{Symbol(lowercase(x.attribute))}()
+    print(io, replace(htl_render(attrib, x.value), r"['&]" => entity))
 end
 
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     value = x.value
-    if value isa Dict || value isa NamedTuple
-        for (key, value) in pairs(value)
-            show(io, mime, AttributePair(key, [value]))
-        end
-    elseif value isa Pair
+    if value isa Pair
         show(io, mime, AttributePair(value.first, [value.second]))
+    elseif value isa Dict || value isa NamedTuple
+        for (k, v) in pairs(value)
+            show(io, mime, AttributePair(k, [v]))
+        end
     elseif value isa Tuple{Pair, Vararg{Pair}}
-        for (key, value) in value
-            show(io, mime, AttributePair(key, [value]))
+        for (k, v) in value
+            show(io, mime, AttributePair(k, [v]))
         end
     else
         throw(DomainError(value, """
@@ -330,34 +344,32 @@ css_value(key, value::AbstractString) = value
 css_key(key::Symbol) = camelcase_to_dashes(string(key))
 css_key(key::String) = key
 
-render_inline_css(styles::Dict) =
-    join([render_inline_css(pair) for pair in pairs(styles)])
+htl_render(a::HTLAttribute{:style}, styles::Dict) =
+    join([htl_render(a, pair) for pair in pairs(styles)], " ")
 
-render_inline_css(styles::Tuple{Pair, Vararg{Pair}}) =
-    join([render_inline_css(pair) for pair in styles])
+htl_render(a::HTLAttribute{:style}, styles::NamedTuple) =
+    join([htl_render(a, pair) for pair in pairs(styles)], " ")
 
-render_inline_css((key, value)::Pair) =
+htl_render(a::HTLAttribute{:style}, styles::Tuple{Pair, Vararg{Pair}}) =
+    join([htl_render(a, pair) for pair in styles], " ")
+
+htl_render(::HTLAttribute{:style}, (key, value)::Pair) =
     "$(css_key(key)): $(css_value(key, value));"
 
-function Base.show(io::IO, mime::MIME"text/html", attribute::AttributePair)
-    first = attribute.values[1]
+function Base.show(io::IO, mime::MIME"text/html", pair::AttributePair)
+    first = pair.values[1]
     if first === nothing || first === false || first === true
-        if length(attribute.values) > 1
-          throw("Too many values for boolean attribute `$(attribute.name)`")
+        if length(pair.values) > 1
+          throw("Too many values for boolean attribute `$(pair.name)`")
         end
         if first == true
-            print(io, " $(attribute.name)=''")
+            print(io, " $(pair.name)=''")
         end
         return
     end
-    print(io, " $(attribute.name)=")
-    for value in attribute.values
-        if attribute.name == "style" &&
-           hasmethod(render_inline_css, Tuple{typeof(value)})
-            value = render_inline_css(value)
-        else
-            value = htl_render_attribute(value)
-        end
+    print(io, " $(pair.name)=")
+    for value in pair.values
+        value = htl_render(pair.attrib, value)
         print(io, replace(value, r"[\"\s<>&'`=]" => entity))
     end
 end
@@ -433,9 +445,11 @@ function interpolate(args)
                 @assert parts[end].args[1] == :AttributePair
                 push!(parts[end].args[3].args, input)
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                push!(parts, :(AttributeSingleQuoted($input)))
+                name = parts[end][attribute_start:attribute_end]
+                push!(parts, :(AttributeSingleQuoted($name, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                push!(parts, :(AttributeDoubleQuoted($input)))
+                name = parts[end][attribute_start:attribute_end]
+                push!(parts, :(AttributeDoubleQuoted($name, $input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # this is interpolated element pairs; strip space before
                 # and ensure there is a space afterward

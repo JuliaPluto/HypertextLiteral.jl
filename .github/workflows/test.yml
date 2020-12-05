@@ -6,11 +6,26 @@ on:
     branches: [ master ]
   workflow_dispatch:
 jobs:
-  test:
+  nightly:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        version: ['1.0', 'nightly']
+        version: ['nightly']
+        os: [ubuntu-20.04, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/julia-buildpkg@master
+      - name: Execute Tests for README
+        run: julia --color=yes --check-bounds=yes --project -e 'using Pkg; Pkg.test(coverage=true)'
+        shell: bash
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        version: ['1.0', '1.5']
         os: [ubuntu-20.04, windows-latest, macOS-latest]
     steps:
       - uses: actions/checkout@v2

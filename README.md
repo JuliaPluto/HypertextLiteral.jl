@@ -7,18 +7,18 @@ and provides handy conversions dependent upon context.*
 
 **Build Status** | **Process**
 :---: | :---:
-[![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
+[![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
 > is based upon a port to Julia written by Michiel Dral.
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
-that return an object that can be rendered to `"text/html"` displays.
-These macros support context-senstive interpolation sensible to the
-needs of HTML generation. Here we show an example using triple-quoted
-`htl` string literal, notice how ampersands are properly escaped in the
-book name and author listing.
+that return an object that can be rendered to `MIME"text/html"`
+displays. These macros support context-senstive interpolation sensible
+to the needs of HTML generation. Here we show an example using
+triple-quoted `htl` string literal, notice how ampersands are properly
+escaped in the book name and author listing.
 
     using HypertextLiteral
 

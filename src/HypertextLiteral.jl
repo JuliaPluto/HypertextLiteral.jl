@@ -186,8 +186,8 @@ abstract type InterpolatedValue end
 
 struct ElementData <: InterpolatedValue value end
 struct ElementAttributes <: InterpolatedValue value end
-struct AttributeDoubleQuoted <: InterpolatedValue attribute; value end
-struct AttributeSingleQuoted <: InterpolatedValue attribute; value end
+struct AttributeDoubleQuoted <: InterpolatedValue value end
+struct AttributeSingleQuoted <: InterpolatedValue value end
 
 struct RawText <: InterpolatedValue
     value::String
@@ -221,14 +221,14 @@ struct HTLAttribute{name} end
 HTLAttribute(name) = HTLAttribute{Symbol(s)}()
 
 """
-    htl_render(::HTLAttribute, value)
+    htl_render(value)
 
-Convert a value `v` to a string suitable to inclusion as an attribute
-value. Escaping (according to quoting style) is done after this step.
-By default, strings are treated as-is; symbols and numbers (but not
-booleans) are automatically converted to strings.
+Convert a `value`` to a string suitable to inclusion as a quoted attribute.
+Escaping (according to quoting style) is done after this step. By default,
+strings are treated as-is; symbols and numbers (but not booleans) are
+automatically converted to strings.
 """
-function htl_render(::HTLAttribute{name}, @nospecialize value) where {name}
+function htl_render(value)
     if value isa AbstractString
          return value
     end
@@ -236,15 +236,24 @@ function htl_render(::HTLAttribute{name}, @nospecialize value) where {name}
          return string(value)
     end
     throw(DomainError(value, """
-      Unable to convert $(typeof(value)) for attribute value of `$(name)`;
+      Unable to convert $(typeof(value)) for use as an attribute value;
       either convert to a string, or provide a `htl_render` method.
     """))
 end
 
+"""
+    htl_escape(s)
+
+Perform extensive escaping needed for a string to be used as an
+unquoted attribute. This can also be used for quoted values or
+within element content (although it's overkill).
+"""
+htl_escape(value::AbstractString) =
+    replace(value, r"[\"\s<>&'`=]" => entity)
+
 struct AttributePair <: InterpolatedValue
     name::String
     values::Vector
-    attrib::HTLAttribute
 
     function AttributePair(name::String, values::Vector)
         if length(name) < 1
@@ -259,7 +268,7 @@ struct AttributePair <: InterpolatedValue
                    "found within an attribute name."))
             end
         end
-        return new(name, values, HTLAttribute{Symbol(lowercase(name))}())
+        return new(name, values)
     end
 end
 
@@ -303,13 +312,11 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    attrib = HTLAttribute{Symbol(lowercase(x.attribute))}()
-    print(io, replace(htl_render(attrib, x.value), r"[\"&]" => entity))
+    print(io, replace(htl_render(x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    attrib = HTLAttribute{Symbol(lowercase(x.attribute))}()
-    print(io, replace(htl_render(attrib, x.value), r"['&]" => entity))
+    print(io, replace(htl_render(x.value), r"['&]" => entity))
 end
 
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
@@ -338,23 +345,32 @@ function camelcase_to_dashes(str::String)
 end
 
 css_value(key, value::Symbol) = string(value)
-css_value(key, value::Number) = string(value) # numeric and boolean
+css_value(key, value::Number) = string(value) # includes boolean
 css_value(key, value::AbstractString) = value
 
 css_key(key::Symbol) = camelcase_to_dashes(string(key))
 css_key(key::String) = key
 
-htl_render(a::HTLAttribute{:style}, styles::Dict) =
-    join([htl_render(a, pair) for pair in pairs(styles)], " ")
+Base.show(io::IO, a::HTLAttribute{:style}, styles::Dict) =
+    for pair in pairs(styles)
+       show(io, a, pair)
+    end
 
-htl_render(a::HTLAttribute{:style}, styles::NamedTuple) =
-    join([htl_render(a, pair) for pair in pairs(styles)], " ")
+Base.show(io::IO, a::HTLAttribute{:style}, styles::NamedTuple) =
+    for pair in pairs(styles)
+       show(io, a, pair)
+    end
 
-htl_render(a::HTLAttribute{:style}, styles::Tuple{Pair, Vararg{Pair}}) =
-    join([htl_render(a, pair) for pair in styles], " ")
+Base.show(io::IO, a::HTLAttribute{:style}, styles::Tuple{Pair, Vararg{Pair}}) =
+    for item in styles
+       show(io, a, item)
+    end
 
-htl_render(::HTLAttribute{:style}, (key, value)::Pair) =
-    "$(css_key(key)): $(css_value(key, value));"
+Base.show(io::IO, a::HTLAttribute{:style}, (key, value)::Pair) =
+    print(io, htl_escape("$(css_key(key)): $(css_value(key, value));"))
+
+Base.show(io::IO, a::HTLAttribute{name}, value) where {name} =
+    print(io, htl_escape(htl_render(value)))
 
 function Base.show(io::IO, mime::MIME"text/html", pair::AttributePair)
     first = pair.values[1]
@@ -368,9 +384,9 @@ function Base.show(io::IO, mime::MIME"text/html", pair::AttributePair)
         return
     end
     print(io, " $(pair.name)=")
+    attribute = HTLAttribute{Symbol(lowercase(pair.name))}()
     for value in pair.values
-        value = htl_render(pair.attrib, value)
-        print(io, replace(value, r"[\"\s<>&'`=]" => entity))
+        show(io, attribute, value)
     end
 end
 
@@ -445,11 +461,9 @@ function interpolate(args)
                 @assert parts[end].args[1] == :AttributePair
                 push!(parts[end].args[3].args, input)
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                name = parts[end][attribute_start:attribute_end]
-                push!(parts, :(AttributeSingleQuoted($name, $input)))
+                push!(parts, :(AttributeSingleQuoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                name = parts[end][attribute_start:attribute_end]
-                push!(parts, :(AttributeDoubleQuoted($name, $input)))
+                push!(parts, :(AttributeDoubleQuoted($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # this is interpolated element pairs; strip space before
                 # and ensure there is a space afterward

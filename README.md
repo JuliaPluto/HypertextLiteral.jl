@@ -214,21 +214,16 @@ are passed along as-is.
     header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
 
     @print htl"<div style=$header_styles/>"
-    #-> <div style=font-size:&#32;25px;&#32;padding-left:&#32;2em;/>
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
     @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
-    #-> <div style=font-size:&#32;25px;&#32;padding-left:&#32;2em;/>
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
     @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
-    #-> <div style=font-size:&#32;25px;&#32;padding-left:&#32;2em;/>
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
     @print @htl("<div style=$(:fontSize=>"25px")$("padding-left"=>"2em")/>")
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
-
-We could support custom attributes in quoted style as well.
-
-    @print htl"""<div style="$header_styles" />"""
-    #-> <div style="font-size: 25px; padding-left: 2em;" />
 
 ## Design Discussion and Custom Extensions
 
@@ -377,7 +372,7 @@ treated as an error. This includes `Vector` as well as `HTL` objects.
     htl"<tag att='$([1,2,3])'"
     #=>
     ERROR: DomainError with [1, 2, 3]:
-      Unable to convert Array{Int64,1} for attribute value of `att`;
+      Unable to convert Array{Int64,1} for use as an attribute value;
       either convert to a string, or provide a `htl_render` method.
     =#
 
@@ -410,7 +405,7 @@ an error to guard against quoted use in boolean HTML attributes.
     htl"<button checked='$(true)'"
     #=>
     ERROR: DomainError with true:
-      Unable to convert Bool for attribute value of `checked`;
+      Unable to convert Bool for use as an attribute value;
       either convert to a string, or provide a `htl_render` method.
     =#
 

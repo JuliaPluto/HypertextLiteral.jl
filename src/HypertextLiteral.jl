@@ -29,11 +29,11 @@ Finally, regular display of the value to the terminal renders the
 objects and produces the equivalent string representation (unwise?).
 """
 struct HTL
-    content::Vector
+    content::Vector{Any}
 
     function HTL(obj)
         function check(item)
-            if item isa AbstractString || showable(MIME("text/html"), item)
+            if item isa AbstractString || showable(MIME"text/html"(), item)
                return item
             end
             throw(DomainError(item, "Elements must be strings or " *
@@ -80,13 +80,10 @@ macro htl(expr)
     if expr isa String
         return interpolate([expr])
     end
-    if expr.head != :string
-       # TODO: what is going on in this case...
-       @assert false
-       return interpolate([expr])
+    if !Meta.isexpr(expr, :string)
+        throw(DomainError(expr, "`@htl` is expecting a string literal"))
     end
-    @assert expr isa Expr
-    if VERSION < v"1.6"
+    if VERSION < v"1.6.0-DEV"
         # Find cases where we may have an interpolated string literal and
         # raise an exception (till Julia issue #38501 is addressed)
         if length(expr.args) == 1 && expr.args[1] isa String
@@ -102,7 +99,7 @@ macro htl(expr)
 end
 
 """
-    @htl_str -> Base.Docs.HTML{String}
+    @htl_str -> HTL
 
 Create a `HTL` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Escape sequences should work
@@ -255,9 +252,9 @@ htl_escape(value::AbstractString) =
 
 struct AttributePair <: InterpolatedValue
     name::String
-    values::Vector
+    value::Any
 
-    function AttributePair(name::String, values::Vector)
+    function AttributePair(name::String, value::Any)
         if length(name) < 1
             throw(DomainError(name, "Attribute name must not be empty."))
         end
@@ -270,12 +267,12 @@ struct AttributePair <: InterpolatedValue
                    "found within an attribute name."))
             end
         end
-        return new(name, values)
+        return new(name, value)
     end
 end
 
-AttributePair(name::Symbol, values::Vector) =
-    AttributePair(camelcase_to_dashes(string(name)), values)
+AttributePair(name::Symbol, value::Any) =
+    AttributePair(camelcase_to_dashes(string(name)), value)
 
 # handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
 ElementData(args...) = HTL([ElementData(item) for item in args])
@@ -323,14 +320,14 @@ end
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     value = x.value
     if value isa Pair
-        show(io, mime, AttributePair(value.first, [value.second]))
+        show(io, mime, AttributePair(value.first, value.second))
     elseif value isa Dict || value isa NamedTuple
         for (k, v) in pairs(value)
-            show(io, mime, AttributePair(k, [v]))
+            show(io, mime, AttributePair(k, v))
         end
     elseif value isa Tuple{Pair, Vararg{Pair}}
         for (k, v) in value
-            show(io, mime, AttributePair(k, [v]))
+            show(io, mime, AttributePair(k, v))
         end
     else
         throw(DomainError(value, """
@@ -391,21 +388,17 @@ Base.show(io::IO, at::HTLAttribute{:class}, value::Tuple{Any, Vararg{Any}}) =
     show_iterable(io, at, value, " ")
 
 function Base.show(io::IO, mime::MIME"text/html", pair::AttributePair)
-    first = pair.values[1]
-    if first === nothing || first === false || first === true
-        if length(pair.values) > 1
-          throw("Too many values for boolean attribute `$(pair.name)`")
-        end
-        if first == true
-            print(io, " $(pair.name)=''")
-        end
+    value = pair.value
+    if value === nothing || value === false
         return
     end
     print(io, " $(pair.name)=")
-    attribute = HTLAttribute{Symbol(lowercase(pair.name))}()
-    for value in pair.values
-        show(io, attribute, value)
+    if value == true
+        print(io, "''")
+        return
     end
+    attribute = HTLAttribute{Symbol(lowercase(pair.name))}()
+    show(io, attribute, value)
 end
 
 function entity(str::AbstractString)
@@ -474,23 +467,31 @@ function interpolate(args)
                 name = parts[end][attribute_start:attribute_end]
                 finish = attribute_start - 2
                 parts[end] = parts[end][1:finish]
-                push!(parts, :(AttributePair($name, Any[$input])))
+                push!(parts, :(AttributePair($name, $input)))
+                # peek ahead to ensure we have a delimiter
+                if j < length(args)
+                  next = args[j+1]
+                  if next isa String && !occursin(r"^[\s+\/>]", next)
+                    msg = "$(name)=$(input.args[1])"
+                    throw(DomainError(msg, "Unquoted attribute " *
+                      "interpolation is limited to a single component"))
+                  end
+                end
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
-                @assert length(parts) > 1 && parts[end] isa Expr
-                @assert parts[end].args[1] == :AttributePair
-                push!(parts[end].args[3].args, input)
+                throw(DomainError(input.args[1], "Unquoted attribute " *
+                  "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                 push!(parts, :(AttributeSingleQuoted($input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                 push!(parts, :(AttributeDoubleQuoted($input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
-                # this is interpolated element pairs; strip space before
-                # and ensure there is a space afterward
+                # strip space before interpolated element pairs
                 if parts[end] isa String && parts[end][end] == ' '
-                     finish = length(parts[end])-1
-                     parts[end] = parts[end][1:finish]
+                    finish = length(parts[end])-1
+                    parts[end] = parts[end][1:finish]
                 end
                 push!(parts, :(ElementAttributes($input)))
+                # move the space to after the element pairs
                 if j < length(args)
                     next = args[j+1]
                     if next isa String && !occursin(r"^[\s+\/>]", next)

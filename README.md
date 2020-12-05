@@ -167,13 +167,11 @@ attributes are likewise escaped.
     #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
 
 Unquoted attributes are also supported. Here the escaping is extensive.
-Note that adjacent expressions (not separated by a space) are permitted.
 
-    one = "key="
-    two = "bing >"
+    arg = "book=Strunk & White"
 
-    @print htl"<tag bare=$one$two />"
-    #-> <tag bare=key&#61;bing&#32;&#62; />
+    @print htl"<tag bare=$arg />"
+    #-> <tag bare=book&#61;Strunk&#32;&#38;&#32;White />
 
 Attributes may also be provided by `Dict`, `NamedTuple`, or though
 `Pair` objects. Attribute names provided as a `String` are passed though
@@ -220,9 +218,6 @@ are passed along as-is.
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
     @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
-
-    @print @htl("<div style=$(:fontSize=>"25px")$("padding-left"=>"2em")/>")
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
 For the *unquoted* `"class"` attribute, a `Vector` provides a space
@@ -315,6 +310,15 @@ We could tell HTL how to serialize our `Custom` values to the
 
     @print @htl("<tag $(:dataCustom => Custom("a&b"))/>")
     #-> <tag data-custom=a&#38;b/>
+
+So that the scope of objects serialized in this manner is clear, we
+don't permit adjacent unquoted values.
+
+    htl"<tag bare=$(true)$(:invalid)"
+    #=>
+    ERROR: LoadError: DomainError with bare=true:
+    Unquoted attribute interpolation is limited to a single component⋮
+    =#
 
 To increase usability on the command line, the default representation of
 an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
@@ -434,14 +438,6 @@ conversion of numbers, symbols and custom types to strings.
     @print htl"""<tag att=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
     #-> <tag att=&#62;3>a&#38;b</tag>
 
-Boolean valued attributes should not have two interpolated values.
-
-    htl"<tag att=$(true)$(:anything)/>"
-    #-> ERROR: "Too many values for boolean attribute `att`"
-
-    htl"<tag att=$(false)$(1.0)/>"
-    #-> ERROR: "Too many values for boolean attribute `att`"
-
 Even though booleans are considered numeric in Julia, we treat them as
 an error to guard against quoted use in boolean HTML attributes.
 
@@ -515,6 +511,20 @@ It's possible to forget the extra comma in a named tuple.
       Did you forget the trailing "," in a 1-element named tuple?
     =#
 
+Unquoted interpolation adjacent to a raw string is also an error.
+
+    htl"<tag bare=literal$(:invalid)"
+    #=>
+    ERROR: LoadError: DomainError with :invalid:
+    Unquoted attribute interpolation is limited to a single component⋮
+    =#
+
+    htl"<tag bare=$(invalid)literal"
+    #=>
+    ERROR: LoadError: DomainError with bare=invalid:
+    Unquoted attribute interpolation is limited to a single component⋮
+    =#
+
 Before Julia v1.6 (see issue #38501), string literals should not be used
 within the macro style since we cannot reliably detect them.
 
@@ -555,6 +565,13 @@ interpolation.
     #-> ERROR: LoadError: "invalid interpolation syntax"⋮
 
 ## Contributing
+
+Here are questions that resulted from code & usability review.
+
+* The `HTL` type needs review. Can we use HTML?
+* Is there a simpler way to implement `@htl_str`?
+* Quoted array should behave as sequence of quotations?
+* Should we have distinction between quoted and unquoted?
 
 We are absolutely open to suggested improvements. This package is
 implemented according to several design criteria.

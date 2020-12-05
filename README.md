@@ -225,6 +225,15 @@ are passed along as-is.
     @print @htl("<div style=$(:fontSize=>"25px")$("padding-left"=>"2em")/>")
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
+For the *unquoted* `"class"` attribute, a `Vector` provides a space
+between each of the elements.
+
+    @print @htl("<div class=$([:one, :two])/>")
+    #-> <div class=one&#32;two/>
+
+    @print htl"<div class=$(:one, :two)/>"
+    #-> <div class=one&#32;two/>
+
 ## Design Discussion and Custom Extensions
 
 So that we could distinguish between regular strings and strings that
@@ -262,9 +271,9 @@ If one attempts to reference a user defined type, it will be an error.
     Elements must be strings or objects showable as "text/html".
     =#
 
-However, this can be addressed by implementing `Base.show` for the
-custom type in question. In this case, be sure to escape ampersand
-(`&`) and less-than (`<`).
+This can be addressed by implementing the `"text/html" mimetype in
+`Base.show` for the custom type in question. In this case, be sure to
+escape ampersand (`&`) and less-than (`<`).
 
      function Base.show(io::IO, mime::MIME"text/html", c::Custom)
          value = replace(replace(c.data, "&" => "&amp;"), "<" => "&lt;")

@@ -351,26 +351,43 @@ css_value(key, value::AbstractString) = value
 css_key(key::Symbol) = camelcase_to_dashes(string(key))
 css_key(key::String) = key
 
-Base.show(io::IO, a::HTLAttribute{:style}, styles::Dict) =
-    for pair in pairs(styles)
-       show(io, a, pair)
+Base.show(io::IO, at::HTLAttribute{:style}, value::Dict) =
+    for pair in pairs(value)
+       show(io, at, pair)
     end
 
-Base.show(io::IO, a::HTLAttribute{:style}, styles::NamedTuple) =
-    for pair in pairs(styles)
-       show(io, a, pair)
+Base.show(io::IO, at::HTLAttribute{:style}, value::NamedTuple) =
+    for pair in pairs(value)
+       show(io, at, pair)
     end
 
-Base.show(io::IO, a::HTLAttribute{:style}, styles::Tuple{Pair, Vararg{Pair}}) =
-    for item in styles
-       show(io, a, item)
+Base.show(io::IO, at::HTLAttribute{:style}, value::Tuple{Pair, Vararg{Pair}}) =
+    for item in value
+       show(io, at, item)
     end
 
-Base.show(io::IO, a::HTLAttribute{:style}, (key, value)::Pair) =
+Base.show(io::IO, at::HTLAttribute{:style}, (key, value)::Pair) =
     print(io, htl_escape("$(css_key(key)): $(css_value(key, value));"))
 
-Base.show(io::IO, a::HTLAttribute{name}, value) where {name} =
+Base.show(io::IO, at::HTLAttribute{name}, value) where {name} =
     print(io, htl_escape(htl_render(value)))
+
+function show_iterable(io::IO, at, value, delimiter)
+    previous = false
+    for item in value
+       if previous
+           print(io, "&#32;")
+       end
+       show(io, at, item)
+       previous = true
+    end
+end
+
+Base.show(io::IO, at::HTLAttribute{:class}, value::AbstractVector) =
+    show_iterable(io, at, value, " ")
+
+Base.show(io::IO, at::HTLAttribute{:class}, value::Tuple{Any, Vararg{Any}}) =
+    show_iterable(io, at, value, " ")
 
 function Base.show(io::IO, mime::MIME"text/html", pair::AttributePair)
     first = pair.values[1]

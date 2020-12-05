@@ -221,14 +221,14 @@ struct HTLAttribute{name} end
 HTLAttribute(name) = HTLAttribute{Symbol(s)}()
 
 """
-    htl_render(value)
+    htl_stringify_value(value)::String
 
 Convert a `value`` to a string suitable to inclusion as a quoted attribute.
 Escaping (according to quoting style) is done after this step. By default,
 strings are treated as-is; symbols and numbers (but not booleans) are
 automatically converted to strings.
 """
-function htl_render(value)
+function htl_stringify_value(value)
     if value isa AbstractString
          return value
     end
@@ -237,7 +237,8 @@ function htl_render(value)
     end
     throw(DomainError(value, """
       Unable to convert $(typeof(value)) for use as an attribute value;
-      either convert to a string, or provide a `htl_render` method.
+      convert to a string or, for a specific attribute, implement a
+      `Base.show` method using `HTLAttribute` (and `htl_escape`)
     """))
 end
 
@@ -312,11 +313,11 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(htl_render(x.value), r"[\"&]" => entity))
+    print(io, replace(htl_stringify_value(x.value), r"[\"&]" => entity))
 end
 
 function Base.show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(htl_render(x.value), r"['&]" => entity))
+    print(io, replace(htl_stringify_value(x.value), r"['&]" => entity))
 end
 
 function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
@@ -370,7 +371,7 @@ Base.show(io::IO, at::HTLAttribute{:style}, (key, value)::Pair) =
     print(io, htl_escape("$(css_key(key)): $(css_value(key, value));"))
 
 Base.show(io::IO, at::HTLAttribute{name}, value) where {name} =
-    print(io, htl_escape(htl_render(value)))
+    print(io, htl_escape(htl_stringify_value(value)))
 
 function show_iterable(io::IO, at, value, delimiter)
     previous = false

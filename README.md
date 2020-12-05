@@ -275,6 +275,8 @@ This can be addressed by implementing the `"text/html" mimetype in
 `Base.show` for the custom type in question. In this case, be sure to
 escape ampersand (`&`) and less-than (`<`).
 
+     struct Custom data::String end
+
      function Base.show(io::IO, mime::MIME"text/html", c::Custom)
          value = replace(replace(c.data, "&" => "&amp;"), "<" => "&lt;")
          print(io, "<custom>$(value)</custom>")
@@ -282,6 +284,37 @@ escape ampersand (`&`) and less-than (`<`).
 
      @print @htl("<span>$(Custom("a&b"))</span>")
      #-> <span><custom>a&amp;b</custom></span>
+
+In this conservative approach, unknown types are not simply stringified
+when they are used in element content or as an array value. Instead,
+they produce an error.
+
+    struct Custom data::String end
+
+    @htl("<tag data-custom=$(Custom("a&b"))/>")
+    #=>
+    ERROR: DomainError with …Custom("a&b"):
+      Unable to convert …Custom for use as an attribute value;
+      convert to a string or, for a specific attribute, implement a
+      `Base.show` method using `HTLAttribute` (and `htl_escape`)
+    =#
+
+We could tell HTL how to serialize our `Custom` values to the
+`data-custom` attribute by implementing `Base.show` using
+`HTLAttribute`, as show below.
+
+    import HypertextLiteral: HTLAttribute, htl_escape
+
+    struct Custom data::String end
+
+    Base.show(io::IO, at::HTLAttribute{Symbol("data-custom")}, value::Custom) =
+        print(io, htl_escape(value.data))
+
+    @print @htl("<tag data-custom=$(Custom("a&b"))/>")
+    #-> <tag data-custom=a&#38;b/>
+
+    @print @htl("<tag $(:dataCustom => Custom("a&b"))/>")
+    #-> <tag data-custom=a&#38;b/>
 
 To increase usability on the command line, the default representation of
 an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
@@ -382,7 +415,8 @@ treated as an error. This includes `Vector` as well as `HTL` objects.
     #=>
     ERROR: DomainError with [1, 2, 3]:
       Unable to convert Array{Int64,1} for use as an attribute value;
-      either convert to a string, or provide a `htl_render` method.
+      convert to a string or, for a specific attribute, implement a
+      `Base.show` method using `HTLAttribute` (and `htl_escape`)
     =#
 
 Within an unquoted attribute value, we must escape whitespace, the
@@ -415,7 +449,8 @@ an error to guard against quoted use in boolean HTML attributes.
     #=>
     ERROR: DomainError with true:
       Unable to convert Bool for use as an attribute value;
-      either convert to a string, or provide a `htl_render` method.
+      convert to a string or, for a specific attribute, implement a
+      `Base.show` method using `HTLAttribute` (and `htl_escape`)
     =#
 
 Interpolation should handle splat operator by concatenating results.
@@ -548,10 +583,9 @@ implemented according to several design criteria.
 
 * To be helpful, HTML tags and attributes may be recognized. Special
   behavior may be provided to attributes such as `"style"` (CSS),
-  `"class"` and, eventually, `"script"`. What about CSS units?
+  `"class"` and, eventually, `"script"`.
 
-* Full coverage of HTML is ideal. However, during early versions there
-  may be poor coverage of `script`, CDATA, COMMENTS, etc.
+* Full coverage of HTML syntax is ideal, but unnecessary.
 
 [nt]: https://github.com/rbt-lang/NarrativeTest.jl
 [htl]: https://github.com/observablehq/htl

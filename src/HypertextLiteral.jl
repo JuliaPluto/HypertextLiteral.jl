@@ -288,8 +288,16 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
     if showable(MIME("text/html"), value)
         return show(io, mime, value)
     end
-    if value isa Base.Generator
+    if value isa Base.Generator || value isa Tuple
         value = collect(value)
+        if eltype(value) <: AbstractString ||
+           eltype(value) <: Number ||
+           eltype(value) <: Symbol
+            for item in value
+                print(io, item)
+            end
+            return
+        end
     end
     if value isa AbstractVector
         if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})

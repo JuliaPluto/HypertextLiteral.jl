@@ -11,10 +11,10 @@ and provides handy conversions dependent upon context.*
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `"text/html"` displays.
-Unlike the built-in `HTML` object, this macro supports interpolation to
-support context-sensitive escaping and other clever features. Here we
-show an example using triple-quoted `htl` string literal, notice how
-ampersands are properly escaped in the book name and author listing.
+These macros support context-senstive interpolation sensible to the
+needs of HTML generation. Here we show an example using triple-quoted
+`htl` string literal, notice how ampersands are properly escaped in the
+book name and author listing.
 
     using HypertextLiteral
 
@@ -47,9 +47,9 @@ the Julia language, including:
 
 * Element content (ampersand and less-than) are properly escaped
 * Single quoted, double quoted, and unquoted attribute values are escaped
-* Handles boolean valued HTML attributes, such as `disabled`, `checked`
+* Handles boolean valued attributes, such as `disabled`, `checked`
 * Representation of Julia `Pair` and `Dict` as unquoted attributes
-* Special handling of "style" attribute via Julia `Pair` and `Dict`
+* Special handling of unquoted "style" attribute via Julia `Pair` and `Dict`
 * Automatic `camelCase` => `camel-case` conversion for attributes & styles
 * Detection of `script` and `style` tags to suppress escaping
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
@@ -320,6 +320,14 @@ don't permit adjacent unquoted values.
     Unquoted attribute interpolation is limited to a single component⋮
     =#
 
+For convenience we could use tuple/generator construct.
+
+    a = "A"
+    b = "B"
+
+    @print htl"$(a,b)"
+    #-> AB
+
 To increase usability on the command line, the default representation of
 an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
 object retains component parts so they could be inspected.
@@ -566,11 +574,11 @@ interpolation.
 
 ## Contributing
 
-Here are questions that resulted from code & usability review.
+Here are many usability and implementation questions.
 
 * The `HTL` type needs review. Can we use HTML?
 * Is there a simpler way to implement `@htl_str`?
-* Quoted array should behave as sequence of quotations?
+* Should `AbstractVector` be treated as concatination?
 * Should we have distinction between quoted and unquoted?
 
 We are absolutely open to suggested improvements. This package is

@@ -18,6 +18,7 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1.0'
+      - uses: julia-actions/julia-buildpkg@master
       - name: Execute Tests for README
-        run: julia ./test/runtests.jl
+        run: julia --color=yes --check-bounds=yes --project -e 'using Pkg; Pkg.test(coverage=true)'
         shell: bash

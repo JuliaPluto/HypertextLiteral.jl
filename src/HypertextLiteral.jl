@@ -214,7 +214,8 @@ Base.show(io::IO, mime::MIME"text/html", wrapper::RawText) =
 
 This parameterized type to represent HTML attributes so that we could
 dispatch serialization of custom attributes and data types. This is
-modeled upon the `MIME` data type.
+modeled upon the `MIME` data type. Values written in this way must be
+escaped for use in an unquoted string, `htl_escape` can do this.
 """
 struct HTLAttribute{name} end
 
@@ -223,10 +224,10 @@ HTLAttribute(name) = HTLAttribute{Symbol(s)}()
 """
     htl_stringify_value(value)::String
 
-Convert a `value`` to a string suitable to inclusion as a quoted attribute.
-Escaping (according to quoting style) is done after this step. By default,
-strings are treated as-is; symbols and numbers (but not booleans) are
-automatically converted to strings.
+Convert a `value`` to a string suitable to inclusion as a quoted
+attribute. Escaping (according to quoting style) is done after this
+step. By default, strings are treated as-is; symbols and numbers
+(but not booleans) are automatically converted to strings.
 """
 function htl_stringify_value(value)
     if value isa AbstractString
@@ -291,7 +292,6 @@ function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
         return show(io, mime, value)
     end
     if value isa Base.Generator
-        # support `$(x for x in [...])`
         value = collect(value)
     end
     if value isa AbstractVector

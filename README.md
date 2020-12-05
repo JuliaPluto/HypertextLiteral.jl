@@ -5,6 +5,10 @@
 Julia string interpolation, only that it tracks hypertext escaping needs
 and provides handy conversions dependent upon context.*
 
+**Build Status** | **Process**
+:---: | :---:
+[![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
+
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
 > is based upon a port to Julia written by Michiel Dral.
@@ -626,3 +630,16 @@ implemented according to several design criteria.
 [html]: https://en.wikipedia.org/wiki/HTML
 [show]: https://docs.julialang.org/en/v1/base/io-network/#Base.show-Tuple{IO,Any,Any}
 [showable]: https://docs.julialang.org/en/v1/base/io-network/#Base.Multimedia.showable
+
+[nightly-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
+[release-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/release-ci/badge.svg
+[release-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Arelease-ci
+[nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
+
+[issues-img]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
+[issues-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
+
+[chat-badge]: https://img.shields.io/badge/chat-julia--zulip-blue
+[chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral.2Ejl
+[license-img]: https://img.shields.io/badge/license-ISC-brightgreen.svg
+[license-url]: https://raw.githubusercontent.com/clarkevans/HypertextLiteral.jl/master/LICENSE.md

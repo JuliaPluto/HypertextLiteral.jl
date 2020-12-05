@@ -23,14 +23,14 @@ book name and author listing.
      (name="Switch", year=2010, authors=["Chip Heath", "Dan Heath"]),
      (name="Governing The Commons", year=1990, authors=["Elinor Ostrom"])]
 
-    render_row(book) = htl"""
+    render_row(book) = @htl("""
       <tr><td>$(book.name) ($(book.year))<td>$(join(book.authors, " & "))
-    """
+    """)
 
-    render_table(books) = htl"""
+    render_table(books) = @htl("""
       <table><caption><h3>Selected Books</h3></caption>
       <thead><tr><th>Book<th>Authors<tbody>
-      $(render_row(b) for b in books)</tbody></table>"""
+      $([render_row(b) for b in books]...)</tbody></table>""")
 
     display("text/html", render_table(books))
     #=>

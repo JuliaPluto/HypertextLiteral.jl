@@ -472,7 +472,8 @@ function interpolate(args)
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous text string to remove `attname=`
                 name = parts[end][attribute_start:attribute_end]
-                parts[end] = parts[end][begin:attribute_start - 2]
+                finish = attribute_start - 2
+                parts[end] = parts[end][1:finish]
                 push!(parts, :(AttributePair($name, Any[$input])))
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 @assert length(parts) > 1 && parts[end] isa Expr
@@ -486,12 +487,13 @@ function interpolate(args)
                 # this is interpolated element pairs; strip space before
                 # and ensure there is a space afterward
                 if parts[end] isa String && parts[end][end] == ' '
-                     parts[end] = parts[end][begin:length(parts[end])-1]
+                     finish = length(parts[end])-1
+                     parts[end] = parts[end][1:finish]
                 end
                 push!(parts, :(ElementAttributes($input)))
                 if j < length(args)
                     next = args[j+1]
-                    if next isa String && !startswith(next, r"[\s+\/>]")
+                    if next isa String && !occursin(r"^[\s+\/>]", next)
                         args[j+1] = " " * next
                     end
                 end

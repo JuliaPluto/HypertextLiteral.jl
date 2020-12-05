@@ -361,14 +361,14 @@ correct this using triple strings.
 
 Alternatively, in Julia v1.6+, one could use the HTL macro format.
 
-    #? VERSION >= v"1.6"
+    #? VERSION >= v"1.6.0-DEV"
     @htl "$("Hello")"
     #-> HTL("Hello")
 
 Before v1.6, we cannot reliably detect interpolated string literals
 using the `@htl` macro, so they are errors (when we can detect them).
 
-    #? VERSION < v"1.6"
+    #? VERSION < v"1.6.0-DEV"
     @print @htl "Look, Ma, $("<i>automatic escaping</i>")!"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
@@ -414,7 +414,7 @@ treated as an error. This includes `Vector` as well as `HTL` objects.
     htl"<tag att='$([1,2,3])'"
     #=>
     ERROR: DomainError with [1, 2, 3]:
-      Unable to convert Array{Int64,1} for use as an attribute value;
+      Unable to convert Vector{Int64} for use as an attribute value;
       convert to a string or, for a specific attribute, implement a
       `Base.show` method using `HTLAttribute` (and `htl_escape`)
     =#
@@ -467,7 +467,7 @@ of any other sorts of native Julia objects.
     @print htl"$([x for x in 1:3])"
     #=>
     ERROR: DomainError with [1, 2, 3]:
-      Type Array{Int64,1} lacks a show method for text/html.
+      Type Vector{Int64} lacks a show method for text/html.
       Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)
     =#
 
@@ -523,26 +523,26 @@ within the macro style since we cannot reliably detect them.
     @print htl"""$x$("<script>alert('Hello')</script>")"""
     #-> &#60;script>alert('Hello')&#60;/script>
 
-    #? VERSION >= v"1.6"
+    #? VERSION >= v"1.6.0-DEV"
     @print htl"""$x$("<script>alert('Hello')</script>")"""
     #-> &#60;script>alert('Hello')&#60;/script>
 
-    #? VERSION < v"1.6"
+    #? VERSION < v"1.6.0-DEV"
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
     #-> <script>alert("Hello")</script>
 
 Hence, for a cases where we could detect a string literal, we raise an
 error condition to discourage its use. The string macro form works.
 
-    @print htl"""$("escape&me")"""
-    #-> escape&#38;me
+    @print htl"""<tag>$("escape&me")</tag>"""
+    #-> <tag>escape&#38;me</tag>
 
-    #? VERSION >= v"1.6"
-    @print @htl "$("escape&me")"
-    #-> escape&#38;me
+    #? VERSION >= v"1.6.0-DEV"
+    @print @htl "<tag>$("escape&me")</tag>"
+    #-> <tag>escape&#38;me</tag>
 
-    #? VERSION < v"1.6"
-    @print @htl "$("escape&me")"
+    #? VERSION < v"1.6.0-DEV"
+    @print @htl "<tag>$("escape&me")</tag>"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 A string ending with `$` is an syntax error since it is an incomplete

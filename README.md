@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
+[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-badge]][issues-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
@@ -76,7 +76,7 @@ the Julia language, including:
 [release-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Arelease-ci
 [nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
 
-[issues-img]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
+[issues-badge]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
 [issues-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
 
 [chat-badge]: https://img.shields.io/badge/chat-julia--zulip-blue

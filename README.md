@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-| [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
+[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-img]][issues-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work

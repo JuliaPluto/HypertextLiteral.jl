@@ -15,7 +15,7 @@ and provides handy conversions dependent upon context.*
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `MIME"text/html"`
-displays. These macros support context-senstive interpolation sensible
+displays. These macros support context-sensitive interpolation sensible
 to the needs of HTML generation.
 
     using HypertextLiteral
@@ -58,7 +58,18 @@ the Julia language, including:
 * Implements both string macros `@htl_str` and regular macros `@htl`
 
 For more detail, please see the [documentation][docs-url] and join us on
-[Julia's Zulip][chat-url].
+[Julia's Zulip][chat-url]. We are expressly interested in feedback about
+the following design questions:
+
+* Should bare attributes be treated differently than quoted ones?
+* Should we keep both string literal and regular macro form?
+* Should vectors be treated as a concatenation, or raise an error?
+* Should string macros use grammar that is succinct but not legal Julia?
+* Should we re-use HTML (at cost of REPL readability) or keep HTL object?
+* Should dispatch be enabled on just values, or on attribute names?
+* How much built-in support should we have for CSS, and SVG?
+* How much do we want to optimize for speed vs checking for user error?
+* Generally, should unknown objects be stringified or made into errors?
 
 [htl]: https://github.com/observablehq/htl
 [@mbostock]: https://github.com/mbostock

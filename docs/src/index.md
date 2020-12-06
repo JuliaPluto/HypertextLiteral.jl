@@ -2,21 +2,19 @@
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `MIME"text/html"`
-displays. These macros support context-senstive interpolation sensible
+displays. These macros support context-sensitive interpolation sensible
 to the needs of HTML generation.
 
     using HypertextLiteral
 
-We use [NarrativeTest][nt] to ensure our examples are correct. After
-each command is a comment with the expected output. This tool ensures
-the README can be validated by running `./test/runtests.jl`. To enhance
+We use `NarrativeTest.jl` to ensure our examples are correct. After each
+command is a comment with the expected output. This tool ensures the
+README can be validated by running `./test/runtests.jl`. To enhance
 readability, we define the following macro.
 
     macro print(expr)
         :(display("text/html", $expr))
     end
-
-## Introduction to Hypertext Literal
 
 `HypertextLiteral` provides an `htl` string literal and equivalent
 `@htl` macro that implement contextual escaping and expression
@@ -25,7 +23,11 @@ interpolation, producing `HTL` objects that render to `"text/html"`.
     htl"<span>Hello World</span>"
     #-> HTL("<span>Hello World</span>")
 
+    @htl("<span>Hello World</span>")
+    #-> HTL("<span>Hello World</span>")
+
 An `HTL` object can be rendered to `"text/html"` with `display()`.
+The expected output is shown in the comment below the command.
 
     display("text/html", htl"<span>Hello World</span>")
     #-> <span>Hello World</span>
@@ -36,17 +38,14 @@ readability without having to type this `display` function.
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
 
+## Content Interpolation
+
 Hypertext literal provides interpolation via `$`. Within element
 content, both the ampersand (`&`) and less-than (`<`) are escaped.
 
     book = "Strunk & White"
 
     @print htl"<span>Today's Reading: $book</span>"
-    #-> <span>Today's Reading: Strunk &#38; White</span>
-
-Equivalently, in macro form, we can write:
-
-    @print @htl("<span>Today's Reading: $book</span>")
     #-> <span>Today's Reading: Strunk &#38; White</span>
 
 To include a literal `$` in the output, use `\$` as one would in a
@@ -125,19 +124,23 @@ Unquoted attributes are also supported. Here the escaping is extensive.
     @print htl"<tag bare=$arg />"
     #-> <tag bare=book&#61;Strunk&#32;&#38;&#32;White />
 
-Attributes may also be provided by `Dict`, `NamedTuple`, or though
-`Pair` objects. Attribute names provided as a `String` are passed though
-as-is, while `Symbol` values go though `camelCase` case conversion.
+Attributes may also be provided by `Dict` or `Pair`. Attribute names
+provided as a `String` are passed though as-is, while `Symbol` values go
+though `camelCase` case conversion. For those that prefer unix style
+names, underscores to dash conversion is also provided.
 
      attributes = Dict(:dataValue => 42, "data-style" => :green )
 
-     @print htl"<div $attributes/>"
+     @print @htl("<div $attributes/>")
      #-> <div data-value=42 data-style=green/>
 
-     @print htl"""<div $(:dataValue=>42, "data-style"=>:green)/>"""
+     @print @htl("<div $(:data_value=>42) $("data-style"=>:green)/>")
      #-> <div data-value=42 data-style=green/>
 
-     @print htl"""<div $(dataValue=42, dataStyle=:green)/>"""
+Within string literals (but not `@htl` macro), a compact syntax inspired
+by named tuples is also supported.
+
+     @print htl"<div $(data_value=42, dataStyle=:green)/>"
      #-> <div data-value=42 data-style=green/>
 
 As you can see from this example, symbols and numbers (but not boolean
@@ -186,7 +189,7 @@ between each of the elements.
 So that we could distinguish between regular strings and strings that
 are meant to be hypertext, we define the type `HTL` which is an array
 containing `String` values, which are assumed to be valid hypertext, and
-objects that are [Multimedia.showable][showable] as `"text/html"`.
+objects that are `Multimedia.showable` as `"text/html"`.
 
     htl"<span>Hello World!</span>"
     #-> HTL("<span>Hello World!</span>")
@@ -524,14 +527,11 @@ interpolation.
     @print htl"Foo$"
     #-> ERROR: LoadError: "invalid interpolation syntax"⋮
 
+Here's something that perhaps should work... but fails currently.
+
+    # htl"<div $(:dataValue=>42, "data-style"=>:green)/>
+
 ## Contributing
-
-Here are many usability and implementation questions.
-
-* The `HTL` type needs review. Can we use HTML?
-* Is there a simpler way to implement `@htl_str`?
-* Should `AbstractVector` be treated as concatination?
-* Should we have distinction between quoted and unquoted?
 
 We are absolutely open to suggested improvements. This package is
 implemented according to several design criteria.
@@ -564,6 +564,3 @@ implemented according to several design criteria.
 
 * Full coverage of HTML syntax is ideal, but unnecessary.
 
-[nt]: https://github.com/rbt-lang/NarrativeTest.jl
-[show]: https://docs.julialang.org/en/v1/base/io-network/#Base.show-Tuple{IO,Any,Any}
-[showable]: https://docs.julialang.org/en/v1/base/io-network/#Base.Multimedia.showable

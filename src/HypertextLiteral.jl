@@ -272,7 +272,7 @@ struct AttributePair <: InterpolatedValue
 end
 
 AttributePair(name::Symbol, value::Any) =
-    AttributePair(camelcase_to_dashes(string(name)), value)
+    AttributePair(format_name(string(name)), value)
 
 # handle splat operation e.g. htl"$([1,2,3]...)" by concatenating
 ElementData(args...) = HTL([ElementData(item) for item in args])
@@ -345,16 +345,14 @@ function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     end
 end
 
-function camelcase_to_dashes(str::String)
-    # eg :fontSize => "font-size"
-    replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))"))
-end
+format_name(str::String) =
+    replace(replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))")), "_" => "-")
 
 css_value(key, value::Symbol) = string(value)
 css_value(key, value::Number) = string(value) # includes boolean
 css_value(key, value::AbstractString) = value
 
-css_key(key::Symbol) = camelcase_to_dashes(string(key))
+css_key(key::Symbol) = format_name(string(key))
 css_key(key::String) = key
 
 Base.show(io::IO, at::HTLAttribute{:style}, value::Dict) =

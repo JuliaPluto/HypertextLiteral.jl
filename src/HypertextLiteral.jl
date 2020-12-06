@@ -348,9 +348,16 @@ end
 format_name(str::String) =
     replace(replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))")), "_" => "-")
 
-css_value(key, value::Symbol) = string(value)
-css_value(key, value::Number) = string(value) # includes boolean
-css_value(key, value::AbstractString) = value
+"""
+    css_value(val)
+
+Convert a native Julia object into a string suitable for use as a CSS
+value. This is useful for adding support for `cssunits` or other tools
+that build CSS fragments.
+"""
+css_value(value::Symbol) = string(value)
+css_value(value::Number) = string(value) # includes boolean
+css_value(value::AbstractString) = value
 
 css_key(key::Symbol) = format_name(string(key))
 css_key(key::String) = key
@@ -371,7 +378,7 @@ Base.show(io::IO, at::HTLAttribute{:style}, value::Tuple{Pair, Vararg{Pair}}) =
     end
 
 Base.show(io::IO, at::HTLAttribute{:style}, (key, value)::Pair) =
-    print(io, htl_escape("$(css_key(key)): $(css_value(key, value));"))
+    print(io, htl_escape("$(css_key(key)): $(css_value(value));"))
 
 Base.show(io::IO, at::HTLAttribute{name}, value) where {name} =
     print(io, htl_escape(htl_stringify_value(value)))

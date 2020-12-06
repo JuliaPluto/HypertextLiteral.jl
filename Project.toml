@@ -3,15 +3,12 @@ uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
 authors = ["Clark C. Evans <cce@clarkevans.com>"]
 version = "0.1.0"
 
-[deps]
-PrettyPrinting = "54e16d92-306c-5ea0-a30b-337be88ac337"
+[compat]
+julia = "1"
 
 [extras]
 NarrativeTest = "9563631e-acd4-5dd8-bebb-4cf36518960d"
-
-[compat]
-julia = "1"               # [1.0.0, 2.0.0)
-PrettyPrinting = "0.2.0"  # [0.2.0, 0.3.0)
+Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
 
 [targets]
-test = ["NarrativeTest"]
+test = ["NarrativeTest", "Hyperscript"]

@@ -158,6 +158,8 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
+## Cascading Style Sheets
+
 There is special support for the *unquoted* `"style"` attribute. In this
 case, `Pair` and `Dict` values are expanded as style attributes
 separated by the semi-colon (`;`). Style names that are `Symbol` values
@@ -173,6 +175,20 @@ are passed along as-is.
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
     @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
+    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+
+Only symbols, numbers, and strings have a specified serialization as css
+style values. Therefore, use of components from other libraries will
+cause an exception.  However, this can be fixed by registering a
+conversion using `css_value()`.
+
+    using Hyperscript
+
+    HypertextLiteral.css_value(x::Hyperscript.Unit) = string(x)
+
+Then, the syntax for CSS can be even more compact.
+
+    @print htl"<div style=$(fontSize=25px,paddingLeft=2em)/>"
     #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
 
 For the *unquoted* `"class"` attribute, a `Vector` provides a space

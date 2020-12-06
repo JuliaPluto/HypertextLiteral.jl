@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Open Issues][issues-badge]][issues-url] [![ISC License][license-img]][license-url]
+[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] ![[Issues][support-badge]][support-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
@@ -57,6 +57,9 @@ the Julia language, including:
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Implements both string macros `@htl_str` and regular macros `@htl`
 
+For more detail, please see the [documentation][docs-url] and join us on
+[Julia's Zulip][chat-url].
+
 [htl]: https://github.com/observablehq/htl
 [@mbostock]: https://github.com/mbostock
 [@mattt]: https://github.com/mattt
@@ -69,16 +72,14 @@ the Julia language, including:
 [svg]: https://en.wikipedia.org/wiki/Scalable_Vector_Graphics
 [html]: https://en.wikipedia.org/wiki/HTML
 
+[support-badge]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
+[support-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
 [docs-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs/badge.svg
-[docs-url]: https://clarkevans.github.com/HypertextLiteral.jl/
+[docs-url]: https://clarkevans.github.com/HypertextLiteral.jl/dev/
 [nightly-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
+[nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
 [release-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/release-ci/badge.svg
 [release-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Arelease-ci
-[nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
-
-[issues-badge]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
-[issues-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
-
 [chat-badge]: https://img.shields.io/badge/chat-julia--zulip-blue
 [chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral.2Ejl
 [license-img]: https://img.shields.io/badge/license-ISC-brightgreen.svg

@@ -20,5 +20,5 @@ push!(subs, r"\r\n" => "\n")
 ENV["COLUMNS"] = "72"
 
 package_path(x) = relpath(joinpath(dirname(abspath(PROGRAM_FILE)), "..", x))
-default = package_path.(["README.md"])
+default = package_path.(["README.md", "doc/src"])
 runtests(; default=default, subs=subs)

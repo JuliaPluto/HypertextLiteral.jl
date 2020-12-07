@@ -77,20 +77,27 @@ string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
-    if expr isa String
+    if !Meta.isexpr(expr, :string)
         return interpolate([expr])
     end
-    if !Meta.isexpr(expr, :string)
-        throw(DomainError(expr, "`@htl` is expecting a string literal"))
+    args = expr.args
+    if length(args) == 0
+        return interpolate([])
+    end
+    for part in expr.args
+        if Meta.isexpr(part, :(=))
+            throw(DomainError(part,
+             "assignments are not permitted in an interpolation"))
+        end
     end
     if VERSION < v"1.6.0-DEV"
         # Find cases where we may have an interpolated string literal and
         # raise an exception (till Julia issue #38501 is addressed)
-        if length(expr.args) == 1 && expr.args[1] isa String
+        if length(args) == 1 && args[1] isa String
             throw("interpolated string literals are not supported")
         end
-        for idx in 2:length(expr.args)
-            if expr.args[idx] isa String && expr.args[idx-1] isa String
+        for idx in 2:length(args)
+            if args[idx] isa String && args[idx-1] isa String
                 throw("interpolated string literals are not supported")
             end
         end
@@ -139,9 +146,17 @@ macro htl_str(expr::String)
         end
         (nest, idx) = Meta.parse(expr, start; greedy=false)
         if nest == nothing
-            throw("invalid interpolation syntax")
+            throw("missing interpolation expression")
+        end
+        if !(expr[start] == '(' || nest isa Symbol)
+            throw(DomainError(nest,
+             "interpolations must be symbols or parenthesized"))
         end
         start = idx
+        if Meta.isexpr(nest, :(=))
+            throw(DomainError(nest,
+             "assignments are not permitted in an interpolation"))
+        end
         if nest isa String
             # this is an interpolated string literal
             nest = Expr(:string, nest)
@@ -423,6 +438,11 @@ entity(ch::Char) = "&#$(Int(ch));"
 
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
+is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
+is_space(ch) = ch in ('\t', '\n', '\f', ' ')
+normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
+nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
+
 """
     interpolate(args):Expr
 
@@ -460,11 +480,6 @@ function interpolate(args)
         end
         return STATE_DATA
     end
-
-    is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
-    is_space(ch) = ch in ('\t', '\n', '\f', ' ')
-    normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
-    nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 
     for j in 1:length(args)
         input = args[j]

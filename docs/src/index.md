@@ -291,13 +291,51 @@ don't permit adjacent unquoted values.
     Unquoted attribute interpolation is limited to a single component⋮
     =#
 
-For convenience we could use tuple/generator construct.
+To have a convenient notation, our string macro syntax interpolate
+tuples and generated expressions as concatinated output. This is
+currently not supported by `@htl` macro (see Julia ticket #38734).
 
     a = "A"
     b = "B"
 
     @print htl"$(a,b)"
     #-> AB
+
+    @print htl"$(x for x in (a,b))</tag>"
+    #-> AB
+
+    @htl("$(x for x in (a,b))")
+    #-> ERROR: syntax: invalid interpolation syntax
+
+While assigment operator is permitted in Julia string interpolation, we
+exclude it in both string literal and macro forms so to guard against
+accidentially forgetting the trailing comma for a 1-tuple.
+
+    @print htl"""<div $(dataValue=42,)/>"""
+    #-> <div data-value=42/>
+
+    htl"""<div $(dataValue=42)/>"""
+    #=>
+    ERROR: LoadError: DomainError with dataValue = 42:
+    assignments are not permitted in an interpolation⋮
+    =#
+
+    @htl("<div $(dataValue=42)/>")
+    #=>
+    ERROR: LoadError: DomainError with dataValue = 42:
+    assignments are not permitted in an interpolation⋮
+    =#
+
+Even though booleans are considered numeric in Julia, we treat them as
+an error to guard against quoted use in boolean HTML attributes.
+
+    htl"<button checked='$(true)'"
+    #=>
+    ERROR: DomainError with true:
+      Unable to convert Bool for use as an attribute value;
+      convert to a string or, for a specific attribute, implement a
+      `Base.show` method using `HTLAttribute` (and `htl_escape`)
+    =#
 
 To increase usability on the command line, the default representation of
 an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
@@ -317,7 +355,7 @@ object retains component parts so they could be inspected.
         3: String "</span>"
     =#
 
-## Quirks
+## Quirks & Regression
 
 Since this string format uses Julia macro processing, there are some
 differences between an `htl` literal and native Julia interpolation.
@@ -371,8 +409,6 @@ a manner identical to regular string interpolation.
     @htl("\\\"\n")
     #-> HTL("\\\"\n")
 
-## Regression Tests
-
 In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
 those semantics.
@@ -416,17 +452,6 @@ conversion of numbers, symbols and custom types to strings.
 
     @print htl"""<tag att=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
     #-> <tag att=&#62;3>a&#38;b</tag>
-
-Even though booleans are considered numeric in Julia, we treat them as
-an error to guard against quoted use in boolean HTML attributes.
-
-    htl"<button checked='$(true)'"
-    #=>
-    ERROR: DomainError with true:
-      Unable to convert Bool for use as an attribute value;
-      convert to a string or, for a specific attribute, implement a
-      `Base.show` method using `HTLAttribute` (and `htl_escape`)
-    =#
 
 Interpolation should handle splat operator by concatenating results.
 
@@ -478,18 +503,6 @@ characters.
     Invalid character ('&') found within an attribute name.
     =#
 
-It's possible to forget the extra comma in a named tuple.
-
-    @print htl"""<div $(dataValue=42,)/>"""
-    #-> <div data-value=42/>
-
-    htl"""<div $(dataValue=42)/>"""
-    #=>
-    ERROR: DomainError with 42:
-      Unable to convert Int64 to an attribute name/value pair.
-      Did you forget the trailing "," in a 1-element named tuple?
-    =#
-
 Unquoted interpolation adjacent to a raw string is also an error.
 
     htl"<tag bare=literal$(:invalid)"
@@ -502,6 +515,20 @@ Unquoted interpolation adjacent to a raw string is also an error.
     #=>
     ERROR: LoadError: DomainError with bare=invalid:
     Unquoted attribute interpolation is limited to a single component⋮
+    =#
+
+We limit string interpolation to symbols or parenthesized expressions.
+For more details on this see Julia #37817.
+
+    htl"$[1,2,3]"
+    #=>
+    ERROR: LoadError: DomainError with [1, 2, 3]:
+    interpolations must be symbols or parenthesized⋮
+    =#
+
+    @htl("$[1,2,3]")
+    #=>
+    ERROR: syntax: invalid interpolation syntax: "$["⋮
     =#
 
 Before Julia v1.6 (see issue #38501), string literals should not be used
@@ -538,10 +565,10 @@ A string ending with `$` is an syntax error since it is an incomplete
 interpolation.
 
     @print htl"$"
-    #-> ERROR: LoadError: "invalid interpolation syntax"⋮
+    #-> ERROR: LoadError: "missing interpolation expression"⋮
 
     @print htl"Foo$"
-    #-> ERROR: LoadError: "invalid interpolation syntax"⋮
+    #-> ERROR: LoadError: "missing interpolation expression"⋮
 
 Here's something that perhaps should work... but fails currently.
 

@@ -301,7 +301,7 @@ currently not supported by `@htl` macro (see Julia ticket #38734).
     @print htl"$(a,b)"
     #-> AB
 
-    @print htl"$(x for x in (a,b))</tag>"
+    @print htl"$(x for x in (a,b))"
     #-> AB
 
     @htl("$(x for x in (a,b))")

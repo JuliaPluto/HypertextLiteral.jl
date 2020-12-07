@@ -112,13 +112,16 @@ Create a `HTL` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Escape sequences should work
 identically to Julia strings, except in cases where a slash immediately
 precedes the double quote (see `@raw_str` and Julia issue #22926).
+
+Interpolation is extended beyond regular Julia strings to handle three
+additional cases: tuples, named tuples (for attributes), and generators.
+See Julia #38734 for the feature request so that this could also work
+within the `@htl` macro syntax.
 """
 macro htl_str(expr::String)
-    # This implementation emulates Julia's string interpolation behavior
-    # as close as possible to produce an expression vector similar to
-    # what would be produced by the `@htl` macro. Unlike most text
-    # literals, we unescape content here. This logic also directly
-    # handles interpolated literals, with contextual escaping.
+    # Essentially this is an ad-hoc scanner of the string, splitting
+    # it by `$` to find interpolated parts and degating the hard work
+    # to `Meta.parse`, treating everything else as a literal string.
     args = Any[]
     vstr = String[]
     start = idx = 1

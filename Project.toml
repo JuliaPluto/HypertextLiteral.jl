@@ -1,14 +1,15 @@
 name = "HypertextLiteral"
 uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
 authors = ["Clark C. Evans <cce@clarkevans.com>"]
-version = "0.1.0"
+version = "0.2"
 
 [compat]
 julia = "1"
 
 [extras]
-NarrativeTest = "9563631e-acd4-5dd8-bebb-4cf36518960d"
+Faker = "0efc519c-db33-5916-ab87-703215c3906f"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+NarrativeTest = "9563631e-acd4-5dd8-bebb-4cf36518960d"
 
 [targets]
-test = ["NarrativeTest", "Hyperscript"]
+test = ["NarrativeTest", "Hyperscript", "Faker"]

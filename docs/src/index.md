@@ -251,35 +251,23 @@ escape ampersand (`&`) and less-than (`<`).
      @print @htl("<span>$(Custom("a&b"))</span>")
      #-> <span><custom>a&amp;b</custom></span>
 
-In this conservative approach, unknown types are not simply stringified
-when they are used in element content or as an array value. Instead,
-they produce an error.
+A similar approach is taken for attributes -- by default, unknown types
+result in an error when used as an attribute value.
 
     struct Custom data::String end
 
     @htl("<tag data-custom=$(Custom("a&b"))/>")
-    #=>
-    ERROR: DomainError with …Custom("a&b"):
-      Unable to convert …Custom for use as an attribute value;
-      convert to a string or, for a specific attribute, implement a
-      `Base.show` method using `HTLAttribute` (and `htl_escape`)
-    =#
+    #-> ERROR: MethodError: no method matching htl_stringify⋮
 
-We could tell HTL how to serialize our `Custom` values to the
-`data-custom` attribute by implementing `Base.show` using
-`HTLAttribute`, as show below.
-
-    import HypertextLiteral: HTLAttribute, htl_escape
+We could tell HTL how to serialize our `Custom` values by implementing
+`htl_stringify`. It is even possible to provide different serializations
+depending upon the attribute name, see `HTLAttribute` for more detail.
 
     struct Custom data::String end
 
-    Base.show(io::IO, at::HTLAttribute{Symbol("data-custom")}, value::Custom) =
-        print(io, htl_escape(value.data))
+    HypertextLiteral.htl_stringify(att, value::Custom) = value.data
 
     @print @htl("<tag data-custom=$(Custom("a&b"))/>")
-    #-> <tag data-custom=a&#38;b/>
-
-    @print @htl("<tag $(:dataCustom => Custom("a&b"))/>")
     #-> <tag data-custom=a&#38;b/>
 
 So that the scope of objects serialized in this manner is clear, we
@@ -332,9 +320,7 @@ an error to guard against quoted use in boolean HTML attributes.
     htl"<button checked='$(true)'"
     #=>
     ERROR: DomainError with true:
-      Unable to convert Bool for use as an attribute value;
-      convert to a string or, for a specific attribute, implement a
-      `Base.show` method using `HTLAttribute` (and `htl_escape`)
+    The attribute 'checked' is boolean, use unquoted attribute form.
     =#
 
 To increase usability on the command line, the default representation of
@@ -431,12 +417,7 @@ Within attributes, independent of quoting style, other datatypes are
 treated as an error. This includes `Vector` as well as `HTL` objects.
 
     htl"<tag att='$([1,2,3])'"
-    #=>
-    ERROR: DomainError with [1, 2, 3]:
-      Unable to convert Vector{Int64} for use as an attribute value;
-      convert to a string or, for a specific attribute, implement a
-      `Base.show` method using `HTLAttribute` (and `htl_escape`)
-    =#
+    #-> ERROR: MethodError: no method matching htl_stringify⋮
 
 Within an unquoted attribute value, we must escape whitespace, the
 ampersand (&), quotation ("), greater-than (>), less-than (<),

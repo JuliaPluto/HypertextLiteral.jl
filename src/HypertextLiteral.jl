@@ -3,6 +3,12 @@
 
 This library provides for a `@htl()` macro and a `htl` string literal,
 both implementing interpolation that is aware of hypertext escape
+        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
+            for item in value
+                show(io, mime, item)
+            end
+            return
+        end
 context. The `@htl` macro has the advantage of using Julia's native
 string parsing, so that it can handle arbitrarily deep nesting. However,
 it is a more verbose than the `htl` string literal and doesn't permit
@@ -183,6 +189,20 @@ macro htl_str(expr::String)
 end
 
 """
+    htl_normalize(s)
+
+This converts an name using either `camelCase` or `unix_case` names into
+their dashed equivalents. This will lowercase the name.
+"""
+function htl_normalize(name::String)
+    name = replace(name, r"[A-Z]" => (x -> "-$(lowercase(x))"))
+    name = startswith(name, "-") ? name[2:end] : name
+    return replace(name, "_" => "-")
+end
+
+htl_normalize(sym::Symbol) = htl_normalize(string(sym))
+
+"""
     HTLAttribute{name}
 
 This parameterized type to represent HTML attributes so that we could
@@ -196,9 +216,7 @@ function HTLAttribute(name::String)
     if length(name) < 1
         throw(DomainError(name, "Attribute name must not be empty."))
     end
-    if lowercase(name) != name
-        throw(DomainError(name, "Attribute name must be lowercase."))
-    end
+    name = htl_normalize(name)
     # Attribute names are unquoted and do not have & escaping;
     # the &, % and \ characters don't seem to be prevented by the
     # specification, but they likely signal a programming error.
@@ -211,9 +229,30 @@ function HTLAttribute(name::String)
     return HTLAttribute{Symbol(name)}()
 end
 
-# Perhaps this could be used to specialize the representation of
-# particular (SVG) attributes that require specific capitalization.
-string(a::HTLAttribute{name}) where {name} = string(name)
+"""
+    htl_represent(a::HTLAttribute{name})
+
+This provides the serialization of a given normalized attribute so that
+camelCase could be preserved on output for elements foreign to HTML,
+such as SVG. By default, about 2 dozen SVG attributes are defined.
+"""
+htl_represent(::HTLAttribute{name}) where {name} = string(name)
+
+begin
+    for svg_attribute in (
+        "altGlyphDef", "altGlyphItem", "animateColor", "animateMotion",
+        "animateTransform", "clipPath", "feBlend", "feColorMatrix",
+        "feComponentTransfer", "feComposite", "feConvolveMatrix",
+        "feDiffuseLighting", "feDisplacementMap", "feDistantLight",
+        "feDropShadow", "feFlood", "feFuncA", "feFuncB", "feFuncG",
+        "feFuncR", "feGaussianBlur", "feImage", "feMerge", "feMergeNode",
+        "feMorphology", "feOffset", "fePointLight", "feSpecularLighting",
+        "feSpotLight", "feTile", "feTurbulence", "foreignObject",
+        "glyphRef", "linearGradient", "radialGradient", "textPath")
+      sym = QuoteNode(Symbol(htl_normalize(svg_attribute)))
+      eval(:(htl_represent(::HTLAttribute{$sym}) = $svg_attribute))
+    end
+end
 
 """
     htl_is_boolean(attribute::HTLAttribute)
@@ -230,18 +269,6 @@ htl_is_boolean(::HTLAttribute{name}) where {name} =
       :formnovalidate, :hidden, :ismap, :itemscope, :loop, :multiple,
       :muted, :nomodule, :novalidate, :open, :playsinline, :readonly,
       :required, :reversed, :selected, :truespeed)
-
-"""
-    htl_normalize_name(s)
-
-This converts an name using either `camelCase` or `unix_case` names into
-their dashed equivalents. This will lowercase the name.
-"""
-htl_normalize_name(str::String) =
-    replace(replace(str, r"[A-Z]" => (x -> "-$(lowercase(x))")), "_" => "-")
-
-htl_normalize_name(sym::Symbol) =
-    htl_normalize_name(string(sym))
 
 """
     htl_escape_value(s)
@@ -433,17 +460,17 @@ struct AttributePair <: InterpolatedValue
 end
 
 AttributePair(name::AbstractString, value) =
-    AttributePair(HTLAttribute(htl_normalize_name(name)), value)
+    AttributePair(HTLAttribute(htl_normalize(name)), value)
 
 AttributePair(name::Symbol, value) =
-    AttributePair(HTLAttribute(htl_normalize_name(name)), value)
+    AttributePair(HTLAttribute(htl_normalize(name)), value)
 
 show(io::IO, mime::MIME"text/html", pair::AttributePair) =
     show(io, pair.name, pair.value)
 
 function show(io::IO, attr::HTLAttribute, value)
     value = htl_escape_value(htl_stringify(attr, value))
-    print(io, " $(string(attr))=$(value)")
+    print(io, " $(htl_represent(attr))=$(value)")
 end
 
 function show(io::IO, attr::HTLAttribute{name}, value::Nothing) where {name}
@@ -451,16 +478,16 @@ function show(io::IO, attr::HTLAttribute{name}, value::Nothing) where {name}
         nothing
     else
         value = htl_escape_value(htl_stringify(attr, value))
-        print(io, " $(string(attr))=$(value)")
+        print(io, " $(htl_represent(attr))=$(value)")
     end
 end
 
 function show(io::IO, attr::HTLAttribute{name}, value::Bool) where {name}
     if htl_is_boolean(attr)
-        (value == true) ? print(io, " $(string(attr))=''") : nothing
+        (value == true) ? print(io, " $(htl_represent(attr))=''") : nothing
     else
         value = htl_escape_value(htl_stringify(attr, value))
-        print(io, " $(string(attr))=$(value)")
+        print(io, " $(htl_represent(attr))=$(value)")
     end
 end
 
@@ -475,7 +502,7 @@ css_value(value::Symbol) = string(value)
 css_value(value::Number) = string(value) # includes boolean
 css_value(value::AbstractString) = value
 
-css_key(key::Symbol) = htl_normalize_name(string(key))
+css_key(key::Symbol) = htl_normalize(string(key))
 css_key(key::String) = key
 
 htl_stringify(at::HTLAttribute{:style}, value::Dict) =
@@ -530,7 +557,7 @@ function interpolate(args)
     attribute_start = attribute_end = 0
     element_start = element_end = 0
     buffer_start = buffer_end = 0
-    attribute = nothing
+    attribute_tag = nothing
     element_tag = nothing
     state_tag_is_open = false
 
@@ -572,8 +599,10 @@ function interpolate(args)
                 throw(DomainError(input.args[1], "Unquoted attribute " *
                   "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
+                attribute = HTLAttribute(attribute_tag)
                 push!(parts, :(AttributeSingleQuoted($attribute, $input)))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+                attribute = HTLAttribute(attribute_tag)
                 push!(parts, :(AttributeDoubleQuoted($attribute, $input)))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
@@ -718,12 +747,10 @@ function interpolate(args)
                     if is_space(ch)
                         nothing
                     elseif ch === '"'
-                        name = input[attribute_start:attribute_end]
-                        attribute = HTLAttribute(name)
+                        attribute_tag = input[attribute_start:attribute_end]
                         state = STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                     elseif ch === '\''
-                        name = input[attribute_start:attribute_end]
-                        attribute = HTLAttribute(name)
+                        attribute_tag = input[attribute_start:attribute_end]
                         state = STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                     elseif ch === '>'
                         throw(DomainError(nearby(input, i-1),
@@ -736,13 +763,13 @@ function interpolate(args)
                 elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                     if ch === '"'
                         state = STATE_AFTER_ATTRIBUTE_VALUE_QUOTED
-                        attribute = nothing
+                        attribute_tag = nothing
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
                     if ch === '\''
                         state = STATE_AFTER_ATTRIBUTE_VALUE_QUOTED
-                        attribute = nothing
+                        attribute_tag = nothing
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED

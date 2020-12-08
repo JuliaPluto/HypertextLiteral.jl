@@ -86,8 +86,8 @@ us to build reusable HTML templates.
     @print htl"<div>3^2 is $(sq(3))</div>"
     #-> <div>3^2 is <span>9</span></div>
 
-Within a triple-quoted `htl` string, a single-quoted `htl` string can be
-included. This technique only works for one level of nesting.
+Within a triple double-quoted `htl` string, a single double-quoted `htl`
+string can be included. This technique works for one level of nesting.
 
     books = ["Who Gets What & Why", "Switch", "Governing The Commons"]
 
@@ -117,24 +117,24 @@ attributes are likewise escaped.
     @print htl"""<tag double="$qval" single='$qval' />"""
     #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
 
-Unquoted attributes are also supported. Here the escaping is extensive.
+Unquoted attributes are also supported. Here the escaping is extensive,
+including the space (` `), equal sign (`=`), and others.
 
     arg = "book=Strunk & White"
 
     @print htl"<tag bare=$arg />"
     #-> <tag bare=book&#61;Strunk&#32;&#38;&#32;White />
 
-Attributes may also be provided by `Dict` or `Pair`. Attribute names
-provided as a `String` are passed though as-is, while `Symbol` values go
-though `camelCase` case conversion. For those that prefer unix style
-names, underscores to dash conversion is also provided.
+Attributes may also be provided by `Dict` or `Pair`. Attribute names are
+normalized, with `camelCase` becoming `camel-case` and `unix_case`
+becoming `unix-case`.
 
-     attributes = Dict(:dataValue => 42, "data-style" => :green )
+     attributes = Dict(:dataValue => 42, "DataStyle" => :green )
 
      @print @htl("<div $attributes/>")
      #-> <div data-value=42 data-style=green/>
 
-     @print @htl("<div $(:data_value=>42) $("data-style"=>:green)/>")
+     @print @htl("<div $(:data_value=>42) $("dataStyle"=>:green)/>")
      #-> <div data-value=42 data-style=green/>
 
 Within string literals (but not `@htl` macro), a compact syntax inspired
@@ -270,6 +270,27 @@ depending upon the attribute name, see `HTLAttribute` for more detail.
     @print @htl("<tag data-custom=$(Custom("a&b"))/>")
     #-> <tag data-custom=a&#38;b/>
 
+To permit attribute specific translation, we normalize attributes.
+Sometimes, as in the case of SVG, this normalization won't work. You
+can register your own attribute representation as follows.
+
+    import HypertextLiteral: htl_represent, HTLAttribute
+
+    htl_represent(::HTLAttribute{Symbol("my-att")}) = "myAtt"
+
+    @print @htl("<tag myAtt=$(true)/>")
+    #-> <tag myAtt=true/>
+
+It's also possible to let us know that your custom attribute uses
+boolean attribute treatment.
+
+    import HypertextLiteral: htl_is_boolean
+
+    htl_is_boolean(::HTLAttribute{Symbol("my-att")}) = true
+
+    @print @htl("<tag myAtt=$(false)/>")
+    #-> <tag/>
+
 So that the scope of objects serialized in this manner is clear, we
 don't permit adjacent unquoted values.
 
@@ -280,7 +301,7 @@ don't permit adjacent unquoted values.
     =#
 
 To have a convenient notation, our string macro syntax interpolate
-tuples and generated expressions as concatinated output. This is
+tuples and generated expressions as concatenated output. This is
 currently not supported by `@htl` macro (see Julia ticket #38734).
 
     a = "A"
@@ -295,9 +316,9 @@ currently not supported by `@htl` macro (see Julia ticket #38734).
     @htl("$(x for x in (a,b))")
     #-> ERROR: syntax: invalid interpolation syntax
 
-While assigment operator is permitted in Julia string interpolation, we
+While assignment operator is permitted in Julia string interpolation, we
 exclude it in both string literal and macro forms so to guard against
-accidentially forgetting the trailing comma for a 1-tuple.
+accidentally forgetting the trailing comma for a 1-tuple.
 
     @print htl"""<div $(dataValue=42,)/>"""
     #-> <div data-value=42/>

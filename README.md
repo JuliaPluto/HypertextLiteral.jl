@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-[![Dev Docs][docs-dev-img]][docs-dev-url] [![Stable Docs][docs-stable-img]][docs-stable-url] | [![Actions Status][release-img]][release-url] [![Actions Status][nightly-img]][nightly-url] | [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
+[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] | [![Actions Status][release-img]][release-url] [![Actions Status][nightly-img]][nightly-url] | [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work

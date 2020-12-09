@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-[![Docs Status][docs-badge]][docs-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] [![ISC License][license-img]][license-url]
+[![Dev Docs][docs-dev-img]][docs-dev-url] [![Stable Docs][docs-stable-img]][docs-stable-url] | [![Actions Status][release-badge]][release-url] [![Actions Status][nightly-badge]][nightly-url] | [![Zulip Chat][chat-badge]][chat-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
@@ -83,15 +83,17 @@ the following design questions:
 [svg]: https://en.wikipedia.org/wiki/Scalable_Vector_Graphics
 [html]: https://en.wikipedia.org/wiki/HTML
 
-[support-badge]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
+[support-img]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
 [support-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
-[docs-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs/badge.svg
-[docs-url]: https://clarkevans.github.com/HypertextLiteral.jl/dev/
-[nightly-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
+[docs-dev-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-stable/badge.svg
+[docs-dev-url]: https://clarkevans.github.com/HypertextLiteral.jl/dev/
+[docs-stable-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-dev/badge.svg
+[docs-stable-url]: https://clarkevans.github.com/HypertextLiteral.jl/stable/
+[nightly-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
 [nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
-[release-badge]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/release-ci/badge.svg
+[release-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/release-ci/badge.svg
 [release-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Arelease-ci
-[chat-badge]: https://img.shields.io/badge/chat-julia--zulip-blue
+[chat-img]: https://img.shields.io/badge/chat-julia--zulip-blue
 [chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral.2Ejl
 [license-img]: https://img.shields.io/badge/license-ISC-brightgreen.svg
 [license-url]: https://raw.githubusercontent.com/clarkevans/HypertextLiteral.jl/master/LICENSE.md

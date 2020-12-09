@@ -85,9 +85,9 @@ the following design questions:
 
 [support-img]: https://img.shields.io/github/issues/clarkevans/HypertextLiteral.jl.svg
 [support-url]: https://github.com/clarkevans/HypertextLiteral.jl/issues
-[docs-dev-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-stable/badge.svg
+[docs-dev-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-dev/badge.svg
 [docs-dev-url]: https://clarkevans.github.com/HypertextLiteral.jl/dev/
-[docs-stable-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-dev/badge.svg
+[docs-stable-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/docs-stable/badge.svg
 [docs-stable-url]: https://clarkevans.github.com/HypertextLiteral.jl/stable/
 [nightly-img]: https://github.com/clarkevans/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
 [nightly-url]: https://github.com/clarkevans/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci

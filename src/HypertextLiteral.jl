@@ -3,12 +3,6 @@
 
 This library provides for a `@htl()` macro and a `htl` string literal,
 both implementing interpolation that is aware of hypertext escape
-        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
-            for item in value
-                show(io, mime, item)
-            end
-            return
-        end
 context. The `@htl` macro has the advantage of using Julia's native
 string parsing, so that it can handle arbitrarily deep nesting. However,
 it is a more verbose than the `htl` string literal and doesn't permit
@@ -19,62 +13,9 @@ quotes for the outer nesting, and a single double quote for the inner).
 """
 module HypertextLiteral
 
-import Base: string, show
+export @htl_str, @htl
 
-export HTL, @htl_str, @htl
-
-"""
-`HTL(s)`: Create an array of objects that render as html.
-
-    HTL("<div>foo</div>")
-
-This is similar `HTML{Vector}` with a few exceptions. First, the
-contents of the vector are concatenated. Second, direct rendering is
-limited to `AbstractString`, others are delegated to `show`. Third, the
-splat constructor converts arguments to an `HTL` vector.
-
-Finally, regular display of the value to the terminal renders the
-objects and produces the equivalent string representation.
-"""
-struct HTL
-    content::Vector{Any}
-
-    function HTL(obj)
-        function check(item)
-            if item isa AbstractString || showable(MIME"text/html"(), item)
-               return item
-            end
-            throw(DomainError(item, "Elements must be strings or " *
-                              """objects showable as "text/html"."""))
-        end
-        if obj isa AbstractVector || obj isa Tuple
-            return new([check(item) for item in obj])
-        end
-        return new([check(obj)])
-    end
-end
-
-HTL(xs...) = HTL(xs)
-
-function show(io::IO, mime::MIME"text/html", h::HTL)
-    for item in h.content
-        if item isa AbstractString
-            print(io, item)
-        else
-            show(io, mime, item)
-        end
-    end
-end
-
-function show(io::IO, mime::MIME"text/html", v::Vector{HTL})
-    for item in v
-        show(io, mime, item)
-    end
-end
-
-show(io::IO, h::HTL) =
-    print(io, "HTL(\"$(escape_string(sprint() do io
-                  show(io, MIME("text/html"), h) end))\")")
+import Base: show
 
 """
     @htl string-expression
@@ -347,7 +288,7 @@ abstract type InterpolatedValue end
 #-------------------------------------------------------------------------
 struct ElementData <: InterpolatedValue value end
 
-ElementData(args...) = HTL([ElementData(item) for item in args])
+ElementData(args...) = [ElementData(item) for item in args]
 
 function show(io::IO, mime::MIME"text/html", child::ElementData)
     value = child.value
@@ -525,6 +466,55 @@ htl_stringify(at::HTLAttribute{:class}, value::AbstractVector) =
 htl_stringify(at::HTLAttribute{:class}, value::Tuple{Any, Vararg{Any}}) =
     join([htl_stringify(at, item) for item in value], " ")
 
+
+#-------------------------------------------------------------------------
+"""
+    escape_content(value)
+
+Escape a string value for use within HTML content, this includes
+replacing `&` with `&amp;` and `<` with `&lt;`.
+"""
+escape_content(value) =
+    replace(replace(value, "&" => "&amp;"), "<" => "&lt;")
+
+"""
+    wrap_content(value)
+
+Wrap and escape content so that it is `showable("text/html")`. For
+statically determined types, this could be done during macro expansion
+via `@generated` functions. Otherwise, it is a runtime dispatch. The
+fallback is to simply not wrap/escape.
+"""
+function wrap_content(x)
+    if x isa String
+        return HTML(escape_content(x))
+    end
+    if x isa Number || x isa Symbol
+        return HTML(escape_content(string(x)))
+    end
+    @assert showable(x, "text/html")
+    return x
+end
+@generated wrap_content(x::AbstractString) = :(HTML(escape_content(x)))
+@generated wrap_content(x::Number) = :(HTML(escape_content(string(x))))
+@generated wrap_content(x::Symbol) = :(HTML(escape_content(string(x))))
+
+function wrap_content(xs::Union{Tuple, AbstractArray, Base.Generator})
+    HTML() do io
+      for x in xs
+        show(io, MIME"text/html"(), wrap_content(x))
+      end
+    end
+end
+
+function merge_content(xs...)
+    HTML() do io
+      for x in xs
+        show(io, MIME"text/html"(), x)
+      end
+    end
+end
+
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
 is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
@@ -553,7 +543,7 @@ ending tag is in substituted content.
 """
 function interpolate(args)
     state = STATE_DATA
-    parts = Union{String, Expr}[]
+    parts = Expr[]
     attribute_start = attribute_end = 0
     element_start = element_end = 0
     buffer_start = buffer_end = 0
@@ -576,7 +566,7 @@ function interpolate(args)
         if !isa(input, String)
             input = esc(input)
             if state == STATE_DATA
-                push!(parts, :(ElementData($input)))
+                push!(parts, :(wrap_content($input)))
             elseif state == STATE_RAWTEXT
                 push!(parts, :(RawText($input, $(QuoteNode(element_tag)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
@@ -961,11 +951,11 @@ function interpolate(args)
 
                 i = i + 1
             end
-            push!(parts, input)
+            push!(parts, Expr(:call, :HTML, input))
         end
     end
 
-    return Expr(:call, :HTL, Expr(:vect, parts...))
+    return Expr(:call, :merge_content, parts...)
 end
 
 end

@@ -51,16 +51,9 @@ htl_customer(c) = @htl("""
     </dl>
 """)
 
-# htl_employee(e) = @htl("""
-#       <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
-#           <td><a href="mailto:$(e.email)">$(e.email)</a>
-#           <td>$(e.main_number)<td>$(e.cell_phone)
-#           <td>$([htl"<span>$c</span>" for c in e.comments]...)
-# """)
-
 htl_employee(e) = @htl("""
       <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
-          <td><a>$(e.email)</a>
+          <td><a href="mailto:$(e.email)">$(e.email)</a>
           <td>$(e.main_number)<td>$(e.cell_phone)
           <td>$([htl"<span>$c</span>" for c in e.comments]...)
 """)
@@ -200,10 +193,11 @@ new_test() = begin
    return io
 end
 
+#BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
 #println("interpolate: ", @benchmark reg_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
-#println("New HTML: ", @benchmark new_test())
+println("New HTML: ", @benchmark new_test())
 
 if false
     start = time()

@@ -18,6 +18,36 @@ export @htl_str, @htl
 import Base: show
 
 """
+    HTL(expr, xs...)
+
+Create an object that is `showable` to "text/html" created from
+arguments that are also showable. Leaf entries can be created using
+`HTML`. This expression additionally has an expression which is used
+when displaying the object to the REPL. Calling `print` will produce
+rendered output.
+"""
+struct HTL
+    content::Function
+    this::Expr
+end
+
+function HTL(s::String)
+    HTL(io -> print(io, s), Expr(:call, :HTL, s))
+end
+
+function HTL(this::Expr, xs...)
+    HTL(this) do io
+      for x in xs
+        show(io, MIME"text/html"(), x)
+      end
+    end
+end
+
+Base.show(io::IO, ::MIME"text/html", h::HTL) = h.content(io)
+Base.print(io::IO, h::HTL) = h.content(io)
+Base.show(io::IO, h::HTL) = print(io, h.this)
+
+"""
     @htl string-expression
 
 Create a `HTL` object with string interpolation (`\$`) that uses
@@ -26,12 +56,13 @@ string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
+    this = Expr(:macrocall, Symbol("@htl"), nothing, expr)
     if !Meta.isexpr(expr, :string)
-        return interpolate([expr])
+        return interpolate([expr], this)
     end
     args = expr.args
     if length(args) == 0
-        return interpolate([])
+        return interpolate([], this)
     end
     for part in expr.args
         if Meta.isexpr(part, :(=))
@@ -51,7 +82,7 @@ macro htl(expr)
             end
         end
     end
-    return interpolate(expr.args)
+    return interpolate(expr.args, this)
 end
 
 """
@@ -71,6 +102,7 @@ macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
     # it by `$` to find interpolated parts and degating the hard work
     # to `Meta.parse`, treating everything else as a literal string.
+    this = Expr(:macrocall, Symbol("@htl_str"), nothing, expr)
     args = Any[]
     vstr = String[]
     start = idx = 1
@@ -126,7 +158,7 @@ macro htl_str(expr::String)
         push!(args, join(vstr))
         empty!(vstr)
     end
-    return interpolate(args)
+    return interpolate(args, this)
 end
 
 """
@@ -499,14 +531,6 @@ function wrap_content(xs::Union{Tuple, AbstractArray, Base.Generator})
     end
 end
 
-function merge_content(xs...)
-    HTML{Function}() do io
-      for x in xs
-        show(io, MIME"text/html"(), x)
-      end
-    end
-end
-
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
 is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
@@ -515,7 +539,7 @@ normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
 nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 
 """
-    interpolate(args):Expr
+    interpolate(args, this)::Expr
 
 Take an interweaved set of Julia expressions and strings, tokenize the
 strings according to the HTML specification [1], wrapping the
@@ -533,7 +557,7 @@ ending tag is in substituted content.
 
 [1] https://html.spec.whatwg.org/multipage/parsing.html#tokenization
 """
-function interpolate(args)
+function interpolate(args, this)
     state = STATE_DATA
     parts = Expr[]
     attribute_start = attribute_end = 0
@@ -946,8 +970,7 @@ function interpolate(args)
             push!(parts, Expr(:call, :HTML, input))
         end
     end
-
-    return Expr(:call, :merge_content, parts...)
+    return Expr(:call, :HTL, QuoteNode(this), parts...)
 end
 
 end

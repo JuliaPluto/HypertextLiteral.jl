@@ -485,22 +485,14 @@ statically determined types, this could be done during macro expansion
 via `@generated` functions. Otherwise, it is a runtime dispatch. The
 fallback is to simply not wrap/escape.
 """
-function wrap_content(x)
-    if x isa String
-        return HTML(escape_content(x))
-    end
-    if x isa Number || x isa Symbol
-        return HTML(escape_content(string(x)))
-    end
-    @assert showable(x, "text/html")
-    return x
-end
-@generated wrap_content(x::AbstractString) = :(HTML(escape_content(x)))
-@generated wrap_content(x::Number) = :(HTML(escape_content(string(x))))
-@generated wrap_content(x::Symbol) = :(HTML(escape_content(string(x))))
+wrap_content(x::AbstractString) = HTML(escape_content(x))
+wrap_content(x::Number) = HTML(escape_content(string(x)))
+wrap_content(x::Symbol) = HTML(escape_content(string(x)))
+wrap_content(x) = x
+wrap_content(xs...) = wrap_content(xs)
 
 function wrap_content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    HTML() do io
+    HTML{Function}() do io
       for x in xs
         show(io, MIME"text/html"(), wrap_content(x))
       end
@@ -508,7 +500,7 @@ function wrap_content(xs::Union{Tuple, AbstractArray, Base.Generator})
 end
 
 function merge_content(xs...)
-    HTML() do io
+    HTML{Function}() do io
       for x in xs
         show(io, MIME"text/html"(), x)
       end

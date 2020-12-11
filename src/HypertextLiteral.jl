@@ -350,18 +350,18 @@ function attribute_pair(attr::Attribute{name}, value::Bool) where {name}
         if value == false
             return HTML("")
         end
-        return HTML(" $(stringify(attribute))=''")
+        return HTML(" $(stringify(attr))=''")
     end
-    value = escape_single_quote(stringify(attribute, value))
-    return HTML(" $(stringify(attribute))='$(value)'")
+    value = escape_single_quote(stringify(attr, value))
+    return HTML(" $(stringify(attr))='$(value)'")
 end
 
 function attribute_pair(attr::Attribute{name}, value::Nothing) where {name}
     if is_boolean(attr)
         return HTML("")
     end
-    value = escape_single_quote(stringify(attribute, value))
-    return HTML(" $(stringify(attribute))='$(value)'")
+    value = escape_single_quote(stringify(attr, value))
+    return HTML(" $(stringify(attr))='$(value)'")
 end
 
 """
@@ -457,16 +457,17 @@ delegates value construction of each pair to `attribute_pair()`.
 """
 attributes(element::Symbol, value::Pair) =
     attribute_pair(Attribute(value.first), value.second)
-attributes(element::Symbol, value::Dict) =
-    attribute_pairs(pairs(value))
-attributes(element::Symbol, value::NamedTuple) =
-    attribute_pairs(pairs(value))
-attributes(element::Symbol, value::Tuple{Pair, Vararg{Pair}}) =
-    attribute_pairs(pairs(value))
-attribute_pairs(element::Symbol, values::Vector{Pair}) =
+attributes(element::Symbol, values::Dict) =
+    attribute_pairs(pairs(values))
+attributes(element::Symbol, values::NamedTuple) =
+    attribute_pairs(pairs(values))
+attributes(element::Symbol, values::Tuple{Pair, Vararg{Pair}}) =
+    attribute_pairs([item for item in values])
+attribute_pairs(pairs) =
     HTML() do io
-        for pair in values
-            show(io, MIME"text/html"(), attributes(element, pair))
+        for (name, value) in pairs
+            show(io, MIME"text/html"(),
+               attribute_pair(Attribute(name), value))
         end
     end
 
@@ -544,7 +545,7 @@ function interpolate(args, this)
                 previous = parts[end].args
                 @assert previous[1] == :HTML
                 name = previous[2][attribute_start:attribute_end]
-                previous[2] = expr_args[2][1:(attribute_start-2)]
+                previous[2] = previous[2][1:(attribute_start-2)]
                 attribute = Attribute(name)
                 push!(parts, :(attribute_pair($attribute, $(esc(input)))))
                 # peek ahead to ensure we have a delimiter

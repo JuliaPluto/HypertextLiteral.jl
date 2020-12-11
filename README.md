@@ -38,8 +38,8 @@ to the needs of HTML generation.
     #=>
     <table><caption><h3>Selected Books</h3></caption>
     <thead><tr><th>Book<th>Authors<tbody>
-      <tr><td>Who Gets What &#38; Why (2012)<td>Alvin Roth
-      <tr><td>Switch (2010)<td>Chip Heath &#38; Dan Heath
+      <tr><td>Who Gets What &amp; Why (2012)<td>Alvin Roth
+      <tr><td>Switch (2010)<td>Chip Heath &amp; Dan Heath
       <tr><td>Governing The Commons (1990)<td>Elinor Ostrom
     </tbody></table>
     =#

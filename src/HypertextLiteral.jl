@@ -15,8 +15,6 @@ module HypertextLiteral
 
 export @htl_str, @htl
 
-import Base: show
-
 """
     @htl string-expression
 
@@ -297,7 +295,7 @@ struct ElementData <: InterpolatedValue value end
 
 ElementData(args...) = [ElementData(item) for item in args]
 
-function show(io::IO, mime::MIME"text/html", child::ElementData)
+function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
     value = child.value
     if value isa AbstractString
         return print(io, replace(child.value, r"[<&]" => entity))
@@ -306,7 +304,7 @@ function show(io::IO, mime::MIME"text/html", child::ElementData)
         return print(io, replace(string(child.value), r"[<&]" => entity))
     end
     if showable(MIME("text/html"), value)
-        return show(io, mime, value)
+        return Base.show(io, mime, value)
     end
     if value isa Base.Generator || value isa Tuple
         value = collect(value)
@@ -340,7 +338,7 @@ end
 #-------------------------------------------------------------------------
 struct ElementAttributes <: InterpolatedValue value end
 
-function show(io::IO, mime::MIME"text/html", x::ElementAttributes)
+function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     value = x.value
     if value isa Pair
         show(io, mime, AttributePair(value.first, value.second))
@@ -360,27 +358,26 @@ function show(io::IO, mime::MIME"text/html", x::ElementAttributes)
     end
 end
 
-#-------------------------------------------------------------------------
-struct RawText <: InterpolatedValue
-    value::String
+"""
+    rawtext(context, value)
 
-    function RawText(value::String, element::Symbol)
-        if occursin("</$element>", lowercase(value))
-            throw(DomainError(repr(value), "  Content of <$element> cannot " *
-                "contain the end tag (`</$element>`)."))
-        end
-        if element == :script && occursin("<!--", value)
-            # this could be slightly more nuanced
-            throw(DomainError(repr(value), "  Content of <$element> should " *
-                "not contain a comment block (`<!--`) "))
-        end
-        new(value)
+Wrap a string value that occurs with RAWTEXT, SCRIPT and other element
+context so that it is `showable("text/html")`. The default
+implementation ensures that the given value doesn't contain substrings
+illegal for the given context.
+"""
+function rawtext(context::Symbol, value::AbstractString)
+    if occursin("</$context>", lowercase(value))
+        throw(DomainError(repr(value), "  Content of <$context> cannot " *
+            "contain the end tag (`</$context>`)."))
     end
+    if context == :script && occursin("<!--", value)
+        # this could be slightly more nuanced
+        throw(DomainError(repr(value), "  Content of <$context> should " *
+            "not contain a comment block (`<!--`) "))
+    end
+    return HTML(value)
 end
-
-show(io::IO, mime::MIME"text/html", wrapper::RawText) =
-    print(io, wrapper.value)
-
 
 """
     css_value(val)
@@ -492,7 +489,6 @@ function escape_double_quote(value)
     return value
 end
 
-#-------------------------------------------------------------------------
 """
     escape_content(value)
 
@@ -591,7 +587,8 @@ function interpolate(args, this)
             if state == STATE_DATA
                 push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
-                push!(parts, :(RawText($input, $(QuoteNode(element_tag)))))
+                element = QuoteNode(element_tag)
+                push!(parts, :(rawtext($element, $(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous HTML string to remove ` attname=`
@@ -1001,7 +998,7 @@ end
 function Result(this::Expr, xs...)
     Result(this) do io
       for x in xs
-        show(io, MIME"text/html"(), x)
+          show(io, MIME"text/html"(), x)
       end
     end
 end

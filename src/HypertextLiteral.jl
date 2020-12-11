@@ -174,6 +174,8 @@ function Attribute(name::String)
     return Attribute{Symbol(name)}()
 end
 
+Attribute(name::Symbol) = Attribute(string(name))
+
 """
     stringify(a::Attribute{name})
 
@@ -269,93 +271,6 @@ function stringify(attr::Attribute{name}, value::Nothing) where {name}
              "is boolean, use unquoted attribute form."))
     end
     return ""
-end
-
-"""
-Interpolated Value
-
-This abstract type represents a value that must be escaped. The various
-subclasses provide the context for the escaping. They include:
-
-  ElementData            Values expanded as element content, including
-                         text nodes and/or subordinate HTML fragments
-  ElementAttributes      Values to be expanded as attribute/value pairs
-  AttributePair          Unquoted name/value pair for attributes; handles
-                         special cases of boolean attributes
-  AttributeDoubleQuoted  Value serialized within double quoted attribute
-  AttributeSingleQuoted  Value serialized within single quoted attribute
-
-The string interpolation is here is conservative. To provide express
-data type conversions for `ElementData`, override `show` `"text/html"`.
-"""
-abstract type InterpolatedValue end
-
-#-------------------------------------------------------------------------
-struct ElementData <: InterpolatedValue value end
-
-ElementData(args...) = [ElementData(item) for item in args]
-
-function Base.show(io::IO, mime::MIME"text/html", child::ElementData)
-    value = child.value
-    if value isa AbstractString
-        return print(io, replace(child.value, r"[<&]" => entity))
-    end
-    if value isa Number || child.value isa Symbol
-        return print(io, replace(string(child.value), r"[<&]" => entity))
-    end
-    if showable(MIME("text/html"), value)
-        return Base.show(io, mime, value)
-    end
-    if value isa Base.Generator || value isa Tuple
-        value = collect(value)
-        if eltype(value) <: AbstractString ||
-           eltype(value) <: Number ||
-           eltype(value) <: Symbol
-            for item in value
-                print(io, replace(string(item), r"[<&]" => entity))
-            end
-            return
-        end
-    end
-    if value isa AbstractVector
-        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
-            for item in value
-                show(io, mime, item)
-            end
-            return
-        end
-        throw(DomainError(value, """
-          Type $(typeof(value)) lacks a show method for text/html.
-          Perhaps use splatting? e.g. htl"\$([x for x in 1:3]...)
-        """))
-    end
-    throw(DomainError(value, """
-      Type $(typeof(value)) lacks a show method for text/html.
-      Alternatively, you can cast the value to a string first.
-    """))
-end
-
-#-------------------------------------------------------------------------
-struct ElementAttributes <: InterpolatedValue value end
-
-function Base.show(io::IO, mime::MIME"text/html", x::ElementAttributes)
-    value = x.value
-    if value isa Pair
-        show(io, mime, AttributePair(value.first, value.second))
-    elseif value isa Dict || value isa NamedTuple
-        for (k, v) in pairs(value)
-            show(io, mime, AttributePair(k, v))
-        end
-    elseif value isa Tuple{Pair, Vararg{Pair}}
-        for (k, v) in value
-            show(io, mime, AttributePair(k, v))
-        end
-    else
-        throw(DomainError(value, """
-          Unable to convert $(typeof(value)) to an attribute name/value pair.
-          Did you forget the trailing "," in a 1-element named tuple?
-        """))
-    end
 end
 
 """
@@ -533,6 +448,39 @@ function content(xs::Union{Tuple, AbstractArray, Base.Generator})
     end
 end
 
+"""
+    attributes(element::Symbol, value)
+
+Convert Julian object into a serialization of attribute pairs,
+`showable` via `MIME"text/html"`. The default implementation of this
+delegates value construction of each pair to `attribute_pair()`.
+"""
+attributes(element::Symbol, value::Pair) =
+    attribute_pair(Attribute(value.first), value.second)
+attributes(element::Symbol, value::Dict) =
+    attribute_pairs(pairs(value))
+attributes(element::Symbol, value::NamedTuple) =
+    attribute_pairs(pairs(value))
+attributes(element::Symbol, value::Tuple{Pair, Vararg{Pair}}) =
+    attribute_pairs(pairs(value))
+attribute_pairs(element::Symbol, values::Vector{Pair}) =
+    HTML() do io
+        for pair in values
+            show(io, MIME"text/html"(), attributes(element, pair))
+        end
+    end
+
+"""
+    interpolate_attributes(element, expr)::Vector{Expr}
+
+Continue conversion of an arbitrary Julia expression within the
+attribute section of the given element.
+"""
+function interpolate_attributes(element::Symbol, expr)::Vector{Expr}
+    element = QuoteNode(element)
+    return [:(attributes($element, $(esc(expr))))]
+end
+
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
 is_alpha(ch) = 'A' <= ch <= 'Z' || 'a' <= ch <= 'z'
@@ -593,10 +541,10 @@ function interpolate(args, this)
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous HTML string to remove ` attname=`
                 @assert Meta.isexpr(parts[end], :call, 2)
-                expr_args = parts[end].args
-                @assert expr_args[1] == :HTML
-                name = expr_args[2][attribute_start:attribute_end]
-                expr_args[2] = expr_args[2][1:(attribute_start-2)]
+                previous = parts[end].args
+                @assert previous[1] == :HTML
+                name = previous[2][attribute_start:attribute_end]
+                previous[2] = expr_args[2][1:(attribute_start-2)]
                 attribute = Attribute(name)
                 push!(parts, :(attribute_pair($attribute, $(esc(input)))))
                 # peek ahead to ensure we have a delimiter
@@ -619,12 +567,14 @@ function interpolate(args, this)
                 push!(parts, :(double_quoted($attribute, $(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
-                if parts[end] isa String && parts[end][end] == ' '
-                    finish = length(parts[end])-1
-                    parts[end] = parts[end][1:finish]
+                @assert Meta.isexpr(parts[end], :call, 2)
+                previous = parts[end].args
+                if previous[1] == :HTML && previous[2] isa String
+                    if previous[2][end] == ' '
+                        finish = length(previous[2])-1
+                        previous[2] = previous[2][1:finish]
+                    end
                 end
-                # TODO: resolve attribute names early if possible
-                push!(parts, :(ElementAttributes($input)))
                 # move the space to after the element pairs
                 if j < length(args)
                     next = args[j+1]
@@ -632,6 +582,7 @@ function interpolate(args, this)
                         args[j+1] = " " * next
                     end
                 end
+                append!(parts, interpolate_attributes(element_tag, input))
             elseif state == STATE_COMMENT || true
                 throw("invalid binding #1 $(state)")
             end

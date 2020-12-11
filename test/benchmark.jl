@@ -27,14 +27,14 @@ make_customer() = (
 
 database = [make_customer() for x in 1:13]
 
-htl_database(d) = @htl("""
+htl_database(d) = htl"""
   <html>
-    <head><title>Customers & Employees</title></head>
+    <head><title>$("Customers & Employees")</title></head>
     <body>
     $([htl_customer(c) for c in d]...)
     </body>
   </html>
-""")
+"""
 
 htl_customer(c) = @htl("""
     <dl>
@@ -53,7 +53,7 @@ htl_customer(c) = @htl("""
 
 htl_employee(e) = @htl("""
       <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
-          <td><a href="mailto:$(e.email)">$(e.email)</a>
+          <td><a href='mailto:$(e.email)'>$(e.email)</a>
           <td>$(e.main_number)<td>$(e.cell_phone)
           <td>$([htl"<span>$c</span>" for c in e.comments]...)
 """)
@@ -66,7 +66,7 @@ htl_test() = begin
 end
 
 ee(x) = replace(replace(x, "&" => "&amp;"), "<" => "&lt;")
-ea(x) = replace(replace(x, "&" => "&amp;"), "\"" => "&quot;")
+ea(x) = replace(replace(x, "&" => "&amp;"), "'" => "&apos;")
 
 reg_database(d) = """
   <html>
@@ -94,7 +94,7 @@ reg_customer(c) = """
 
 reg_employee(e) = """
       <tr><td>$(ee(e.last_name))<td>$(ee(e.first_name))<td>$(e.title)
-          <td><a href="mailto:$(ea(e.email))">$(ee(e.email))</a>
+          <td><a href='mailto:$(ea(e.email))'>$(ee(e.email))</a>
           <td>$(ee(e.main_number))<td>$(ee(e.cell_phone))
           <td>$(join(["<span>$(ee(c))</span>" for c in e.comments]))
 """
@@ -151,18 +151,18 @@ end
 entity(ch::Char) = "&#$(Int(ch));"
 
 HE(x) = HTML(replace(x, r"[<&]" => entity))
-HA(x) = HTML(replace(x, r"[<\"]" => entity))
+HA(x) = HTML(replace(x, r"[<']" => entity))
 
 #HE(x) = HTML(replace(replace(x, "&" => "&amp;"), "<" => "&lt;"))
 #HA(x) = HTML(replace(replace(x, "&" => "&amp;"), "\"" => "&quot;"))
 
-new_database(d) =
+cus_database(d) =
    H(HTML("<html><head><title>"), HE("Customers & Employees"),
      HTML("</title></head><body>"),
-      [new_customer(c) for c in d]...,
+      [cus_customer(c) for c in d]...,
       HTML("</body></html>"))
 
-new_customer(c) =
+cus_customer(c) =
    H(HTML("<dl><dt>Company<dd>"), HE(c.company), 
      HTML("<dt>Phrase<dd>"), HE(c.phrase),
      HTML("<dt>Active Siince<dd>"), HE(c.active),
@@ -172,39 +172,48 @@ new_customer(c) =
           <tr><th>Last Name<th>First Name<th>Title
               <th>E-Mail<th>Office Phone<th>Cell Phone
               <th>Comments</tr>"""),
-     [new_employee(e) for e in c.employees]...,
+     [cus_employee(e) for e in c.employees]...,
      HTML("</table></dd></dl>"))
 
-new_employee(e) = 
+cus_employee(e) = 
    H(HTML("<tr><td>"), HE(e.last_name), 
          HTML("<td>"), HE(e.first_name),
          HTML("<td>"), HE(e.title),
-         HTML("<td><a href=\"mailto:"), HA(e.email), 
-                    HTML("\">"), HE(e.email), HTML("</a>"),
+         HTML("<td><a href='mailto:"), HA(e.email), 
+                    HTML("'>"), HE(e.email), HTML("</a>"),
          HTML("<td>"), HE(e.main_number), 
          HTML("<td>"), HE(e.cell_phone),
          HTML("<td>"),
           [H(HTML("<span>"), HE(c), HTML("</span>")) for c in e.comments]...)
 
-new_test() = begin
+cus_test() = begin
    io = IOBuffer()
-   ob = new_database(database)
+   ob = cus_database(database)
    show(io, MIME("text/html"), ob)
    return io
 end
 
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
 #println("interpolate: ", @benchmark reg_test())
+#println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
-println("New HTML: ", @benchmark new_test())
 
 if false
-    start = time()
-    open("new.html", "w") do f
-       ob = new_database(database)
+    open("htl.html", "w") do f
+       ob = htl_database(database)
        show(f, MIME("text/html"), ob)
     end
-    finish = time()
-    println("printing ", finish - start)
+    open("hs.html", "w") do f
+       ob = hs_database(database)
+       show(f, MIME("text/html"), ob)
+    end
+    open("reg.html", "w") do f
+       ob = reg_database(database)
+       show(f, ob)
+    end
+    open("cus.html", "w") do f
+       ob = cus_database(database)
+       show(f, MIME("text/html"), ob)
+    end
 end

@@ -18,39 +18,9 @@ export @htl_str, @htl
 import Base: show
 
 """
-    HTL(expr, xs...)
-
-Create an object that is `showable` to "text/html" created from
-arguments that are also showable. Leaf entries can be created using
-`HTML`. This expression additionally has an expression which is used
-when displaying the object to the REPL. Calling `print` will produce
-rendered output.
-"""
-struct HTL
-    content::Function
-    this::Expr
-end
-
-function HTL(s::String)
-    HTL(io -> print(io, s), Expr(:call, :HTL, s))
-end
-
-function HTL(this::Expr, xs...)
-    HTL(this) do io
-      for x in xs
-        show(io, MIME"text/html"(), x)
-      end
-    end
-end
-
-Base.show(io::IO, ::MIME"text/html", h::HTL) = h.content(io)
-Base.print(io::IO, h::HTL) = h.content(io)
-Base.show(io::IO, h::HTL) = print(io, h.this)
-
-"""
     @htl string-expression
 
-Create a `HTL` object with string interpolation (`\$`) that uses
+Create a `Result` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Before Julia 1.6, interpolated
 string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
@@ -86,9 +56,9 @@ macro htl(expr)
 end
 
 """
-    @htl_str -> HTL
+    @htl_str -> Result
 
-Create a `HTL` object with string interpolation (`\$`) that uses
+Create a `Result` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Escape sequences should work
 identically to Julia strings, except in cases where a slash immediately
 precedes the double quote (see `@raw_str` and Julia issue #22926).
@@ -502,8 +472,8 @@ function wrap_single_quoted(attribute, value)
     if '&' in value
         value = replace(value, "&" => "&amp;")
     end
-    if '\"'
-        value = replace(value, "\'" => "&apos;")
+    if '\'' in value
+        value = replace(value, "'" => "&apos;")
     end
     return HTML(value)
 end
@@ -584,7 +554,7 @@ nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 Take an interweaved set of Julia expressions and strings, tokenize the
 strings according to the HTML specification [1], wrapping the
 expressions with wrappers based upon the escaping context, and returning
-an expression that combines the result with an `HTL` wrapper.
+an expression that combines the result with an `Result` wrapper.
 
 For these purposes, a `Symbol` is treated as an expression to be
 resolved; while a `String` is treated as a literal string that won't be
@@ -1010,7 +980,37 @@ function interpolate(args, this)
             push!(parts, Expr(:call, :HTML, input))
         end
     end
-    return Expr(:call, :HTL, QuoteNode(this), parts...)
+    return Expr(:call, :Result, QuoteNode(this), parts...)
 end
+
+"""
+    Result(expr, xs...)
+
+Create an object that is `showable` to "text/html" created from
+arguments that are also showable. Leaf entries can be created using
+`HTML`. This expression additionally has an expression which is used
+when displaying the object to the REPL. Calling `print` will produce
+rendered output.
+"""
+struct Result
+    content::Function
+    this::Expr
+end
+
+function Result(s::String)
+    Result(io -> print(io, s), Expr(:call, :HTL, s))
+end
+
+function Result(this::Expr, xs...)
+    Result(this) do io
+      for x in xs
+        show(io, MIME"text/html"(), x)
+      end
+    end
+end
+
+Base.show(io::IO, ::MIME"text/html", h::Result) = h.content(io)
+Base.print(io::IO, h::Result) = h.content(io)
+Base.show(io::IO, h::Result) = print(io, h.this)
 
 end

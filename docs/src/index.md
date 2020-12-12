@@ -525,9 +525,8 @@ implemented according to several design criteria.
 * With exception of boolean attributes (which must be removed to be
   false), input is treated as-is and not otherwise modified.
 
-* Interpolations having string values are injected "as-is" into the
-  output (subject to context sensitive checking or escaping);
-  conversely, non-string values may be given helpful interpretations.
+* Values having serialization to `"text/html"` are injected "as-is"
+  into element content. Attributes should only accept string objects.
 
 * Given that this library will be used by content producers, it should
   be conservative, raising an error when invalid hypertext is discovered

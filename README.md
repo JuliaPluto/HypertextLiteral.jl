@@ -65,10 +65,8 @@ the following design questions:
 * Should we keep both string literal and regular macro form?
 * Should vectors be treated as a concatenation, or raise an error?
 * Should string macros use grammar that is succinct but not legal Julia?
-* Should we re-use HTML (at cost of REPL readability) or keep HTL object?
 * Should dispatch be enabled on just values, or on attribute names?
 * How much built-in support should we have for CSS, and SVG?
-* How much do we want to optimize for speed vs checking for user error?
 * Generally, should unknown objects be stringified or made into errors?
 
 [htl]: https://github.com/observablehq/htl

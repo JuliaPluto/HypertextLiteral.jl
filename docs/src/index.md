@@ -44,7 +44,7 @@ we'll also use the following macro.
     @print @htl("<span>Hello World</span>")
     #-> <span>Hello World</span>
 
-Thoughout this tutorial, we'll mostly stick with the string literal form
+Throughout this tutorial, we'll mostly stick with the string literal form
 of this macro, however, the `@htl` macro form should work equivalently,
 except for a few cases we annotate.
 
@@ -136,21 +136,23 @@ single quoted style.
     #-> <tag bare='book=&apos;Strunk &amp; White&apos;' />
 
 Attributes may also be provided by `Dict` or `Pair`. Attribute names are
-normalized, with `camelCase` and `snake_case` becoming `kebab-case`.
+normalized, where `snake_case` becomes `kebab-case`. We do not convert
+`camelCase` due to XML (MathML and SVG) attribute case sensitivity.
+Moreover, `String` attribute names are passed along as-is.
 
-     attributes = Dict(:dataValue => 42, :data_style => :green )
+     attributes = Dict(:data_style => :green, "data_value" => 42, )
 
      @print @htl("<div $attributes/>")
-     #-> <div data-value='42' data-style='green'/>
+     #-> <div data-style='green' data_value='42'/>
 
-     @print @htl("<div $(:data_value=>42) $("dataStyle"=>:green)/>")
-     #-> <div data-value='42' data-style='green'/>
+     @print @htl("<div $(:data_style=>:green) $(:dataValue=>42)/>")
+     #-> <div data-style='green' dataValue='42'/>
 
 Within string literals (but not `@htl` macro), a compact syntax inspired
 by named tuples is also supported.
 
-     @print htl"<div $(data_value=42, dataStyle=:green)/>"
-     #-> <div data-value='42' data-style='green'/>
+     @print htl"<div $(data_style=:green, dataValue=42)/>"
+     #-> <div data-style='green' dataValue='42'/>
 
 As you can see from this example, symbols and numbers (but not boolean
 values) are automatically converted within attributes. This works for
@@ -167,38 +169,44 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
+Boolean values within quoted strings are returned as-is. We could make
+this raise an error, however, there could be cases where this may be the
+desired effect.
+
+    @print htl"<button disabled='$(false)'>"
+    #-> <button disabled='false'>
+
 ## Cascading Style Sheets
 
 There is special support for the *unquoted* `"style"` attribute. In this
 case, `Pair` and `Dict` values are expanded as style attributes
-separated by the semi-colon (`;`). Style names that are `Symbol` values
-go though `camelCase` conversion to `camel-case`, while `String` values
-are passed along as-is.
+separated by the semi-colon (`;`). Like attributes, `snake_case` is
+converted to `kebab-case`.
 
-    header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
+    header_styles = Dict(:font_size => "25px", "padding-left" => "2em")
 
     @print htl"<div style=$header_styles/>"
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-    @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"""<div style=$(:font_size=>"25px","padding-left"=>"2em")/>"""
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-    @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"""<div style=$(font_size="25px", padding_left="2em")/>"""
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-Only symbols, numbers, and strings have a specified serialization as css
+Only symbols, numbers, and strings have a specified serialization as CSS
 style values. Therefore, use of components from other libraries will
 cause an exception.  However, this can be fixed by registering a
-conversion using `css_value()`.
+conversion using `nested_value()`.
 
     using Hyperscript
 
-    HypertextLiteral.css_value(x::Hyperscript.Unit) = string(x)
+    HypertextLiteral.nested_value(x::Hyperscript.Unit) = string(x)
 
 Then, the syntax for CSS can be even more compact.
 
-    @print htl"<div style=$(fontSize=25px,paddingLeft=2em)/>"
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"<div style=$(font_size=25px, padding_left=2em)/>"
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
 For the *unquoted* `"class"` attribute, a `Vector` provides a space
 between each of the elements.
@@ -250,16 +258,6 @@ Displaying an object within an attribute...
 
     #TODO: show how this works here.
 
-It's also possible to let us know that your custom attribute uses
-boolean attribute treatment.
-
-    import HypertextLiteral: is_boolean, Attribute
-
-    is_boolean(::Attribute{Symbol("my-att")}) = true
-
-    @print @htl("<tag myAtt=$(false)/>")
-    #-> <tag/>
-
 So that the scope of objects serialized in this manner is clear, we
 don't permit adjacent unquoted values.
 
@@ -289,28 +287,19 @@ While assignment operator is permitted in Julia string interpolation, we
 exclude it in both string literal and macro forms so to guard against
 accidentally forgetting the trailing comma for a 1-tuple.
 
-    @print htl"""<div $(dataValue=42,)/>"""
+    @print htl"""<div $(data_value=42,)/>"""
     #-> <div data-value='42'/>
 
-    htl"""<div $(dataValue=42)/>"""
+    htl"""<div $(data_value=42)/>"""
     #=>
-    ERROR: LoadError: DomainError with dataValue = 42:
+    ERROR: LoadError: DomainError with data_value = 42:
     assignments are not permitted in an interpolation⋮
     =#
 
-    @htl("<div $(dataValue=42)/>")
+    @htl("<div $(data_value=42)/>")
     #=>
-    ERROR: LoadError: DomainError with dataValue = 42:
+    ERROR: LoadError: DomainError with data_value = 42:
     assignments are not permitted in an interpolation⋮
-    =#
-
-Even though booleans are considered numeric in Julia, we treat them as
-an error to guard against quoted use in boolean HTML attributes.
-
-    htl"<button checked='$(true)'"
-    #=>
-    ERROR: DomainError with true:
-    The attribute 'checked' is boolean, use unquoted attribute form.
     =#
 
 ## Quirks & Regression
@@ -387,17 +376,18 @@ Escaped strings should just pass-though.
     @print @htl("\"\t\\")
     #-> "	\
 
-Within attributes, independent of quoting style, other datatypes are
-treated as an error. This includes `Vector` as well as `HTL` objects.
+Within attributes, `Vector` objects are serialized as space separated
+lists to support attributes such as `class`.
 
-    htl"<tag att='$([1,2,3])'"
-    #-> ERROR: MethodError: no method matching stringify⋮
+    @print htl"<tag att='$([1,2,3])'/>"
+    #-> <tag att='1 2 3'/>
 
-Symbols are also properly handled; e.g. escaping happens after
-conversion of numbers, symbols and custom types to strings.
+For now, Symbols happen to be escaped within attribute values but not
+within content. Ideally, we will not be escaping symbols in any context
+since it is slower and a pathological case we wish not to handle.
 
     @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
-    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
+    #-> <tag att='&apos;&amp;'><&</tag>
 
 Interpolation should handle splat operator by concatenating results.
 
@@ -408,7 +398,7 @@ Interpolation should handle splat operator by concatenating results.
     #-> 123
 
 Within element content, we treat a `Vector` as a sequence to be
-containated.
+concatenated.
 
     @print htl"$([x for x in 1:3])"
     #-> 123
@@ -437,10 +427,7 @@ Attribute names should be non-empty and not in a list of excluded
 characters.
 
     @htl("<tag $("" => "value")/>")
-    #=>
-    ERROR: DomainError with :
-    Attribute name must not be empty.
-    =#
+    #-> ERROR: "Attribute name must not be empty."
 
     @htl("<tag $("&att" => "value")/>")
     #=>
@@ -521,33 +508,30 @@ Here's something that perhaps should work... but fails currently.
 
 ## Contributing
 
-We are absolutely open to suggested improvements. This package is
-implemented according to several design criteria.
+We are open to suggested improvements. This package is implemented
+according to several design criteria.
 
-* Operation of interpolated expressions (`$`) should mirror what they
-  would do with regular Julia strings, updated with hypertext escaping
-  sensibilities including proper escaping and helpful representations.
+* Operation of interpolated expressions (`$`) should (mostly) mirror
+  what they would do with regular Julia strings, updated with hypertext
+  escaping sensibilities including proper escaping.
 
 * With exception of boolean attributes (which must be removed to be
   false), input is treated as-is and not otherwise modified.
 
-* Values having serialization to `"text/html"` are injected "as-is"
-  into element content. Attributes should only accept string objects.
-
-* Given that this library will be used by content producers, it should
-  be conservative, raising an error when invalid hypertext is discovered
-  and only serializing Julia objects that have an express representation.
-
-* There should be an extension API that permits custom data types to
-  provide their own context-sensitive serialization strategies.
+* Provide reasonable interpretation for `Dict`, `Vector` and other
+  objects as attributes, element content, or attribute values.
 
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
   Error messages should guide the user towards addressing the problem.
 
-* To be helpful, HTML tags and attributes may be recognized. Special
-  behavior may be provided to attributes such as `"style"` (CSS),
-  `"class"` and, eventually, `"script"`.
+* There is an emphasis on speed not on handling of pathological cases,
+  such as a developer placing escapable content within a `Symbol` 
+  (we won't escape it... since it'll slow other use cases down).
 
-* Full coverage of HTML syntax is ideal, but unnecessary.
+* There should be an extension API that permits custom data types to
+  provide their own serialization strategies that are not dependent upon
+  the namespace, element name, or attribute name.
 
+* Full coverage of HTML syntax or reporting syntax or semantic errors
+  within the HTML content is not a goal.

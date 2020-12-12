@@ -1,42 +1,47 @@
 # HypertextLiteral.jl
 
-This package provides a Julia string literal, `htl`, and macro `@htl`
-that return an object that can be rendered to `MIME"text/html"`
-displays. These macros support context-sensitive interpolation sensible
-to the needs of HTML generation.
+This package provides a Julia string literal, `htl`, and equivalent
+macro, `@htl`, that construct an object that could be rendered to
+`MIME"text/html"` displays. These macros support context-sensitive
+interpolation sensible to the needs of HTML generation.
 
     using HypertextLiteral
 
+When printed directly to the console (via `show`), the output of these
+macros reproduce a verified expression that generated them.
+
+    name = "World"
+
+    htl"<span>Hello $name</span>"
+    #-> htl"<span>Hello $name</span>"
+
+    @htl("<span>Hello $name</span>")
+    #-> @htl "<span>Hello $(name)</span>"
+
+When displayed to `"text/html"` the evaluation is shown.
+
+    name = "World"
+
+    display("text/html", htl"<span>Hello $name</span>")
+    #-> <span>Hello World</span>
+
+    display("text/html", @htl("<span>Hello $name</span>"))
+    #-> <span>Hello World</span>
+
 We use `NarrativeTest.jl` to ensure our examples are correct. After each
-command is a comment with the expected output. This tool ensures the
-README can be validated by running `./test/runtests.jl`. To enhance
-readability, we define the following macro.
+command is a comment with the expected output. To enhance readability,
+we'll also use the following macro.
 
     macro print(expr)
         :(display("text/html", $expr))
     end
 
-`HypertextLiteral` provides an `htl` string literal and equivalent
-`@htl` macro that implement contextual escaping and expression
-interpolation, producing `HTL` objects that render to `"text/html"`.
-
-    htl"<span>Hello World</span>"
-    #-> HTL("<span>Hello World</span>")
-
-    @htl("<span>Hello World</span>")
-    #-> HTL("<span>Hello World</span>")
-
-An `HTL` object can be rendered to `"text/html"` with `display()`.
-The expected output is shown in the comment below the command.
-
-    display("text/html", htl"<span>Hello World</span>")
-    #-> <span>Hello World</span>
-
-In this tutorial, we use the `@print` macro defined above to increase
-readability without having to type this `display` function.
-
     @print htl"<span>Hello World</span>"
     #-> <span>Hello World</span>
+
+Thoughout this tutorial, we'll mostly stick with the string literal form
+of this macro, however, the `@htl` macro form should work equivalently,
+except for a few cases we annotate.
 
 ## Content Interpolation
 
@@ -45,8 +50,8 @@ content, both the ampersand (`&`) and less-than (`<`) are escaped.
 
     book = "Strunk & White"
 
-    @print htl"<span>Today's Reading: $book</span>"
-    #-> <span>Today's Reading: Strunk &#38; White</span>
+    @print @htl("<span>Today's Reading: $book</span>")
+    #-> <span>Today's Reading: Strunk &amp; White</span>
 
 To include a literal `$` in the output, use `\$` as one would in a
 regular Julia string. Other escape sequences, such as `\"` also work.
@@ -76,7 +81,7 @@ Functions returning string values will be escaped.
     input() = "<script>alert('a&b!')"
 
     @print htl"$(input())"
-    #-> &#60;script>alert('a&#38;b!')
+    #-> &lt;script>alert('a&amp;b!')
 
 Functions returning `HTL` objects are not further escaped. This permits
 us to build reusable HTML templates.
@@ -93,7 +98,7 @@ string can be included. This technique works for one level of nesting.
 
     @print htl"""<ul>$([htl"<li>$b" for b in books])</ul>"""
     #=>
-    <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+    <ul><li>Who Gets What &amp; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
 The equivalent macro syntax supports arbitrary levels of nesting,
@@ -103,7 +108,7 @@ although we only show one level of nesting here.
 
     @print @htl("<ul>$(map(books) do b @htl("<li>$b") end)</ul>")
     #=>
-    <ul><li>Who Gets What &#38; Why<li>Switch<li>Governing The Commons</ul>
+    <ul><li>Who Gets What &amp; Why<li>Switch<li>Governing The Commons</ul>
     =#
 
 ## Attribute Interpolation
@@ -115,33 +120,32 @@ attributes are likewise escaped.
     qval = "\"h&b'"
 
     @print htl"""<tag double="$qval" single='$qval' />"""
-    #-> <tag double="&#34;h&#38;b'" single='"h&#38;b&#39;' />
+    #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
 
-Unquoted attributes are also supported. Here the escaping is extensive,
-including the space (` `), equal sign (`=`), and others.
+Unquoted attributes are also supported. These are serialized using the
+single quoted style.
 
-    arg = "book=Strunk & White"
+    arg = "book='Strunk & White'"
 
     @print htl"<tag bare=$arg />"
-    #-> <tag bare=book&#61;Strunk&#32;&#38;&#32;White />
+    #-> <tag bare='book=&apos;Strunk &amp; White&apos;' />
 
 Attributes may also be provided by `Dict` or `Pair`. Attribute names are
-normalized, with `camelCase` becoming `camel-case` and `unix_case`
-becoming `unix-case`.
+normalized, with `camelCase` and `snake_case` becoming `kebab-case`.
 
-     attributes = Dict(:dataValue => 42, "DataStyle" => :green )
+     attributes = Dict(:dataValue => 42, :data_style => :green )
 
      @print @htl("<div $attributes/>")
-     #-> <div data-value=42 data-style=green/>
+     #-> <div data-value='42' data-style='green'/>
 
      @print @htl("<div $(:data_value=>42) $("dataStyle"=>:green)/>")
-     #-> <div data-value=42 data-style=green/>
+     #-> <div data-value='42' data-style='green'/>
 
 Within string literals (but not `@htl` macro), a compact syntax inspired
 by named tuples is also supported.
 
      @print htl"<div $(data_value=42, dataStyle=:green)/>"
-     #-> <div data-value=42 data-style=green/>
+     #-> <div data-value='42' data-style='green'/>
 
 As you can see from this example, symbols and numbers (but not boolean
 values) are automatically converted within attributes. This works for
@@ -169,13 +173,13 @@ are passed along as-is.
     header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
 
     @print htl"<div style=$header_styles/>"
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+    #-> <div style='font-size: 25px;padding-left: 2em;'/>
 
     @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+    #-> <div style='font-size: 25px;padding-left: 2em;'/>
 
     @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+    #-> <div style='font-size: 25px;padding-left: 2em;'/>
 
 Only symbols, numbers, and strings have a specified serialization as css
 style values. Therefore, use of components from other libraries will
@@ -189,104 +193,64 @@ conversion using `css_value()`.
 Then, the syntax for CSS can be even more compact.
 
     @print htl"<div style=$(fontSize=25px,paddingLeft=2em)/>"
-    #-> <div style=font-size:&#32;25px;padding-left:&#32;2em;/>
+    #-> <div style='font-size: 25px;padding-left: 2em;'/>
 
 For the *unquoted* `"class"` attribute, a `Vector` provides a space
 between each of the elements.
 
     @print @htl("<div class=$([:one, :two])/>")
-    #-> <div class=one&#32;two/>
+    #-> <div class='one two'/>
 
     @print htl"<div class=$(:one, :two)/>"
-    #-> <div class=one&#32;two/>
+    #-> <div class='one two'/>
 
-## Design Discussion and Custom Extensions
+## Custom Extensions
 
-So that we could distinguish between regular strings and strings that
-are meant to be hypertext, we define the type `HTL` which is an array
-containing `String` values, which are assumed to be valid hypertext, and
-objects that are `Multimedia.showable` as `"text/html"`.
-
-    htl"<span>Hello World!</span>"
-    #-> HTL("<span>Hello World!</span>")
-
-    display("text/html", HTL("<span>Hello World!</span>"))
-    #-> <span>Hello World!</span>
-
-We considered using `Docs.HTML` for this purpose, but it has the wrong
-semantics. The `HTML` type it is intended to promote the `"text/plain"`
-representation of any object to something showable as `"text/html"`.
-
-    display("text/html", HTML(["<span>", HTML("content"), "</span>"]))
-    #-> Any["<span>", HTML{String}("content"), "</span>"]
-
-By contrast, `HTL` concatenates vectors and unwraps objects showable as
-`"text/html"`. Like HTML, `String` values are assumed to be properly
-escaped (the `htl` string literal and macro do this escaping).
-
-    display("text/html", HTL(["<span>", HTL("content"), "</span>"]))
-    #-> <span>content</span>
-
-If one attempts to reference a user defined type, it will be an error.
+We've seen our first extension, but it is specific to CSS. But how can
+we serialize a custom data object within an interpolated result? If one
+attempts to reference a user defined type, it will be an error.
 
     struct Custom data::String end
 
-    HTL(Custom("a&b"))
-    #=>
-    ERROR: DomainError with …Custom("a&b"):
-    Elements must be strings or objects showable as "text/html".
-    =#
+    @print @htl "$(Custom("a&b"))</tag>"
+    #-> ERROR: MethodError: no method matching show(…"text/html"…Custom)⋮
 
 This can be addressed by implementing the `"text/html" mimetype in
 `Base.show` for the custom type in question. In this case, be sure to
-escape ampersand (`&`) and less-than (`<`).
+escape ampersand (`&`) and less-than (`<`). This could be done using
+`replace` or by using our `escape_content` method.
 
      struct Custom data::String end
 
+     using HypertextLiteral: escape_content
+
      function Base.show(io::IO, mime::MIME"text/html", c::Custom)
-         value = replace(replace(c.data, "&" => "&amp;"), "<" => "&lt;")
+         value = escape_content(c.data)
          print(io, "<custom>$(value)</custom>")
      end
 
      @print @htl("<span>$(Custom("a&b"))</span>")
      #-> <span><custom>a&amp;b</custom></span>
 
-A similar approach is taken for attributes -- by default, unknown types
-result in an error when used as an attribute value.
+This approach of using `show(io, MIME"text/html"(), ...)` lets us
+support many other systems out of the box without needing any glue.
 
-    struct Custom data::String end
+    using Hyperscript
+    @tags span
 
-    @htl("<tag data-custom=$(Custom("a&b"))/>")
-    #-> ERROR: MethodError: no method matching htl_stringify⋮
+    @print @htl("<div>$(span("Hello World"))</div>")
+    #-> <div><span>Hello World</span></div>
 
-We could tell HTL how to serialize our `Custom` values by implementing
-`htl_stringify`. It is even possible to provide different serializations
-depending upon the attribute name, see `HTLAttribute` for more detail.
+Displaying an object within an attribute...
 
-    struct Custom data::String end
-
-    HypertextLiteral.htl_stringify(att, value::Custom) = value.data
-
-    @print @htl("<tag data-custom=$(Custom("a&b"))/>")
-    #-> <tag data-custom=a&#38;b/>
-
-To permit attribute specific translation, we normalize attributes.
-Sometimes, as in the case of SVG, this normalization won't work. You
-can register your own attribute representation as follows.
-
-    import HypertextLiteral: htl_represent, HTLAttribute
-
-    htl_represent(::HTLAttribute{Symbol("my-att")}) = "myAtt"
-
-    @print @htl("<tag myAtt=$(true)/>")
-    #-> <tag myAtt=true/>
+    #TODO: show how this works here.
 
 It's also possible to let us know that your custom attribute uses
 boolean attribute treatment.
 
-    import HypertextLiteral: htl_is_boolean
+    import HypertextLiteral: is_boolean, Attribute
 
-    htl_is_boolean(::HTLAttribute{Symbol("my-att")}) = true
+    is_boolean(::Attribute{Symbol("my-att")}) = true
 
     @print @htl("<tag myAtt=$(false)/>")
     #-> <tag/>
@@ -296,13 +260,13 @@ don't permit adjacent unquoted values.
 
     htl"<tag bare=$(true)$(:invalid)"
     #=>
-    ERROR: LoadError: DomainError with bare=true:
+    ERROR: LoadError: DomainError with :invalid:
     Unquoted attribute interpolation is limited to a single component⋮
     =#
 
 To have a convenient notation, our string macro syntax interpolate
 tuples and generated expressions as concatenated output. This is
-currently not supported by `@htl` macro (see Julia ticket #38734).
+currently not supported by `@htl` macro (see Julia ticket amp734).
 
     a = "A"
     b = "B"
@@ -321,7 +285,7 @@ exclude it in both string literal and macro forms so to guard against
 accidentally forgetting the trailing comma for a 1-tuple.
 
     @print htl"""<div $(dataValue=42,)/>"""
-    #-> <div data-value=42/>
+    #-> <div data-value='42'/>
 
     htl"""<div $(dataValue=42)/>"""
     #=>
@@ -342,24 +306,6 @@ an error to guard against quoted use in boolean HTML attributes.
     #=>
     ERROR: DomainError with true:
     The attribute 'checked' is boolean, use unquoted attribute form.
-    =#
-
-To increase usability on the command line, the default representation of
-an `HTL` object is its equivalent pre-rendered string. Even so, the HTL
-object retains component parts so they could be inspected.
-
-    @htl("<span>$(Custom("a&b"))</span>")
-    #-> HTL("<span><custom>a&amp;b</custom></span>")
-
-    dump(@htl("<span>$(Custom("a&b"))</span>"))
-    #=>
-    HTL
-      content: Array{Any}((3,))
-        1: String "<span>"
-        2: HypertextLiteral.ElementData
-          value: ….Custom
-            data: String "a&b"
-        3: String "</span>"
     =#
 
 ## Quirks & Regression
@@ -385,13 +331,14 @@ by `Hello`, and then `")`. This combination is a syntax error. One might
 correct this using triple strings.
 
     htl"""$("Hello")"""
-    #-> HTL("Hello")
+    #-> htl"$(\"Hello\")"
 
-Alternatively, in Julia v1.6+, one could use the HTL macro format.
+Alternatively, in Julia v1.6+, one could use the `@htl` macro format for
+cases where there are string literals.
 
     #? VERSION >= v"1.6.0-DEV"
     @htl "$("Hello")"
-    #-> HTL("Hello")
+    #-> @htl "$("Hello")"
 
 Before v1.6, we cannot reliably detect interpolated string literals
 using the `@htl` macro, so they are errors (when we can detect them).
@@ -403,18 +350,18 @@ using the `@htl` macro, so they are errors (when we can detect them).
 However, you can fix by wrapping a value in a `string` function.
 
     @print @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
-    #-> Look, Ma, &#60;i>automatic escaping&#60;/i>!
+    #-> Look, Ma, &lt;i>automatic escaping&lt;/i>!
 
 The string literal style is not without its quirks. See `@raw_str` for
 exceptional cases where a slash immediately precedes the double quote.
 This is one case where the `htl` string macro cannot be made to work in
 a manner identical to regular string interpolation.
 
-    htl"\\\"\n"
-    #-> HTL("\"\n")
+    @print htl"(\\\")"
+    #-> (")
 
-    @htl("\\\"\n")
-    #-> HTL("\\\"\n")
+    @print @htl("(\\\")")
+    #-> (\")
 
 In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
@@ -428,50 +375,40 @@ those semantics.
 
 Escaped strings should just pass-though.
 
-    htl"\"\\\n"
-    #-> HTL("\"\\\n")
+    @print htl"\"\t\\"
+    #-> "	\
 
-    @htl("\"\\\n")
-    #-> HTL("\"\\\n")
+    @print @htl("\"\t\\")
+    #-> "	\
 
 Within attributes, independent of quoting style, other datatypes are
 treated as an error. This includes `Vector` as well as `HTL` objects.
 
     htl"<tag att='$([1,2,3])'"
-    #-> ERROR: MethodError: no method matching htl_stringify⋮
-
-Within an unquoted attribute value, we must escape whitespace, the
-ampersand (&), quotation ("), greater-than (>), less-than (<),
-apostrophe ('), grave accent (`), and equals (=) characters.
-
-     escape_me = " \t\n\"&><'`="
-
-     @print htl"<tag quot=$escape_me/>"
-     #-> <tag quot=&#32;&#9;&#10;&#34;&#38;&#62;&#60;&#39;&#96;&#61;/>
+    #-> ERROR: MethodError: no method matching stringify⋮
 
 Symbols are also properly handled; e.g. escaping happens after
 conversion of numbers, symbols and custom types to strings.
 
-    @print htl"""<tag att=$(Symbol(">3"))>$(Symbol("a&b"))</tag>"""
-    #-> <tag att=&#62;3>a&#38;b</tag>
+    @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
+    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
 
 Interpolation should handle splat operator by concatenating results.
 
-    @print htl"$([x for x in [1,2,3]]...)"
+    @print htl"$([x for x in 1:3]...)"
     #-> 123
 
-    @print @htl "$([x for x in [1,2,3]]...)"
+    @print @htl "$([x for x in 1:3]...)"
     #-> 123
 
-However, it shouldn't concatenate lists by default, or assume treatment
-of any other sorts of native Julia objects.
+Within element content, we treat a `Vector` as a sequence to be
+containated.
 
     @print htl"$([x for x in 1:3])"
-    #=>
-    ERROR: DomainError with [1, 2, 3]:
-      Type Vector{Int64} lacks a show method for text/html.
-      Perhaps use splatting? e.g. htl"$([x for x in 1:3]...)
-    =#
+    #-> 123
+
+    @print @htl "$([x for x in 1:3])"
+    #-> 123
 
 The `script` and `style` tags use a "raw text" encoding where all
 content up-to the end tag is not escaped using ampersands.
@@ -515,7 +452,7 @@ Unquoted interpolation adjacent to a raw string is also an error.
 
     htl"<tag bare=$(invalid)literal"
     #=>
-    ERROR: LoadError: DomainError with bare=invalid:
+    ERROR: LoadError: DomainError with bare=literal:
     Unquoted attribute interpolation is limited to a single component⋮
     =#
 
@@ -533,17 +470,17 @@ For more details on this see Julia #37817.
     ERROR: syntax: invalid interpolation syntax: "$["⋮
     =#
 
-Before Julia v1.6 (see issue #38501), string literals should not be used
+Before Julia v1.6 (see issue amp501), string literals should not be used
 within the macro style since we cannot reliably detect them.
 
     x = ""
 
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &#60;script>alert('Hello')&#60;/script>
+    #-> &lt;script>alert('Hello')&lt;/script>
 
     #? VERSION >= v"1.6.0-DEV"
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &#60;script>alert('Hello')&#60;/script>
+    #-> &lt;script>alert('Hello')&lt;/script>
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
@@ -553,11 +490,11 @@ Hence, for a cases where we could detect a string literal, we raise an
 error condition to discourage its use. The string macro form works.
 
     @print htl"""<tag>$("escape&me")</tag>"""
-    #-> <tag>escape&#38;me</tag>
+    #-> <tag>escape&amp;me</tag>
 
     #? VERSION >= v"1.6.0-DEV"
     @print @htl "<tag>$("escape&me")</tag>"
-    #-> <tag>escape&#38;me</tag>
+    #-> <tag>escape&amp;me</tag>
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl "<tag>$("escape&me")</tag>"
@@ -588,9 +525,8 @@ implemented according to several design criteria.
 * With exception of boolean attributes (which must be removed to be
   false), input is treated as-is and not otherwise modified.
 
-* Interpolations having string values are injected "as-is" into the
-  output (subject to context sensitive checking or escaping);
-  conversely, non-string values may be given helpful interpretations.
+* Values having serialization to `"text/html"` are injected "as-is"
+  into element content. Attributes should only accept string objects.
 
 * Given that this library will be used by content producers, it should
   be conservative, raising an error when invalid hypertext is discovered

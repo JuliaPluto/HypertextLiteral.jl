@@ -3,12 +3,6 @@
 
 This library provides for a `@htl()` macro and a `htl` string literal,
 both implementing interpolation that is aware of hypertext escape
-        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
-            for item in value
-                show(io, mime, item)
-            end
-            return
-        end
 context. The `@htl` macro has the advantage of using Julia's native
 string parsing, so that it can handle arbitrarily deep nesting. However,
 it is a more verbose than the `htl` string literal and doesn't permit
@@ -19,78 +13,24 @@ quotes for the outer nesting, and a single double quote for the inner).
 """
 module HypertextLiteral
 
-import Base: string, show
-
-export HTL, @htl_str, @htl
-
-"""
-`HTL(s)`: Create an array of objects that render as html.
-
-    HTL("<div>foo</div>")
-
-This is similar `HTML{Vector}` with a few exceptions. First, the
-contents of the vector are concatenated. Second, direct rendering is
-limited to `AbstractString`, others are delegated to `show`. Third, the
-splat constructor converts arguments to an `HTL` vector.
-
-Finally, regular display of the value to the terminal renders the
-objects and produces the equivalent string representation.
-"""
-struct HTL
-    content::Vector{Any}
-
-    function HTL(obj)
-        function check(item)
-            if item isa AbstractString || showable(MIME"text/html"(), item)
-               return item
-            end
-            throw(DomainError(item, "Elements must be strings or " *
-                              """objects showable as "text/html"."""))
-        end
-        if obj isa AbstractVector || obj isa Tuple
-            return new([check(item) for item in obj])
-        end
-        return new([check(obj)])
-    end
-end
-
-HTL(xs...) = HTL(xs)
-
-function show(io::IO, mime::MIME"text/html", h::HTL)
-    for item in h.content
-        if item isa AbstractString
-            print(io, item)
-        else
-            show(io, mime, item)
-        end
-    end
-end
-
-function show(io::IO, mime::MIME"text/html", v::Vector{HTL})
-    for item in v
-        show(io, mime, item)
-    end
-end
-
-show(io::IO, h::HTL) =
-    print(io, "HTL(\"$(escape_string(sprint() do io
-                  show(io, MIME("text/html"), h) end))\")")
+export @htl_str, @htl
 
 """
     @htl string-expression
 
-Create a `HTL` object with string interpolation (`\$`) that uses
+Create a `Result` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Before Julia 1.6, interpolated
 string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
+    this = Expr(:macrocall, Symbol("@htl"), nothing, expr)
     if !Meta.isexpr(expr, :string)
-        return interpolate([expr])
+        return interpolate([expr], this)
     end
     args = expr.args
     if length(args) == 0
-        return interpolate([])
+        return interpolate([], this)
     end
     for part in expr.args
         if Meta.isexpr(part, :(=))
@@ -110,13 +50,13 @@ macro htl(expr)
             end
         end
     end
-    return interpolate(expr.args)
+    return interpolate(expr.args, this)
 end
 
 """
-    @htl_str -> HTL
+    @htl_str -> Result
 
-Create a `HTL` object with string interpolation (`\$`) that uses
+Create a `Result` object with string interpolation (`\$`) that uses
 context-sensitive hypertext escaping. Escape sequences should work
 identically to Julia strings, except in cases where a slash immediately
 precedes the double quote (see `@raw_str` and Julia issue #22926).
@@ -130,6 +70,7 @@ macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
     # it by `$` to find interpolated parts and degating the hard work
     # to `Meta.parse`, treating everything else as a literal string.
+    this = Expr(:macrocall, Symbol("@htl_str"), nothing, expr)
     args = Any[]
     vstr = String[]
     start = idx = 1
@@ -185,38 +126,42 @@ macro htl_str(expr::String)
         push!(args, join(vstr))
         empty!(vstr)
     end
-    return interpolate(args)
+    return interpolate(args, this)
 end
 
 """
-    htl_normalize(s)
+    kebab_case(s)
 
-This converts an name using either `camelCase` or `unix_case` names into
-their dashed equivalents. This will lowercase the name.
+This converts an name in `PascalCase`, `camelCase`, and `snake_case`
+into their `kebab-case` equivalent. This will lowercase the name.
+This transformation is problematic for SVG attribute names, which
+need to be in `camelCase`.
 """
-function htl_normalize(name::String)
+function kebab_case(name::String)
     name = replace(name, r"[A-Z]" => (x -> "-$(lowercase(x))"))
     name = startswith(name, "-") ? name[2:end] : name
     return replace(name, "_" => "-")
 end
 
-htl_normalize(sym::Symbol) = htl_normalize(string(sym))
+kebab_case(sym::Symbol) = kebab_case(string(sym))
 
 """
-    HTLAttribute{name}
+    Attribute{name}
 
 This parameterized type to represent HTML attributes so that we could
 dispatch serialization of custom attributes and data types. This is
 modeled upon the `MIME` data type. Values written in this way must be
-escaped for use in an unquoted string, `htl_escape_value` can do this.
+escaped for single-quoted context (`'` => "&apos;", `&` => "&amp;").
 """
-struct HTLAttribute{name} end
+struct Attribute{name} end
 
-function HTLAttribute(name::String)
+function Attribute(name::String)
     if length(name) < 1
         throw(DomainError(name, "Attribute name must not be empty."))
     end
-    name = htl_normalize(name)
+    # We really need Attribute to have the namespace so that SVG
+    # attributes are run though `camel_case` instead of `kebab_case`.
+    name = kebab_case(name)
     # Attribute names are unquoted and do not have & escaping;
     # the &, % and \ characters don't seem to be prevented by the
     # specification, but they likely signal a programming error.
@@ -226,17 +171,19 @@ function HTLAttribute(name::String)
                "found within an attribute name."))
         end
     end
-    return HTLAttribute{Symbol(name)}()
+    return Attribute{Symbol(name)}()
 end
 
+Attribute(name::Symbol) = Attribute(string(name))
+
 """
-    htl_represent(a::HTLAttribute{name})
+    stringify(a::Attribute{name})
 
 This provides the serialization of a given normalized attribute so that
 camelCase could be preserved on output for elements foreign to HTML,
 such as SVG. By default, about 2 dozen SVG attributes are defined.
 """
-htl_represent(::HTLAttribute{name}) where {name} = string(name)
+stringify(::Attribute{name}) where {name} = string(name)
 
 begin
     for svg_attribute in (
@@ -249,13 +196,13 @@ begin
         "feMorphology", "feOffset", "fePointLight", "feSpecularLighting",
         "feSpotLight", "feTile", "feTurbulence", "foreignObject",
         "glyphRef", "linearGradient", "radialGradient", "textPath")
-      sym = QuoteNode(Symbol(htl_normalize(svg_attribute)))
-      eval(:(htl_represent(::HTLAttribute{$sym}) = $svg_attribute))
+      sym = QuoteNode(Symbol(kebab_case(svg_attribute)))
+      eval(:(stringify(::Attribute{$sym}) = $svg_attribute))
     end
 end
 
 """
-    htl_is_boolean(attribute::HTLAttribute)
+    is_boolean(attribute::Attribute)
 
 This function returns true if the given attribute is boolean. In in such
 case, `false` or `nothing` means the attribute should be removed from
@@ -263,7 +210,7 @@ the produced output. Note that there are some HTML attributes which may
 take a boolean value but that produce `on` or `off`, or something else.
 Those attributes are not considered boolean.
 """
-htl_is_boolean(::HTLAttribute{name}) where {name} =
+is_boolean(::Attribute{name}) where {name} =
     name in (:allowfullscreen, :allowpaymentrequest, :async, :autofocus,
       :autoplay, :checked, :controls, :default, :disabled,
       :formnovalidate, :hidden, :ismap, :itemscope, :loop, :multiple,
@@ -288,7 +235,7 @@ end
 entity(ch::Char) = "&#$(Int(ch));"
 
 """
-    htl_stringify(attribute::HTLAttribute, value)
+    stringify(attribute::Attribute, value)
 
 Convert an attribute `value`` to a `String` suitable for inclusion into
 the given attribute's value. The value returned will then be escaped
@@ -297,28 +244,29 @@ depending upon the particular context, single/double or unquoted.
 * `String` values are returned as-is
 * `Number` and `Symbol` values are converted to a `String`
 * `Bool` values of known boolean attributes produce an error.
+* `Nothing` becomes an empty string (unless for boolean attribute).
 
 There is no general fallback, hence, a `MethodError` will result when
 attempting to stringify most data types. If your application would like
 to stringify all attribute values, you could register this fallback.
 
-    htl_stringify(::HTLAttribute, value) = string(value)
+    stringify(::Attribute, value) = string(value)
 
 """
-htl_stringify(::HTLAttribute, value::AbstractString) = value
-htl_stringify(::HTLAttribute, value::Number) = string(value)
-htl_stringify(::HTLAttribute, value::Symbol) = string(value)
+stringify(::Attribute, value::AbstractString) = value
+stringify(::Attribute, value::Number) = string(value)
+stringify(::Attribute, value::Symbol) = string(value)
 
-function htl_stringify(attr::HTLAttribute{name}, value::Bool) where {name}
-    if htl_is_boolean(attr)
+function stringify(attr::Attribute{name}, value::Bool) where {name}
+    if is_boolean(attr)
          throw(DomainError(repr(value), "The attribute '$(string(name))' " *
              "is boolean, use unquoted attribute form."))
     end
     return string(value)
 end
 
-function htl_stringify(attr::HTLAttribute{name}, value::Nothing) where {name}
-    if htl_is_boolean(attr)
+function stringify(attr::Attribute{name}, value::Nothing) where {name}
+    if is_boolean(attr)
          throw(DomainError(repr(value), "The attribute '$(string(name))' " *
              "is boolean, use unquoted attribute form."))
     end
@@ -326,169 +274,24 @@ function htl_stringify(attr::HTLAttribute{name}, value::Nothing) where {name}
 end
 
 """
-Interpolated Value
+    rawtext(context, value)
 
-This abstract type represents a value that must be escaped. The various
-subclasses provide the context for the escaping. They include:
-
-  ElementData            Values expanded as element content, including
-                         text nodes and/or subordinate HTML fragments
-  ElementAttributes      Values to be expanded as attribute/value pairs
-  AttributePair          Unquoted name/value pair for attributes; handles
-                         special cases of boolean attributes
-  AttributeDoubleQuoted  Value serialized within double quoted attribute
-  AttributeSingleQuoted  Value serialized within single quoted attribute
-
-The string interpolation is here is conservative. To provide express
-data type conversions for `ElementData`, override `show` `"text/html"`.
+Wrap a string value that occurs with RAWTEXT, SCRIPT and other element
+context so that it is `showable("text/html")`. The default
+implementation ensures that the given value doesn't contain substrings
+illegal for the given context.
 """
-abstract type InterpolatedValue end
-
-#-------------------------------------------------------------------------
-struct ElementData <: InterpolatedValue value end
-
-ElementData(args...) = HTL([ElementData(item) for item in args])
-
-function show(io::IO, mime::MIME"text/html", child::ElementData)
-    value = child.value
-    if value isa AbstractString
-        return print(io, replace(child.value, r"[<&]" => entity))
+function rawtext(context::Symbol, value::AbstractString)
+    if occursin("</$context>", lowercase(value))
+        throw(DomainError(repr(value), "  Content of <$context> cannot " *
+            "contain the end tag (`</$context>`)."))
     end
-    if value isa Number || child.value isa Symbol
-        return print(io, replace(string(child.value), r"[<&]" => entity))
+    if context == :script && occursin("<!--", value)
+        # this could be slightly more nuanced
+        throw(DomainError(repr(value), "  Content of <$context> should " *
+            "not contain a comment block (`<!--`) "))
     end
-    if showable(MIME("text/html"), value)
-        return show(io, mime, value)
-    end
-    if value isa Base.Generator || value isa Tuple
-        value = collect(value)
-        if eltype(value) <: AbstractString ||
-           eltype(value) <: Number ||
-           eltype(value) <: Symbol
-            for item in value
-                print(io, replace(string(item), r"[<&]" => entity))
-            end
-            return
-        end
-    end
-    if value isa AbstractVector
-        if hasmethod(show, Tuple{IO, typeof(mime), eltype(value)})
-            for item in value
-                show(io, mime, item)
-            end
-            return
-        end
-        throw(DomainError(value, """
-          Type $(typeof(value)) lacks a show method for text/html.
-          Perhaps use splatting? e.g. htl"\$([x for x in 1:3]...)
-        """))
-    end
-    throw(DomainError(value, """
-      Type $(typeof(value)) lacks a show method for text/html.
-      Alternatively, you can cast the value to a string first.
-    """))
-end
-
-#-------------------------------------------------------------------------
-struct ElementAttributes <: InterpolatedValue value end
-
-function show(io::IO, mime::MIME"text/html", x::ElementAttributes)
-    value = x.value
-    if value isa Pair
-        show(io, mime, AttributePair(value.first, value.second))
-    elseif value isa Dict || value isa NamedTuple
-        for (k, v) in pairs(value)
-            show(io, mime, AttributePair(k, v))
-        end
-    elseif value isa Tuple{Pair, Vararg{Pair}}
-        for (k, v) in value
-            show(io, mime, AttributePair(k, v))
-        end
-    else
-        throw(DomainError(value, """
-          Unable to convert $(typeof(value)) to an attribute name/value pair.
-          Did you forget the trailing "," in a 1-element named tuple?
-        """))
-    end
-end
-
-#-------------------------------------------------------------------------
-struct RawText <: InterpolatedValue
-    value::String
-
-    function RawText(value::String, element::Symbol)
-        if occursin("</$element>", lowercase(value))
-            throw(DomainError(repr(value), "  Content of <$element> cannot " *
-                "contain the end tag (`</$element>`)."))
-        end
-        if element == :script && occursin("<!--", value)
-            # this could be slightly more nuanced
-            throw(DomainError(repr(value), "  Content of <$element> should " *
-                "not contain a comment block (`<!--`) "))
-        end
-        new(value)
-    end
-end
-
-show(io::IO, mime::MIME"text/html", wrapper::RawText) =
-    print(io, wrapper.value)
-
-#-------------------------------------------------------------------------
-struct AttributeSingleQuoted <: InterpolatedValue
-    name::HTLAttribute
-    value::Any
-end
-
-function show(io::IO, ::MIME"text/html", x::AttributeSingleQuoted)
-    print(io, replace(htl_stringify(x.name, x.value), r"['&]" => entity))
-end
-
-#-------------------------------------------------------------------------
-struct AttributeDoubleQuoted <: InterpolatedValue
-    name::HTLAttribute
-    value::Any
-end
-
-function show(io::IO, ::MIME"text/html", x::AttributeDoubleQuoted)
-    print(io, replace(htl_stringify(x.name, x.value), r"[\"&]" => entity))
-end
-
-#-------------------------------------------------------------------------
-struct AttributePair <: InterpolatedValue
-    name::HTLAttribute
-    value::Any
-end
-
-AttributePair(name::AbstractString, value) =
-    AttributePair(HTLAttribute(htl_normalize(name)), value)
-
-AttributePair(name::Symbol, value) =
-    AttributePair(HTLAttribute(htl_normalize(name)), value)
-
-show(io::IO, mime::MIME"text/html", pair::AttributePair) =
-    show(io, pair.name, pair.value)
-
-function show(io::IO, attr::HTLAttribute, value)
-    value = htl_escape_value(htl_stringify(attr, value))
-    print(io, " $(htl_represent(attr))=$(value)")
-end
-
-function show(io::IO, attr::HTLAttribute{name}, value::Nothing) where {name}
-    if htl_is_boolean(attr)
-        nothing
-    else
-        value = htl_escape_value(htl_stringify(attr, value))
-        print(io, " $(htl_represent(attr))=$(value)")
-    end
-end
-
-function show(io::IO, attr::HTLAttribute{name}, value::Bool) where {name}
-    if htl_is_boolean(attr)
-        (value == true) ? print(io, " $(htl_represent(attr))=''") : nothing
-    else
-        value = htl_escape_value(htl_stringify(attr, value))
-        print(io, " $(htl_represent(attr))=$(value)")
-    end
+    return HTML(value)
 end
 
 """
@@ -502,28 +305,182 @@ css_value(value::Symbol) = string(value)
 css_value(value::Number) = string(value) # includes boolean
 css_value(value::AbstractString) = value
 
-css_key(key::Symbol) = htl_normalize(string(key))
+css_key(key::Symbol) = kebab_case(string(key))
 css_key(key::String) = key
 
-htl_stringify(at::HTLAttribute{:style}, value::Dict) =
-    join(htl_stringify(at, pair) for pair in pairs(value))
+stringify(at::Attribute{:style}, value::Dict) =
+    join(stringify(at, pair) for pair in pairs(value))
 
-htl_stringify(at::HTLAttribute{:style}, value::NamedTuple) =
-    join(htl_stringify(at, pair) for pair in pairs(value))
+stringify(at::Attribute{:style}, value::NamedTuple) =
+    join(stringify(at, pair) for pair in pairs(value))
 
-htl_stringify(at::HTLAttribute{:style}, value::Tuple{Pair, Vararg{Pair}}) =
-    join(htl_stringify(at, pair) for pair in value)
+stringify(at::Attribute{:style}, value::Tuple{Pair, Vararg{Pair}}) =
+    join(stringify(at, pair) for pair in value)
 
-htl_stringify(at::HTLAttribute{:style}, (key, value)::Pair) =
+stringify(at::Attribute{:style}, (key, value)::Pair) =
     "$(css_key(key)): $(css_value(value));"
 
 # space separate class attribute items
 
-htl_stringify(at::HTLAttribute{:class}, value::AbstractVector) =
-    join([htl_stringify(at, item) for item in value], " ")
+stringify(at::Attribute{:class}, value::AbstractVector) =
+    join([stringify(at, item) for item in value], " ")
 
-htl_stringify(at::HTLAttribute{:class}, value::Tuple{Any, Vararg{Any}}) =
-    join([htl_stringify(at, item) for item in value], " ")
+stringify(at::Attribute{:class}, value::Tuple{Any, Vararg{Any}}) =
+    join([stringify(at, item) for item in value], " ")
+
+#-------------------------------------------------------------------------
+"""
+    attribute_pair(attribute, value)
+
+Wrap and escape attribute name and pair within a single-quoted context
+so that it is `showable("text/html")`. This uses `stringify` to do the
+actual conversion of the attribute to a usable string value. If an
+attribute `is_boolean` it is given special treatment, for `true` values,
+the attribute is printed with an empty string, else it is omitted.
+Moreover, attributes with value of `nothing` are coalesced to the empty
+string (unless they are boolean, in which case they are omitted).
+"""
+function attribute_pair(attribute, value)
+    value = escape_single_quote(stringify(attribute, value))
+    return HTML(" $(stringify(attribute))='$(value)'")
+end
+
+function attribute_pair(attr::Attribute{name}, value::Bool) where {name}
+    if is_boolean(attr)
+        if value == false
+            return HTML("")
+        end
+        return HTML(" $(stringify(attr))=''")
+    end
+    value = escape_single_quote(stringify(attr, value))
+    return HTML(" $(stringify(attr))='$(value)'")
+end
+
+function attribute_pair(attr::Attribute{name}, value::Nothing) where {name}
+    if is_boolean(attr)
+        return HTML("")
+    end
+    value = escape_single_quote(stringify(attr, value))
+    return HTML(" $(stringify(attr))='$(value)'")
+end
+
+"""
+    single_quoted(attribute, value)
+
+Wrap and escape a single-quoted attribute value so that it is
+`showable("text/html")`. This uses `stringify` to do the actual
+conversion of the attribute to a usable string value.
+"""
+single_quoted(attribute, value) =
+    HTML(escape_single_quote(stringify(attribute, value)))
+
+function escape_single_quote(value)
+    if '&' in value
+        value = replace(value, "&" => "&amp;")
+    end
+    if '\'' in value
+        value = replace(value, "'" => "&apos;")
+    end
+    return value
+end
+
+"""
+    double_quoted(attribute, value)
+
+Wrap and escape a double-quoted attribute value so that it is
+`showable("text/html")`. This uses `stringify` to do the actual
+conversion of the attribute to a usable string value.
+"""
+double_quoted(attribute, value) =
+    HTML(escape_double_quote(stringify(attribute, value)))
+
+function escape_double_quote(value)
+    if '&' in value
+        value = replace(value, "&" => "&amp;")
+    end
+    if '"' in value
+        value = replace(value, "\"" => "&quot;")
+    end
+    return value
+end
+
+"""
+    escape_content(value)
+
+Escape a string value for use within HTML content, this includes
+replacing `&` with `&amp;` and `<` with `&lt;`. We're not further
+escaping quotes within content since benchmarking shows us that it
+adds about 10% on the runtime for each character escaped.
+"""
+function escape_content(value)
+    if '&' in value
+        value = replace(value, "&" => "&amp;")
+    end
+    if '<' in value
+        value = replace(value, "<" => "&lt;")
+    end
+    return value
+end
+
+"""
+    content(value)
+
+Wrap and escape content so that it is `showable("text/html")`. By
+default, we handle strings, numbers and symbols by escaping them.
+Tuples, arrays and generators are wrapped by concatenating their
+elements. As a fallback, we assume the value has implemented `show()`
+for `MIME"text/html"`, if not, a `MethodError` will result.
+"""
+content(x) = x
+content(x::AbstractString) = HTML(escape_content(x))
+content(x::Number) = HTML(escape_content(string(x)))
+content(x::Symbol) = HTML(escape_content(string(x)))
+content(xs...) = content(xs)
+for concrete in (Int, Float64, Bool)
+   eval(:(content(x::$concrete) = HTML(x)))
+end
+
+function content(xs::Union{Tuple, AbstractArray, Base.Generator})
+    HTML{Function}() do io
+      for x in xs
+        show(io, MIME"text/html"(), content(x))
+      end
+    end
+end
+
+"""
+    attributes(element::Symbol, value)
+
+Convert Julian object into a serialization of attribute pairs,
+`showable` via `MIME"text/html"`. The default implementation of this
+delegates value construction of each pair to `attribute_pair()`.
+"""
+attributes(element::Symbol, value::Pair) =
+    attribute_pair(Attribute(value.first), value.second)
+attributes(element::Symbol, values::Dict) =
+    attribute_pairs(pairs(values))
+attributes(element::Symbol, values::NamedTuple) =
+    attribute_pairs(pairs(values))
+attributes(element::Symbol, values::Tuple{Pair, Vararg{Pair}}) =
+    attribute_pairs([item for item in values])
+attribute_pairs(pairs) =
+    HTML() do io
+        for (name, value) in pairs
+            show(io, MIME"text/html"(),
+               attribute_pair(Attribute(name), value))
+        end
+    end
+
+"""
+    interpolate_attributes(element, expr)::Vector{Expr}
+
+Continue conversion of an arbitrary Julia expression within the
+attribute section of the given element.
+"""
+function interpolate_attributes(element::Symbol, expr)::Vector{Expr}
+    element = QuoteNode(element)
+    return [:(attributes($element, $(esc(expr))))]
+end
 
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME
 
@@ -533,12 +490,12 @@ normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
 nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 
 """
-    interpolate(args):Expr
+    interpolate(args, this)::Expr
 
 Take an interweaved set of Julia expressions and strings, tokenize the
 strings according to the HTML specification [1], wrapping the
 expressions with wrappers based upon the escaping context, and returning
-an expression that combines the result with an `HTL` wrapper.
+an expression that combines the result with an `Result` wrapper.
 
 For these purposes, a `Symbol` is treated as an expression to be
 resolved; while a `String` is treated as a literal string that won't be
@@ -551,9 +508,9 @@ ending tag is in substituted content.
 
 [1] https://html.spec.whatwg.org/multipage/parsing.html#tokenization
 """
-function interpolate(args)
+function interpolate(args, this)
     state = STATE_DATA
-    parts = Union{String, Expr}[]
+    parts = Expr[]
     attribute_start = attribute_end = 0
     element_start = element_end = 0
     buffer_start = buffer_end = 0
@@ -571,47 +528,54 @@ function interpolate(args)
         return STATE_DATA
     end
 
+    args = [a for a in args if a != ""]
+
     for j in 1:length(args)
         input = args[j]
         if !isa(input, String)
-            input = esc(input)
             if state == STATE_DATA
-                push!(parts, :(ElementData($input)))
+                push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
-                push!(parts, :(RawText($input, $(QuoteNode(element_tag)))))
+                element = QuoteNode(element_tag)
+                push!(parts, :(rawtext($element, $(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
-                # rewrite previous text string to remove `attname=`
-                name = parts[end][attribute_start:attribute_end]
-                finish = attribute_start - 2
-                parts[end] = parts[end][1:finish]
-                push!(parts, :(AttributePair($(HTLAttribute(name)), $input)))
+                # rewrite previous HTML string to remove ` attname=`
+                @assert Meta.isexpr(parts[end], :call, 2)
+                previous = parts[end].args
+                @assert previous[1] == :HTML
+                name = previous[2][attribute_start:attribute_end]
+                previous[2] = previous[2][1:(attribute_start-2)]
+                attribute = Attribute(name)
+                push!(parts, :(attribute_pair($attribute, $(esc(input)))))
                 # peek ahead to ensure we have a delimiter
                 if j < length(args)
-                  next = args[j+1]
-                  if next isa String && !occursin(r"^[\s+\/>]", next)
-                    msg = "$(name)=$(input.args[1])"
-                    throw(DomainError(msg, "Unquoted attribute " *
-                      "interpolation is limited to a single component"))
-                  end
+                    next = args[j+1]
+                    if next isa String && !occursin(r"^[\s+\/>]", next)
+                        msg = "$(name)=$(nearby(next,1))"
+                        throw(DomainError(msg, "Unquoted attribute " *
+                          "interpolation is limited to a single component"))
+                    end
                 end
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
-                throw(DomainError(input.args[1], "Unquoted attribute " *
+                throw(DomainError(input, "Unquoted attribute " *
                   "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                attribute = HTLAttribute(attribute_tag)
-                push!(parts, :(AttributeSingleQuoted($attribute, $input)))
+                attribute = Attribute(attribute_tag)
+                push!(parts, :(single_quoted($attribute, $(esc(input)))))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                attribute = HTLAttribute(attribute_tag)
-                push!(parts, :(AttributeDoubleQuoted($attribute, $input)))
+                attribute = Attribute(attribute_tag)
+                push!(parts, :(double_quoted($attribute, $(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
-                if parts[end] isa String && parts[end][end] == ' '
-                    finish = length(parts[end])-1
-                    parts[end] = parts[end][1:finish]
+                @assert Meta.isexpr(parts[end], :call, 2)
+                previous = parts[end].args
+                if previous[1] == :HTML && previous[2] isa String
+                    if previous[2][end] == ' '
+                        finish = length(previous[2])-1
+                        previous[2] = previous[2][1:finish]
+                    end
                 end
-                # TODO: resolve attribute names early if possible
-                push!(parts, :(ElementAttributes($input)))
                 # move the space to after the element pairs
                 if j < length(args)
                     next = args[j+1]
@@ -619,14 +583,12 @@ function interpolate(args)
                         args[j+1] = " " * next
                     end
                 end
+                append!(parts, interpolate_attributes(element_tag, input))
             elseif state == STATE_COMMENT || true
                 throw("invalid binding #1 $(state)")
             end
         else
             inputlength = length(input)
-            if inputlength < 1
-                continue
-            end
             input = normalize(input)
             i = 1
             while i <= inputlength
@@ -961,11 +923,40 @@ function interpolate(args)
 
                 i = i + 1
             end
-            push!(parts, input)
+            push!(parts, Expr(:call, :HTML, input))
         end
     end
-
-    return Expr(:call, :HTL, Expr(:vect, parts...))
+    return Expr(:call, :Result, QuoteNode(this), parts...)
 end
+
+"""
+    Result(expr, xs...)
+
+Create an object that is `showable` to "text/html" created from
+arguments that are also showable. Leaf entries can be created using
+`HTML`. This expression additionally has an expression which is used
+when displaying the object to the REPL. Calling `print` will produce
+rendered output.
+"""
+struct Result
+    content::Function
+    this::Expr
+end
+
+function Result(s::String)
+    Result(io -> print(io, s), Expr(:call, :HTL, s))
+end
+
+function Result(this::Expr, xs...)
+    Result(this) do io
+      for x in xs
+          show(io, MIME"text/html"(), x)
+      end
+    end
+end
+
+Base.show(io::IO, ::MIME"text/html", h::Result) = h.content(io)
+Base.print(io::IO, h::Result) = h.content(io)
+Base.show(io::IO, h::Result) = print(io, h.this)
 
 end

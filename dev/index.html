@@ -19,7 +19,7 @@ end
 #-&gt; &lt;span&gt;Hello World&lt;/span&gt;
 
 @print @htl(&quot;&lt;span&gt;Hello World&lt;/span&gt;&quot;)
-#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>Thoughout this tutorial, we&#39;ll mostly stick with the string literal form of this macro, however, the <code>@htl</code> macro form should work equivalently, except for a few cases we annotate.</p><h2 id="Content-Interpolation"><a class="docs-heading-anchor" href="#Content-Interpolation">Content Interpolation</a><a id="Content-Interpolation-1"></a><a class="docs-heading-anchor-permalink" href="#Content-Interpolation" title="Permalink"></a></h2><p>Hypertext literal provides interpolation via <code>$</code>. Within element content, both the ampersand (<code>&amp;</code>) and less-than (<code>&lt;</code>) are escaped.</p><pre><code class="language-julia">book = &quot;Strunk &amp; White&quot;
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>Throughout this tutorial, we&#39;ll mostly stick with the string literal form of this macro, however, the <code>@htl</code> macro form should work equivalently, except for a few cases we annotate.</p><h2 id="Content-Interpolation"><a class="docs-heading-anchor" href="#Content-Interpolation">Content Interpolation</a><a id="Content-Interpolation-1"></a><a class="docs-heading-anchor-permalink" href="#Content-Interpolation" title="Permalink"></a></h2><p>Hypertext literal provides interpolation via <code>$</code>. Within element content, both the ampersand (<code>&amp;</code>) and less-than (<code>&lt;</code>) are escaped.</p><pre><code class="language-julia">book = &quot;Strunk &amp; White&quot;
 
 @print @htl(&quot;&lt;span&gt;Today&#39;s Reading: $book&lt;/span&gt;&quot;)
 #-&gt; &lt;span&gt;Today&#39;s Reading: Strunk &amp;amp; White&lt;/span&gt;</code></pre><p>To include a literal <code>$</code> in the output, use <code>\$</code> as one would in a regular Julia string. Other escape sequences, such as <code>\&quot;</code> also work.</p><pre><code class="language-julia">@print htl&quot;They said, \&quot;your total is \$42.50\&quot;.&quot;
@@ -50,28 +50,29 @@ end
 #-&gt; &lt;tag double=&quot;&amp;quot;h&amp;amp;b&#39;&quot; single=&#39;&quot;h&amp;amp;b&amp;apos;&#39; /&gt;</code></pre><p>Unquoted attributes are also supported. These are serialized using the single quoted style.</p><pre><code class="language-julia">arg = &quot;book=&#39;Strunk &amp; White&#39;&quot;
 
 @print htl&quot;&lt;tag bare=$arg /&gt;&quot;
-#-&gt; &lt;tag bare=&#39;book=&amp;apos;Strunk &amp;amp; White&amp;apos;&#39; /&gt;</code></pre><p>Attributes may also be provided by <code>Dict</code> or <code>Pair</code>. Attribute names are normalized, with <code>camelCase</code> and <code>snake_case</code> becoming <code>kebab-case</code>.</p><pre><code class="language-julia"> attributes = Dict(:dataValue =&gt; 42, :data_style =&gt; :green )
+#-&gt; &lt;tag bare=&#39;book=&amp;apos;Strunk &amp;amp; White&amp;apos;&#39; /&gt;</code></pre><p>Attributes may also be provided by <code>Dict</code> or <code>Pair</code>. Attribute names are normalized, where <code>snake_case</code> becomes <code>kebab-case</code>. We do not convert <code>camelCase</code> due to XML (MathML and SVG) attribute case sensitivity. Moreover, <code>String</code> attribute names are passed along as-is.</p><pre><code class="language-julia"> attributes = Dict(:data_style =&gt; :green, &quot;data_value&quot; =&gt; 42, )
 
  @print @htl(&quot;&lt;div $attributes/&gt;&quot;)
- #-&gt; &lt;div data-value=&#39;42&#39; data-style=&#39;green&#39;/&gt;
+ #-&gt; &lt;div data-style=&#39;green&#39; data_value=&#39;42&#39;/&gt;
 
- @print @htl(&quot;&lt;div $(:data_value=&gt;42) $(&quot;dataStyle&quot;=&gt;:green)/&gt;&quot;)
- #-&gt; &lt;div data-value=&#39;42&#39; data-style=&#39;green&#39;/&gt;</code></pre><p>Within string literals (but not <code>@htl</code> macro), a compact syntax inspired by named tuples is also supported.</p><pre><code class="language-julia"> @print htl&quot;&lt;div $(data_value=42, dataStyle=:green)/&gt;&quot;
- #-&gt; &lt;div data-value=&#39;42&#39; data-style=&#39;green&#39;/&gt;</code></pre><p>As you can see from this example, symbols and numbers (but not boolean values) are automatically converted within attributes. This works for quoted values as well.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;tag numeric=&quot;$(0)&quot; symbol=&#39;$(:sym)&#39;/&gt;&quot;&quot;&quot;
+ @print @htl(&quot;&lt;div $(:data_style=&gt;:green) $(:dataValue=&gt;42)/&gt;&quot;)
+ #-&gt; &lt;div data-style=&#39;green&#39; dataValue=&#39;42&#39;/&gt;</code></pre><p>Within string literals (but not <code>@htl</code> macro), a compact syntax inspired by named tuples is also supported.</p><pre><code class="language-julia"> @print htl&quot;&lt;div $(data_style=:green, dataValue=42)/&gt;&quot;
+ #-&gt; &lt;div data-style=&#39;green&#39; dataValue=&#39;42&#39;/&gt;</code></pre><p>As you can see from this example, symbols and numbers (but not boolean values) are automatically converted within attributes. This works for quoted values as well.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;tag numeric=&quot;$(0)&quot; symbol=&#39;$(:sym)&#39;/&gt;&quot;&quot;&quot;
 #-&gt; &lt;tag numeric=&quot;0&quot; symbol=&#39;sym&#39;/&gt;</code></pre><p>Within bare attributes, boolean values provide special support for boolean HTML properties, such as <code>&quot;disabled&quot;</code>. When a bare value <code>false</code> then the attribute is removed. When the value is <code>true</code> then the attribute is kept, with value being an empty string (<code>&#39;&#39;</code>).</p><pre><code class="language-julia">@print htl&quot;&lt;button checked=$(true) disabled=$(false)&gt;&quot;
-#-&gt; &lt;button checked=&#39;&#39;&gt;</code></pre><h2 id="Cascading-Style-Sheets"><a class="docs-heading-anchor" href="#Cascading-Style-Sheets">Cascading Style Sheets</a><a id="Cascading-Style-Sheets-1"></a><a class="docs-heading-anchor-permalink" href="#Cascading-Style-Sheets" title="Permalink"></a></h2><p>There is special support for the <em>unquoted</em> <code>&quot;style&quot;</code> attribute. In this case, <code>Pair</code> and <code>Dict</code> values are expanded as style attributes separated by the semi-colon (<code>;</code>). Style names that are <code>Symbol</code> values go though <code>camelCase</code> conversion to <code>camel-case</code>, while <code>String</code> values are passed along as-is.</p><pre><code class="language-julia">header_styles = Dict(:fontSize =&gt; &quot;25px&quot;, &quot;padding-left&quot; =&gt; &quot;2em&quot;)
+#-&gt; &lt;button checked=&#39;&#39;&gt;</code></pre><p>Boolean values within quoted strings are returned as-is. We could make this raise an error, however, there could be cases where this may be the desired effect.</p><pre><code class="language-julia">@print htl&quot;&lt;button disabled=&#39;$(false)&#39;&gt;&quot;
+#-&gt; &lt;button disabled=&#39;false&#39;&gt;</code></pre><h2 id="Cascading-Style-Sheets"><a class="docs-heading-anchor" href="#Cascading-Style-Sheets">Cascading Style Sheets</a><a id="Cascading-Style-Sheets-1"></a><a class="docs-heading-anchor-permalink" href="#Cascading-Style-Sheets" title="Permalink"></a></h2><p>There is special support for the <em>unquoted</em> <code>&quot;style&quot;</code> attribute. In this case, <code>Pair</code> and <code>Dict</code> values are expanded as style attributes separated by the semi-colon (<code>;</code>). Like attributes, <code>snake_case</code> is converted to <code>kebab-case</code>.</p><pre><code class="language-julia">header_styles = Dict(:font_size =&gt; &quot;25px&quot;, &quot;padding-left&quot; =&gt; &quot;2em&quot;)
 
 @print htl&quot;&lt;div style=$header_styles/&gt;&quot;
-#-&gt; &lt;div style=&#39;font-size: 25px;padding-left: 2em;&#39;/&gt;
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;
 
-@print htl&quot;&quot;&quot;&lt;div style=$(:fontSize=&gt;&quot;25px&quot;,&quot;padding-left&quot;=&gt;&quot;2em&quot;)/&gt;&quot;&quot;&quot;
-#-&gt; &lt;div style=&#39;font-size: 25px;padding-left: 2em;&#39;/&gt;
+@print htl&quot;&quot;&quot;&lt;div style=$(:font_size=&gt;&quot;25px&quot;,&quot;padding-left&quot;=&gt;&quot;2em&quot;)/&gt;&quot;&quot;&quot;
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;
 
-@print htl&quot;&quot;&quot;&lt;div style=$(fontSize=&quot;25px&quot;,paddingLeft=&quot;2em&quot;)/&gt;&quot;&quot;&quot;
-#-&gt; &lt;div style=&#39;font-size: 25px;padding-left: 2em;&#39;/&gt;</code></pre><p>Only symbols, numbers, and strings have a specified serialization as css style values. Therefore, use of components from other libraries will cause an exception.  However, this can be fixed by registering a conversion using <code>css_value()</code>.</p><pre><code class="language-julia">using Hyperscript
+@print htl&quot;&quot;&quot;&lt;div style=$(font_size=&quot;25px&quot;, padding_left=&quot;2em&quot;)/&gt;&quot;&quot;&quot;
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;</code></pre><p>Only symbols, numbers, and strings have a specified serialization as CSS style values. Therefore, use of components from other libraries will cause an exception.  However, this can be fixed by registering a conversion using <code>nested_value()</code>.</p><pre><code class="language-julia">using Hyperscript
 
-HypertextLiteral.css_value(x::Hyperscript.Unit) = string(x)</code></pre><p>Then, the syntax for CSS can be even more compact.</p><pre><code class="language-julia">@print htl&quot;&lt;div style=$(fontSize=25px,paddingLeft=2em)/&gt;&quot;
-#-&gt; &lt;div style=&#39;font-size: 25px;padding-left: 2em;&#39;/&gt;</code></pre><p>For the <em>unquoted</em> <code>&quot;class&quot;</code> attribute, a <code>Vector</code> provides a space between each of the elements.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div class=$([:one, :two])/&gt;&quot;)
+HypertextLiteral.nested_value(x::Hyperscript.Unit) = string(x)</code></pre><p>Then, the syntax for CSS can be even more compact.</p><pre><code class="language-julia">@print htl&quot;&lt;div style=$(font_size=25px, padding_left=2em)/&gt;&quot;
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;</code></pre><p>For the <em>unquoted</em> <code>&quot;class&quot;</code> attribute, a <code>Vector</code> provides a space between each of the elements.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div class=$([:one, :two])/&gt;&quot;)
 #-&gt; &lt;div class=&#39;one two&#39;/&gt;
 
 @print htl&quot;&lt;div class=$(:one, :two)/&gt;&quot;
@@ -92,12 +93,7 @@ HypertextLiteral.css_value(x::Hyperscript.Unit) = string(x)</code></pre><p>Then,
 @tags span
 
 @print @htl(&quot;&lt;div&gt;$(span(&quot;Hello World&quot;))&lt;/div&gt;&quot;)
-#-&gt; &lt;div&gt;&lt;span&gt;Hello World&lt;/span&gt;&lt;/div&gt;</code></pre><p>Displaying an object within an attribute...</p><pre><code class="language-julia">#TODO: show how this works here.</code></pre><p>It&#39;s also possible to let us know that your custom attribute uses boolean attribute treatment.</p><pre><code class="language-julia">import HypertextLiteral: is_boolean, Attribute
-
-is_boolean(::Attribute{Symbol(&quot;my-att&quot;)}) = true
-
-@print @htl(&quot;&lt;tag myAtt=$(false)/&gt;&quot;)
-#-&gt; &lt;tag/&gt;</code></pre><p>So that the scope of objects serialized in this manner is clear, we don&#39;t permit adjacent unquoted values.</p><pre><code class="language-julia">htl&quot;&lt;tag bare=$(true)$(:invalid)&quot;
+#-&gt; &lt;div&gt;&lt;span&gt;Hello World&lt;/span&gt;&lt;/div&gt;</code></pre><p>Displaying an object within an attribute...</p><pre><code class="language-julia">#TODO: show how this works here.</code></pre><p>So that the scope of objects serialized in this manner is clear, we don&#39;t permit adjacent unquoted values.</p><pre><code class="language-julia">htl&quot;&lt;tag bare=$(true)$(:invalid)&quot;
 #=&gt;
 ERROR: LoadError: DomainError with :invalid:
 Unquoted attribute interpolation is limited to a single component⋮
@@ -111,23 +107,19 @@ b = &quot;B&quot;
 #-&gt; AB
 
 @htl(&quot;$(x for x in (a,b))&quot;)
-#-&gt; ERROR: syntax: invalid interpolation syntax</code></pre><p>While assignment operator is permitted in Julia string interpolation, we exclude it in both string literal and macro forms so to guard against accidentally forgetting the trailing comma for a 1-tuple.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;div $(dataValue=42,)/&gt;&quot;&quot;&quot;
+#-&gt; ERROR: syntax: invalid interpolation syntax</code></pre><p>While assignment operator is permitted in Julia string interpolation, we exclude it in both string literal and macro forms so to guard against accidentally forgetting the trailing comma for a 1-tuple.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;div $(data_value=42,)/&gt;&quot;&quot;&quot;
 #-&gt; &lt;div data-value=&#39;42&#39;/&gt;
 
-htl&quot;&quot;&quot;&lt;div $(dataValue=42)/&gt;&quot;&quot;&quot;
+htl&quot;&quot;&quot;&lt;div $(data_value=42)/&gt;&quot;&quot;&quot;
 #=&gt;
-ERROR: LoadError: DomainError with dataValue = 42:
+ERROR: LoadError: DomainError with data_value = 42:
 assignments are not permitted in an interpolation⋮
 =#
 
-@htl(&quot;&lt;div $(dataValue=42)/&gt;&quot;)
+@htl(&quot;&lt;div $(data_value=42)/&gt;&quot;)
 #=&gt;
-ERROR: LoadError: DomainError with dataValue = 42:
+ERROR: LoadError: DomainError with data_value = 42:
 assignments are not permitted in an interpolation⋮
-=#</code></pre><p>Even though booleans are considered numeric in Julia, we treat them as an error to guard against quoted use in boolean HTML attributes.</p><pre><code class="language-julia">htl&quot;&lt;button checked=&#39;$(true)&#39;&quot;
-#=&gt;
-ERROR: DomainError with true:
-The attribute &#39;checked&#39; is boolean, use unquoted attribute form.
 =#</code></pre><h2 id="Quirks-and-Regression"><a class="docs-heading-anchor" href="#Quirks-and-Regression">Quirks &amp; Regression</a><a id="Quirks-and-Regression-1"></a><a class="docs-heading-anchor-permalink" href="#Quirks-and-Regression" title="Permalink"></a></h2><p>Since this string format uses Julia macro processing, there are some differences between an <code>htl</code> literal and native Julia interpolation. For starters, Julia doesn&#39;t recognize and treat <code>$</code> syntax natively for these macros, hence, at a very deep level parsing is different.</p><pre><code class="language-julia">&quot;$(&quot;Hello&quot;)&quot;
 #-&gt; &quot;Hello&quot;</code></pre><p>In this interpolation, the expression <code>&quot;Hello&quot;</code> is seen as a string, and hence Julia can produce the above output. However, Julia does not given this special treatment to string literals. Hence, if you try this expression using <code>htl</code> you&#39;ll get an error.</p><pre><code class="language-julia">htl&quot;$(&quot;Hello&quot;)&quot;
 #-&gt; ERROR: syntax: cannot juxtapose string literal</code></pre><p>The above expression is seen by Julia as 3 tokens, <code>htl&quot;$(&quot;</code>, followed by <code>Hello</code>, and then <code>&quot;)</code>. This combination is a syntax error. One might correct this using triple strings.</p><pre><code class="language-julia">#? VERSION &gt; v&quot;1.5.0&quot;
@@ -149,13 +141,13 @@ htl&quot;&quot;&quot;$(&quot;Hello&quot;)&quot;&quot;&quot;
 #-&gt; &quot;	\
 
 @print @htl(&quot;\&quot;\t\\&quot;)
-#-&gt; &quot;	\</code></pre><p>Within attributes, independent of quoting style, other datatypes are treated as an error. This includes <code>Vector</code> as well as <code>HTL</code> objects.</p><pre><code class="language-julia">htl&quot;&lt;tag att=&#39;$([1,2,3])&#39;&quot;
-#-&gt; ERROR: MethodError: no method matching stringify⋮</code></pre><p>Symbols are also properly handled; e.g. escaping happens after conversion of numbers, symbols and custom types to strings.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;tag att=$(Symbol(&quot;&#39;&amp;&quot;))&gt;$(Symbol(&quot;&lt;&amp;&quot;))&lt;/tag&gt;&quot;&quot;&quot;
-#-&gt; &lt;tag att=&#39;&amp;apos;&amp;amp;&#39;&gt;&amp;lt;&amp;amp;&lt;/tag&gt;</code></pre><p>Interpolation should handle splat operator by concatenating results.</p><pre><code class="language-julia">@print htl&quot;$([x for x in 1:3]...)&quot;
+#-&gt; &quot;	\</code></pre><p>Within attributes, <code>Vector</code> objects are serialized as space separated lists to support attributes such as <code>class</code>.</p><pre><code class="language-julia">@print htl&quot;&lt;tag att=&#39;$([1,2,3])&#39;/&gt;&quot;
+#-&gt; &lt;tag att=&#39;1 2 3&#39;/&gt;</code></pre><p>For now, Symbols happen to be escaped within attribute values but not within content. Ideally, we will not be escaping symbols in any context since it is slower and a pathological case we wish not to handle.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;tag att=$(Symbol(&quot;&#39;&amp;&quot;))&gt;$(Symbol(&quot;&lt;&amp;&quot;))&lt;/tag&gt;&quot;&quot;&quot;
+#-&gt; &lt;tag att=&#39;&amp;apos;&amp;amp;&#39;&gt;&lt;&amp;&lt;/tag&gt;</code></pre><p>Interpolation should handle splat operator by concatenating results.</p><pre><code class="language-julia">@print htl&quot;$([x for x in 1:3]...)&quot;
 #-&gt; 123
 
 @print @htl &quot;$([x for x in 1:3]...)&quot;
-#-&gt; 123</code></pre><p>Within element content, we treat a <code>Vector</code> as a sequence to be containated.</p><pre><code class="language-julia">@print htl&quot;$([x for x in 1:3])&quot;
+#-&gt; 123</code></pre><p>Within element content, we treat a <code>Vector</code> as a sequence to be concatenated.</p><pre><code class="language-julia">@print htl&quot;$([x for x in 1:3])&quot;
 #-&gt; 123
 
 @print @htl &quot;$([x for x in 1:3])&quot;
@@ -168,10 +160,7 @@ htl&quot;&quot;&quot;&lt;style&gt;$bad&lt;/style&gt;&quot;&quot;&quot;
 ERROR: DomainError with &quot;&lt;/style&gt;&quot;:
   Content of &lt;style&gt; cannot contain the end tag (`&lt;/style&gt;`).
 =#</code></pre><p>Attribute names should be non-empty and not in a list of excluded characters.</p><pre><code class="language-julia">@htl(&quot;&lt;tag $(&quot;&quot; =&gt; &quot;value&quot;)/&gt;&quot;)
-#=&gt;
-ERROR: DomainError with :
-Attribute name must not be empty.
-=#
+#-&gt; ERROR: &quot;Attribute name must not be empty.&quot;
 
 @htl(&quot;&lt;tag $(&quot;&amp;att&quot; =&gt; &quot;value&quot;)/&gt;&quot;)
 #=&gt;
@@ -220,4 +209,4 @@ ERROR: syntax: invalid interpolation syntax: &quot;$[&quot;⋮
 #-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮
 
 @print htl&quot;Foo$&quot;
-#-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮</code></pre><p>Here&#39;s something that perhaps should work... but fails currently.</p><pre><code class="language-julia"># htl&quot;&lt;div $(:dataValue=&gt;42, &quot;data-style&quot;=&gt;:green)/&gt;</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><p>We are absolutely open to suggested improvements. This package is implemented according to several design criteria.</p><ul><li><p>Operation of interpolated expressions (<code>$</code>) should mirror what they would do with regular Julia strings, updated with hypertext escaping sensibilities including proper escaping and helpful representations.</p></li><li><p>With exception of boolean attributes (which must be removed to be false), input is treated as-is and not otherwise modified.</p></li><li><p>Values having serialization to <code>&quot;text/html&quot;</code> are injected &quot;as-is&quot; into element content. Attributes should only accept string objects.</p></li><li><p>Given that this library will be used by content producers, it should be conservative, raising an error when invalid hypertext is discovered and only serializing Julia objects that have an express representation.</p></li><li><p>There should be an extension API that permits custom data types to provide their own context-sensitive serialization strategies.</p></li><li><p>As much processing (e.g. hypertext lexical analysis) should be done during macro expansion to reduce runtime and to report errors early. Error messages should guide the user towards addressing the problem.</p></li><li><p>To be helpful, HTML tags and attributes may be recognized. Special behavior may be provided to attributes such as <code>&quot;style&quot;</code> (CSS), <code>&quot;class&quot;</code> and, eventually, <code>&quot;script&quot;</code>.</p></li><li><p>Full coverage of HTML syntax is ideal, but unnecessary.</p></li></ul></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 12 December 2020 05:01">Saturday 12 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮</code></pre><p>Here&#39;s something that perhaps should work... but fails currently.</p><pre><code class="language-julia"># htl&quot;&lt;div $(:dataValue=&gt;42, &quot;data-style&quot;=&gt;:green)/&gt;</code></pre><h2 id="Contributing"><a class="docs-heading-anchor" href="#Contributing">Contributing</a><a id="Contributing-1"></a><a class="docs-heading-anchor-permalink" href="#Contributing" title="Permalink"></a></h2><p>We are open to suggested improvements. This package is implemented according to several design criteria.</p><ul><li><p>Operation of interpolated expressions (<code>$</code>) should (mostly) mirror what they would do with regular Julia strings, updated with hypertext escaping sensibilities including proper escaping.</p></li><li><p>With exception of boolean attributes (which must be removed to be false), input is treated as-is and not otherwise modified.</p></li><li><p>Provide reasonable interpretation for <code>Dict</code>, <code>Vector</code> and other objects as attributes, element content, or attribute values.</p></li><li><p>As much processing (e.g. hypertext lexical analysis) should be done during macro expansion to reduce runtime and to report errors early. Error messages should guide the user towards addressing the problem.</p></li><li><p>There is an emphasis on speed not on handling of pathological cases, such as a developer placing escapable content within a <code>Symbol</code>  (we won&#39;t escape it... since it&#39;ll slow other use cases down).</p></li><li><p>There should be an extension API that permits custom data types to provide their own serialization strategies that are not dependent upon the namespace, element name, or attribute name.</p></li><li><p>Full coverage of HTML syntax or reporting syntax or semantic errors within the HTML content is not a goal.</p></li></ul></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 12 December 2020 21:59">Saturday 12 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

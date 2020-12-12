@@ -136,21 +136,22 @@ single quoted style.
     #-> <tag bare='book=&apos;Strunk &amp; White&apos;' />
 
 Attributes may also be provided by `Dict` or `Pair`. Attribute names are
-normalized, with `camelCase` and `snake_case` becoming `kebab-case`.
+normalized, where `snake_case` becomes `kebab-case`. We do not convert
+`camelCase` due to XML (MathML and SVG) attribute case sensitivity.
 
-     attributes = Dict(:dataValue => 42, :data_style => :green )
+     attributes = Dict("data-value" => 42, :data_style => :green )
 
      @print @htl("<div $attributes/>")
      #-> <div data-value='42' data-style='green'/>
 
-     @print @htl("<div $(:data_value=>42) $("dataStyle"=>:green)/>")
-     #-> <div data-value='42' data-style='green'/>
+     @print @htl("<div $(:dataValue=>42) $(:data_style=>:green)/>")
+     #-> <div dataValue='42' data-style='green'/>
 
 Within string literals (but not `@htl` macro), a compact syntax inspired
 by named tuples is also supported.
 
-     @print htl"<div $(data_value=42, dataStyle=:green)/>"
-     #-> <div data-value='42' data-style='green'/>
+     @print htl"<div $(dataValue=42, data_style=:green)/>"
+     #-> <div dataValue='42' data-style='green'/>
 
 As you can see from this example, symbols and numbers (but not boolean
 values) are automatically converted within attributes. This works for
@@ -171,20 +172,19 @@ attribute is kept, with value being an empty string (`''`).
 
 There is special support for the *unquoted* `"style"` attribute. In this
 case, `Pair` and `Dict` values are expanded as style attributes
-separated by the semi-colon (`;`). Style names that are `Symbol` values
-go though `camelCase` conversion to `camel-case`, while `String` values
-are passed along as-is.
+separated by the semi-colon (`;`). Like attributes, `snake_case` is
+converted to `kebab-case`.
 
-    header_styles = Dict(:fontSize => "25px", "padding-left" => "2em")
+    header_styles = Dict(:font_size => "25px", "padding-left" => "2em")
 
     @print htl"<div style=$header_styles/>"
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-    @print htl"""<div style=$(:fontSize=>"25px","padding-left"=>"2em")/>"""
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"""<div style=$(:font_size=>"25px","padding-left"=>"2em")/>"""
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-    @print htl"""<div style=$(fontSize="25px",paddingLeft="2em")/>"""
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"""<div style=$(font_size="25px", padding_left="2em")/>"""
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
 Only symbols, numbers, and strings have a specified serialization as css
 style values. Therefore, use of components from other libraries will
@@ -197,8 +197,8 @@ conversion using `css_value()`.
 
 Then, the syntax for CSS can be even more compact.
 
-    @print htl"<div style=$(fontSize=25px,paddingLeft=2em)/>"
-    #-> <div style='font-size: 25px;padding-left: 2em;'/>
+    @print htl"<div style=$(font_size=25px, padding_left=2em)/>"
+    #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
 For the *unquoted* `"class"` attribute, a `Vector` provides a space
 between each of the elements.
@@ -250,16 +250,6 @@ Displaying an object within an attribute...
 
     #TODO: show how this works here.
 
-It's also possible to let us know that your custom attribute uses
-boolean attribute treatment.
-
-    import HypertextLiteral: is_boolean, Attribute
-
-    is_boolean(::Attribute{Symbol("my-att")}) = true
-
-    @print @htl("<tag myAtt=$(false)/>")
-    #-> <tag/>
-
 So that the scope of objects serialized in this manner is clear, we
 don't permit adjacent unquoted values.
 
@@ -289,18 +279,18 @@ While assignment operator is permitted in Julia string interpolation, we
 exclude it in both string literal and macro forms so to guard against
 accidentally forgetting the trailing comma for a 1-tuple.
 
-    @print htl"""<div $(dataValue=42,)/>"""
+    @print htl"""<div $(data_value=42,)/>"""
     #-> <div data-value='42'/>
 
-    htl"""<div $(dataValue=42)/>"""
+    htl"""<div $(data_value=42)/>"""
     #=>
-    ERROR: LoadError: DomainError with dataValue = 42:
+    ERROR: LoadError: DomainError with data_value = 42:
     assignments are not permitted in an interpolation⋮
     =#
 
-    @htl("<div $(dataValue=42)/>")
+    @htl("<div $(data_value=42)/>")
     #=>
-    ERROR: LoadError: DomainError with dataValue = 42:
+    ERROR: LoadError: DomainError with data_value = 42:
     assignments are not permitted in an interpolation⋮
     =#
 

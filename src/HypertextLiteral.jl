@@ -132,18 +132,21 @@ end
 """
     kebab_case(s)
 
-This converts an name in `PascalCase`, `camelCase`, and `snake_case`
-into their `kebab-case` equivalent. This will lowercase the name.
-This transformation is problematic for SVG attribute names, which
-need to be in `camelCase`.
+This converts `snake_case` to its `kebab-case` equivalent. So that
+keywords, such as `for` could be used, we strip leading underscores.
+Note that `camelCase` conversion is not provided due to SVG.
 """
 function kebab_case(name::String)
-    name = replace(name, r"[A-Z]" => (x -> "-$(lowercase(x))"))
-    name = startswith(name, "-") ? name[2:end] : name
-    return replace(name, "_" => "-")
+    if '_' in name
+       if name[1] == '_'
+           name = name[2:end]
+       end
+       name = replace(name, "_" => "-")
+    end
+    return name
 end
 
-kebab_case(sym::Symbol) = kebab_case(string(sym))
+kebab_case(sym::Symbol) = kebab_case(String(sym))
 
 """
     Attribute{name}
@@ -309,13 +312,13 @@ css_key(key::Symbol) = kebab_case(string(key))
 css_key(key::String) = key
 
 stringify(at::Attribute{:style}, value::Dict) =
-    join(stringify(at, pair) for pair in pairs(value))
+    join((stringify(at, pair) for pair in pairs(value)), " ")
 
 stringify(at::Attribute{:style}, value::NamedTuple) =
-    join(stringify(at, pair) for pair in pairs(value))
+    join((stringify(at, pair) for pair in pairs(value)), " ")
 
 stringify(at::Attribute{:style}, value::Tuple{Pair, Vararg{Pair}}) =
-    join(stringify(at, pair) for pair in value)
+    join((stringify(at, pair) for pair in value), " ")
 
 stringify(at::Attribute{:style}, (key, value)::Pair) =
     "$(css_key(key)): $(css_value(value));"

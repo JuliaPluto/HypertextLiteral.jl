@@ -68,7 +68,7 @@ within the `@htl` macro syntax.
 """
 macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
-    # it by `$` to find interpolated parts and degating the hard work
+    # it by `$` to find interpolated parts and delegating the hard work
     # to `Meta.parse`, treating everything else as a literal string.
     this = Expr(:macrocall, Symbol("@htl_str"), nothing, expr)
     args = Any[]
@@ -130,7 +130,7 @@ macro htl_str(expr::String)
 end
 
 """
-    normalize_attribute_name(name)
+    normalize_attribute_name(name)::String
 
 For `String` names, this simply verifies that they pass the attribute
 name production, but are otherwise untouched.
@@ -186,7 +186,7 @@ stringify(value::AbstractString) = value
 stringify(value::Number) = string(value)
 stringify(value::Symbol) = string(value)
 
-# Behaviors helpful to CSS serialization, applied generally.
+# Behaviors helpful to CSS `style` and `class`, applied generally.
 
 nested_value(value::Symbol) = string(value)
 nested_value(value::Number) = string(value)

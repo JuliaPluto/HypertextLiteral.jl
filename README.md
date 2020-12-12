@@ -11,7 +11,8 @@ and provides handy conversions dependent upon context.*
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
-> is based upon a port to Julia written by Michiel Dral.
+> is based upon a port to Julia written by Michiel Dral with significant
+> architectural feedback by Kirill Simonov ([@xitology][@xitology]).
 
 This package provides a Julia string literal, `htl`, and macro `@htl`
 that return an object that can be rendered to `MIME"text/html"`
@@ -47,27 +48,18 @@ to the needs of HTML generation.
 This library implements many features for working with HTML data within
 the Julia language, including:
 
-* Element content (ampersand and less-than) are properly escaped
-* Single quoted, double quoted, and unquoted attribute values are escaped
+* Performant escaping of interpolated `String` valued content
+* Escaping depends upon element content or attribute quoting style
 * Handles boolean valued attributes, such as `disabled`, `checked`
-* Representation of Julia `Pair` and `Dict` as unquoted attributes
-* Special handling of unquoted "style" attribute via Julia `Pair` and `Dict`
-* Automatic `camelCase` => `camel-case` conversion for attributes & styles
+* Serialization of `Pair` and `Dict` objects as attribute pairs
+* Conversion of `snake_case` => `camel-case` for attribute names
+* Support for CSS style formatting via `Pair` and `Dict`
 * Detection of `script` and `style` tags to suppress escaping
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Implements both string macros `@htl_str` and regular macros `@htl`
 
 For more detail, please see the [documentation][docs-url] and join us on
-[Julia's Zulip][chat-url]. We are expressly interested in feedback about
-the following design questions:
-
-* Should bare attributes be treated differently than quoted ones?
-* Should we keep both string literal and regular macro form?
-* Should vectors be treated as a concatenation, or raise an error?
-* Should string macros use grammar that is succinct but not legal Julia?
-* Should dispatch be enabled on just values, or on attribute names?
-* How much built-in support should we have for CSS, and SVG?
-* Generally, should unknown objects be stringified or made into errors?
+[Julia's Zulip][chat-url].
 
 [htl]: https://github.com/observablehq/htl
 [@mbostock]: https://github.com/mbostock

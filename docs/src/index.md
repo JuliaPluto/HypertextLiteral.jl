@@ -44,7 +44,7 @@ we'll also use the following macro.
     @print @htl("<span>Hello World</span>")
     #-> <span>Hello World</span>
 
-Thoughout this tutorial, we'll mostly stick with the string literal form
+Throughout this tutorial, we'll mostly stick with the string literal form
 of this macro, however, the `@htl` macro form should work equivalently,
 except for a few cases we annotate.
 
@@ -194,7 +194,7 @@ converted to `kebab-case`.
     @print htl"""<div style=$(font_size="25px", padding_left="2em")/>"""
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-Only symbols, numbers, and strings have a specified serialization as css
+Only symbols, numbers, and strings have a specified serialization as CSS
 style values. Therefore, use of components from other libraries will
 cause an exception.  However, this can be fixed by registering a
 conversion using `nested_value()`.
@@ -384,7 +384,7 @@ lists to support attributes such as `class`.
 
 For now, Symbols happen to be escaped within attribute values but not
 within content. Ideally, we will not be escaping symbols in any context
-since it is slower and a pathalogical case we wish not to handle.
+since it is slower and a pathological case we wish not to handle.
 
     @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
     #-> <tag att='&apos;&amp;'><&</tag>
@@ -398,7 +398,7 @@ Interpolation should handle splat operator by concatenating results.
     #-> 123
 
 Within element content, we treat a `Vector` as a sequence to be
-containated.
+concatenated.
 
     @print htl"$([x for x in 1:3])"
     #-> 123
@@ -508,33 +508,30 @@ Here's something that perhaps should work... but fails currently.
 
 ## Contributing
 
-We are absolutely open to suggested improvements. This package is
-implemented according to several design criteria.
+We are open to suggested improvements. This package is implemented
+according to several design criteria.
 
-* Operation of interpolated expressions (`$`) should mirror what they
-  would do with regular Julia strings, updated with hypertext escaping
-  sensibilities including proper escaping and helpful representations.
+* Operation of interpolated expressions (`$`) should (mostly) mirror
+  what they would do with regular Julia strings, updated with hypertext
+  escaping sensibilities including proper escaping.
 
 * With exception of boolean attributes (which must be removed to be
   false), input is treated as-is and not otherwise modified.
 
-* Values having serialization to `"text/html"` are injected "as-is"
-  into element content. Attributes should only accept string objects.
-
-* Given that this library will be used by content producers, it should
-  be conservative, raising an error when invalid hypertext is discovered
-  and only serializing Julia objects that have an express representation.
-
-* There should be an extension API that permits custom data types to
-  provide their own context-sensitive serialization strategies.
+* Provide reasonable interpretation for `Dict`, `Vector` and other
+  objects as attributes, element content, or attribute values.
 
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
   Error messages should guide the user towards addressing the problem.
 
-* To be helpful, HTML tags and attributes may be recognized. Special
-  behavior may be provided to attributes such as `"style"` (CSS),
-  `"class"` and, eventually, `"script"`.
+* There is an emphasis on speed not on handling of pathological cases,
+  such as a developer placing escapable content within a `Symbol` 
+  (we won't escape it... since it'll slow other use cases down).
 
-* Full coverage of HTML syntax is ideal, but unnecessary.
+* There should be an extension API that permits custom data types to
+  provide their own serialization strategies that are not dependent upon
+  the namespace, element name, or attribute name.
 
+* Full coverage of HTML syntax or reporting syntax or semantic errors
+  within the HTML content is not a goal.

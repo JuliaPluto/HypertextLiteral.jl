@@ -138,20 +138,21 @@ single quoted style.
 Attributes may also be provided by `Dict` or `Pair`. Attribute names are
 normalized, where `snake_case` becomes `kebab-case`. We do not convert
 `camelCase` due to XML (MathML and SVG) attribute case sensitivity.
+Moreover, `String` attribute names are passed along as-is.
 
-     attributes = Dict("data-value" => 42, :data_style => :green )
+     attributes = Dict(:data_style => :green, "data_value" => 42, )
 
      @print @htl("<div $attributes/>")
-     #-> <div data-value='42' data-style='green'/>
+     #-> <div data-style='green' data_value='42'/>
 
-     @print @htl("<div $(:dataValue=>42) $(:data_style=>:green)/>")
-     #-> <div dataValue='42' data-style='green'/>
+     @print @htl("<div $(:data_style=>:green) $(:dataValue=>42)/>")
+     #-> <div data-style='green' dataValue='42'/>
 
 Within string literals (but not `@htl` macro), a compact syntax inspired
 by named tuples is also supported.
 
-     @print htl"<div $(dataValue=42, data_style=:green)/>"
-     #-> <div dataValue='42' data-style='green'/>
+     @print htl"<div $(data_style=:green, dataValue=42)/>"
+     #-> <div data-style='green' dataValue='42'/>
 
 As you can see from this example, symbols and numbers (but not boolean
 values) are automatically converted within attributes. This works for
@@ -167,6 +168,13 @@ attribute is kept, with value being an empty string (`''`).
 
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
+
+Boolean values within quoted strings are returned as-is. We could make
+this raise an error, however, there could be cases where this may be the
+desired effect.
+
+    @print htl"<button disabled='$(false)'>"
+    #-> <button disabled='false'>
 
 ## Cascading Style Sheets
 
@@ -189,11 +197,11 @@ converted to `kebab-case`.
 Only symbols, numbers, and strings have a specified serialization as css
 style values. Therefore, use of components from other libraries will
 cause an exception.  However, this can be fixed by registering a
-conversion using `css_value()`.
+conversion using `nested_value()`.
 
     using Hyperscript
 
-    HypertextLiteral.css_value(x::Hyperscript.Unit) = string(x)
+    HypertextLiteral.nested_value(x::Hyperscript.Unit) = string(x)
 
 Then, the syntax for CSS can be even more compact.
 
@@ -294,15 +302,6 @@ accidentally forgetting the trailing comma for a 1-tuple.
     assignments are not permitted in an interpolation⋮
     =#
 
-Even though booleans are considered numeric in Julia, we treat them as
-an error to guard against quoted use in boolean HTML attributes.
-
-    htl"<button checked='$(true)'"
-    #=>
-    ERROR: DomainError with true:
-    The attribute 'checked' is boolean, use unquoted attribute form.
-    =#
-
 ## Quirks & Regression
 
 Since this string format uses Julia macro processing, there are some
@@ -377,17 +376,18 @@ Escaped strings should just pass-though.
     @print @htl("\"\t\\")
     #-> "	\
 
-Within attributes, independent of quoting style, other datatypes are
-treated as an error. This includes `Vector` as well as `HTL` objects.
+Within attributes, `Vector` objects are serialized as space separated
+lists to support attributes such as `class`.
 
-    htl"<tag att='$([1,2,3])'"
-    #-> ERROR: MethodError: no method matching stringify⋮
+    @print htl"<tag att='$([1,2,3])'/>"
+    #-> <tag att='1 2 3'/>
 
-Symbols are also properly handled; e.g. escaping happens after
-conversion of numbers, symbols and custom types to strings.
+For now, Symbols happen to be escaped within attribute values but not
+within content. Ideally, we will not be escaping symbols in any context
+since it is slower and a pathalogical case we wish not to handle.
 
     @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
-    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
+    #-> <tag att='&apos;&amp;'><&</tag>
 
 Interpolation should handle splat operator by concatenating results.
 
@@ -427,10 +427,7 @@ Attribute names should be non-empty and not in a list of excluded
 characters.
 
     @htl("<tag $("" => "value")/>")
-    #=>
-    ERROR: DomainError with :
-    Attribute name must not be empty.
-    =#
+    #-> ERROR: "Attribute name must not be empty."
 
     @htl("<tag $("&att" => "value")/>")
     #=>

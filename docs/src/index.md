@@ -10,14 +10,22 @@ interpolation sensible to the needs of HTML generation.
 When printed directly to the console (via `show`), the output of these
 macros reproduce a verified expression that generated them.
 
-    name = "World"
+```julia
+name = "World"
 
-    @htl("<span>Hello $name</span>")
-    #-> @htl "<span>Hello $(name)</span>"
+htl"<span>Hello $name</span>"
+#-> htl"<span>Hello $name</span>"
+
+@htl("<span>Hello $name</span>")
+#-> @htl "<span>Hello $(name)</span>"
+```
 
 When displayed to `"text/html"` the evaluation is shown.
 
     name = "World"
+
+    display("text/html", htl"<span>Hello $name</span>")
+    #-> <span>Hello World</span>
 
     display("text/html", @htl("<span>Hello $name</span>"))
     #-> <span>Hello World</span>
@@ -29,6 +37,9 @@ we'll also use the following macro.
     macro print(expr)
         :(display("text/html", $expr))
     end
+
+    @print htl"<span>Hello World</span>"
+    #-> <span>Hello World</span>
 
     @print @htl("<span>Hello World</span>")
     #-> <span>Hello World</span>

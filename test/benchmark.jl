@@ -65,6 +65,47 @@ htl_test() = begin
    return io
 end
 
+# very silly test using attributes rather than elements...
+
+att_database(d) = htl"""
+  <html>
+    <head title=$("Customers & Employees")/>
+    <body>
+    $([att_customer(c) for c in d]...)
+    </body>
+  </html>
+"""
+
+att_customer(c) = @htl("""
+    <div>
+       <form>
+         <label>Company</label><input value=$(c.company)>
+         <label>Phrase</label><input value='$(c.phrase)'>
+         <label>Active Since</label><input value="$(c.active)">
+         <label>Employees</label>
+       </form>
+          $([att_employee(e) for e in c.employees]...)
+    </div>
+""")
+
+att_employee(e) = @htl("""
+       <form>
+         <label>Last Name</label><input value=$(e.last_name)>
+         <label>First Name</label><input value="$(e.first_name)">
+         <label>Title</label><input value='$(e.title)'>
+         <label>E-Mail</label><input $(:value => e.email)>
+         <label>Main</label><input $("value" => e.main_number))>
+         <label>Cell</label><input $((value=e.main_number,))>
+         $([htl"<span $(value=x,)/>" for x in e.comments]...)
+""")
+
+att_test() = begin
+   io = IOBuffer()
+   ob = att_database(database)
+   show(io, MIME("text/html"), ob)
+   return io
+end
+
 ee(x) = replace(replace(x, "&" => "&amp;"), "<" => "&lt;")
 ea(x) = replace(replace(x, "&" => "&amp;"), "'" => "&apos;")
 
@@ -198,6 +239,7 @@ end
 #println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
+println("HTL (Attributes): ", @benchmark att_test())
 
 if false
     open("htl.html", "w") do f

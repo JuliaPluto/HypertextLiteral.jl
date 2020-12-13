@@ -302,6 +302,35 @@ function escape_double_quote(value)
     return value
 end
 
+const g_inner = IOBuffer()
+function wrap_content(obj)
+    outer -> begin
+        @assert g_inner.ptr == 1 && g_inner.size == 0
+        print(g_inner, obj)
+        next = last = 1
+        pref = pointer(g_inner.data) - 1
+        data = g_inner.data
+        size = g_inner.size
+        while next <= size
+            @inbounds ch = data[next]
+            if ch == Int('<')
+                unsafe_write(outer, pref + last, next - last)
+                print(outer, "&lt;")
+                last = next + 1
+            elseif ch ==  Int('&')
+                unsafe_write(outer, pref + last, next - last)
+                print(outer, "&amp;")
+                last = next + 1
+            end
+            next += 1
+        end
+        if last <= size
+            unsafe_write(outer, pref + last, size - last + 1)
+        end
+        truncate(g_inner, 0)
+    end
+end
+
 """
     escape_content(value)
 
@@ -332,6 +361,7 @@ As a fallback, we assume the value has implemented `show()` for
 """
 content(x) = x
 content(x::AbstractString) = HTML(escape_content(x))
+#content(x::AbstractString) = HTML{Function}(wrap_content(x))
 content(x::Number) = HTML(x)
 content(x::Symbol) = HTML(x)
 content(x::Nothing) = HTML("")
@@ -359,7 +389,7 @@ attributes(values::Dict) =
 attributes(values::NamedTuple) =
     attribute_pairs(pairs(values))
 attributes(values::Tuple{Pair, Vararg{Pair}}) =
-    attribute_pairs([item for item in values])
+    attribute_pairs((item for item in values))
 attribute_pairs(pairs) =
     HTML() do io
         for (name, value) in pairs

@@ -17,7 +17,7 @@ struct UnwrapHTML{T}
 end
 
 function UnwrapHTML(xs...)
-    UnwrapHTML{Function}() do io
+    UnwrapHTML{Function}() do io::IO
         for x in xs
             show(io, MIME"text/html"(), x)
         end

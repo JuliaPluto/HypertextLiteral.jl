@@ -336,9 +336,15 @@ content(x::AbstractString) = HTML(escape_content(x))
 content(x::Number) = HTML(x)
 content(x::Symbol) = HTML(x)
 content(x::Nothing) = HTML("")
-content(xs...) = UnwrapHTML((content(x) for x in xs)...)
-content(xs::Union{Tuple, AbstractArray, Base.Generator}) =
-   UnwrapHTML((content(x) for x in xs)...)
+content(xs...) = content(xs)
+
+function content(xs::Union{Tuple, AbstractArray, Base.Generator})
+    UnwrapHTML{Function}() do io::IO
+      for x in xs
+        show(io, MIME"text/html"(), content(x))
+      end
+    end
+end
 
 """
     attributes(value)

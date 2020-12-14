@@ -49,8 +49,8 @@ The result of this proxy is that regular content is escaped. We also use
     @echo print(ep, "A&B")
     #-> A&amp;B
 
-    @echo print(ep, HTML("<span>"), "A&B", HTML("</span>"))
-    #-> <span>A&amp;B</span>
+    @echo print(ep, HTML("<span>"), "<A&B>", HTML("</span>"))
+    #-> <span>&lt;A&amp;B></span>
 
 Let's suppose someone has written a `Custom` object that is printable
 via `"text/html"`. This could be done as follows.

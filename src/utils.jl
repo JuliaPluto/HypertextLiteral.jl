@@ -56,6 +56,8 @@ struct EscapeProxy{T<:IO} <: IO
     io::T
 end
 
+EscapeProxy(io::EscapeProxy) = io
+
 Base.print(ep::EscapeProxy, h::HTML{<:Function}) = h.content(ep)
 Base.print(ep::EscapeProxy, h::HTML) = print(ep.io, h.content)
 Base.print(ep::EscapeProxy, w::UnwrapHTML{<:Function}) = w.content(ep.io)
@@ -87,7 +89,7 @@ function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
         end
         if ch == Int('<')
             written += unsafe_write(ep.io, last, cursor - last)
-            written += unsafe_write(ep.io, pointer("&lt;"), 6)
+            written += unsafe_write(ep.io, pointer("&lt;"), 4)
             cursor += 1
             last = cursor
             continue

@@ -382,12 +382,10 @@ lists to support attributes such as `class`.
     @print htl"<tag att='$([1,2,3])'/>"
     #-> <tag att='1 2 3'/>
 
-For now, Symbols happen to be escaped within attribute values but not
-within content. Ideally, we will not be escaping symbols in any context
-since it is slower and a pathological case we wish not to handle.
+Symbols are also propertly escaped.
 
     @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
-    #-> <tag att='&apos;&amp;'><&</tag>
+    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
 
 Interpolation should handle splat operator by concatenating results.
 
@@ -524,10 +522,6 @@ according to several design criteria.
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
   Error messages should guide the user towards addressing the problem.
-
-* There is an emphasis on speed not on handling of pathological cases,
-  such as a developer placing escapable content within a `Symbol` 
-  (we won't escape it... since it'll slow other use cases down).
 
 * There should be an extension API that permits custom data types to
   provide their own serialization strategies that are not dependent upon

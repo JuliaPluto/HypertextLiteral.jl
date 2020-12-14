@@ -304,24 +304,6 @@ function escape_double_quote(value)
 end
 
 """
-    escape_content(value)
-
-Escape a string value for use within HTML content, this includes
-replacing `&` with `&amp;` and `<` with `&lt;`. We're not further
-escaping quotes within content since benchmarking shows us that it
-adds about 10% on the runtime for each character escaped.
-"""
-function escape_content(value)
-    if '&' in value
-        value = replace(value, "&" => "&amp;")
-    end
-    if '<' in value
-        value = replace(value, "<" => "&lt;")
-    end
-    return value
-end
-
-"""
     content(value)
 
 Wrap content so that it is `showable("text/html")`. By default, string
@@ -331,18 +313,18 @@ arrays and generators are represented by concatenating their elements.
 As a fallback, we assume the value has implemented `show()` for
 `MIME"text/html"`, if not, a `MethodError` will result.
 """
-content(x) = x
-content(x::AbstractString) = HTML(escape_content(x))
-content(x::Number) = HTML(x)
-content(x::Symbol) = HTML(x)
-content(x::Nothing) = HTML("")
+content(x) = UnwrapHTML(x)
+content(x::AbstractString) = x
+content(x::Number) = x
+content(x::Symbol) = x
+content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
     UnwrapHTML{Function}() do io::IO
-      for x in xs
-        show(io, MIME"text/html"(), content(x))
-      end
+        for x in xs
+            print(io, content(x))
+        end
     end
 end
 
@@ -821,8 +803,7 @@ function interpolate(args, this)
             push!(parts, Expr(:call, :HTML, input))
         end
     end
-    return Expr(:call, :Result, QuoteNode(this),
-              Expr(:call, :UnwrapHTML, parts...))
+    return Expr(:call, :Result, QuoteNode(this), parts...)
 end
 
 """
@@ -834,12 +815,20 @@ generated the results when shown on the REPL. However, when used with
 stream via `"text/html"`.
 """
 struct Result
+    content::Function
     expr::Expr
-    content::UnwrapHTML
 end
 
-Base.show(io::IO, m::MIME"text/html", h::Result) = show(io, m, h.content)
-Base.print(io::IO, h::Result) = print(io, h.content)
+function Result(expr::Expr, xs...)
+    Result(expr) do io::IO
+        for x in xs
+            print(io, x)
+        end
+    end
+end
+
+Base.show(io::IO, m::MIME"text/html", h::Result) = h.content(EscapeProxy(io))
+Base.print(io::IO, h::Result) = h.content(EscapeProxy(io))
 Base.show(io::IO, h::Result) = print(io, h.expr)
 
 end

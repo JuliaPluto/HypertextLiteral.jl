@@ -94,6 +94,20 @@ function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
             last = cursor
             continue
         end
+        if ch == Int('\'')
+            written += unsafe_write(ep.io, last, cursor - last)
+            written += unsafe_write(ep.io, pointer("&apos;"), 6)
+            cursor += 1
+            last = cursor
+            continue
+        end
+        if ch == Int('"')
+            written += unsafe_write(ep.io, last, cursor - last)
+            written += unsafe_write(ep.io, pointer("&quot;"), 6)
+            cursor += 1
+            last = cursor
+            continue
+        end
         cursor += 1
     end
     if last < final

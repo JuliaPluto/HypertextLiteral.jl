@@ -46,8 +46,8 @@ The result of this proxy is that regular content is escaped. We also use
 `HTML` as a way to bypass this proxy.
 
 
-    @echo print(ep, "A&B")
-    #-> A&amp;B
+    @echo print(ep, "(&'<\")")
+    #-> (&amp;&apos;&lt;&quot;)
 
     @echo print(ep, HTML("<span>"), "<A&B>", HTML("</span>"))
     #-> <span>&lt;A&amp;B></span>

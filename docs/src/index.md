@@ -86,7 +86,7 @@ Functions returning string values will be escaped.
     input() = "<script>alert('a&b!')"
 
     @print htl"$(input())"
-    #-> &lt;script>alert('a&amp;b!')
+    #-> &lt;script>alert(&apos;a&amp;b!&apos;)
 
 Functions returning `HTL` objects are not further escaped. This permits
 us to build reusable HTML templates.
@@ -458,17 +458,17 @@ For more details on this see Julia #37817.
     ERROR: syntax: invalid interpolation syntax: "$["⋮
     =#
 
-Before Julia v1.6 (see issue amp501), string literals should not be used
-within the macro style since we cannot reliably detect them.
+Before Julia v1.6, string literals should not be used within the macro
+style since we cannot reliably detect them.
 
     x = ""
 
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &lt;script>alert('Hello')&lt;/script>
+    #-> &lt;script>alert(&apos;Hello&apos;)&lt;/script>
 
     #? VERSION >= v"1.6.0-DEV"
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &lt;script>alert('Hello')&lt;/script>
+    #-> &lt;script>alert(&apos;Hello&apos;)&lt;/script>
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")

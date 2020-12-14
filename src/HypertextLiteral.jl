@@ -851,37 +851,25 @@ function interpolate(args, this)
             push!(parts, Expr(:call, :HTML, input))
         end
     end
-    return Expr(:call, :Result, QuoteNode(this), parts...)
+    return Expr(:call, :Result, QuoteNode(this),
+              Expr(:call, :UnwrapHTML, parts...))
 end
 
 """
-    Result(expr, xs...)
+    Result(expr, unwrap)
 
-Create an object that is `showable` to "text/html" created from
-arguments that are also showable. Leaf entries can be created using
-`HTML`. This expression additionally has an expression which is used
-when displaying the object to the REPL. Calling `print` will produce
-rendered output.
+Address display modalities by showing the macro expression that
+generated the results when shown on the REPL. However, when used with
+`print()` show the results. This object is also showable to any IO
+stream via `"text/html"`.
 """
 struct Result
-    content::Function
-    this::Expr
+    expr::Expr
+    content::UnwrapHTML
 end
 
-function Result(s::String)
-    Result(io -> print(io, s), Expr(:call, :HTL, s))
-end
-
-function Result(this::Expr, xs...)
-    Result(this) do io
-      for x in xs
-          show(io, MIME"text/html"(), x)
-      end
-    end
-end
-
-Base.show(io::IO, ::MIME"text/html", h::Result) = h.content(io)
-Base.print(io::IO, h::Result) = h.content(io)
-Base.show(io::IO, h::Result) = print(io, h.this)
+Base.show(io::IO, m::MIME"text/html", h::Result) = show(io, m, h.content)
+Base.print(io::IO, h::Result) = print(io, h.content)
+Base.show(io::IO, h::Result) = print(io, h.expr)
 
 end

@@ -14,6 +14,9 @@ This utility class acts as the inverse of HTML.
     display("text/html", UnwrapHTML(HTML("Hello World")))
     #-> Hello World
 
+    display("text/html", UnwrapHTML(UnwrapHTML(HTML("Hello World"))))
+    #-> Hello World
+
     print(UnwrapHTML(HTML("Hello "), HTML("World")))
     #-> Hello World
 

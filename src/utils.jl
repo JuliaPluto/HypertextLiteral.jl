@@ -15,22 +15,25 @@ Hello World
 struct UnwrapHTML{T}
     content::T
 end
-UnwrapHTML(xs...) =
-    UnwrapHTML(
-      HTML{Function}() do io::IO
+
+function UnwrapHTML(xs...)
+    UnwrapHTML{Function}() do io
         for x in xs
             show(io, MIME"text/html"(), x)
         end
-      end)
+    end
+end
 
 Base.print(io::IO, wrap::UnwrapHTML) =
     show(io, MIME"text/html"(), wrap.content)
 Base.show(io::IO, m::MIME"text/html", wrap::UnwrapHTML) =
     show(io, m, wrap.content)
-Base.show(io::IO, wrap::UnwrapHTML{<:Function}) =
-    wrap.content(io)
+
+Base.print(io::IO, wrap::UnwrapHTML{<:Function}) = wrap.content(io)
+Base.show(io::IO, wrap::UnwrapHTML{<:Function}) = wrap.content(io)
 Base.show(io::IO, m::MIME"text/html", wrap::UnwrapHTML{<:Function}) =
     wrap.content(io)
+
 
 """
     EscapeProxy(io) - wrap an `io` to perform HTML escaping

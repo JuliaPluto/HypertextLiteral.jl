@@ -58,7 +58,7 @@ end
 
 EscapeProxy(io::EscapeProxy) = io
 
-Base.print(ep::EscapeProxy, h::HTML{<:Function}) = h.content(ep)
+Base.print(ep::EscapeProxy, h::HTML{<:Function}) = h.content(ep.io)
 Base.print(ep::EscapeProxy, h::HTML) = print(ep.io, h.content)
 Base.print(ep::EscapeProxy, w::UnwrapHTML{<:Function}) = w.content(ep.io)
 Base.print(ep::EscapeProxy, w::UnwrapHTML) =

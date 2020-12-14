@@ -321,7 +321,7 @@ content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    UnwrapHTML{Function}() do io::IO
+    HTML{Function}() do io::IO
         for x in xs
             print(io, content(x))
         end

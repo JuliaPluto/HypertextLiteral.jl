@@ -230,15 +230,12 @@ attempts to reference a user defined type, it will be an error.
 
 This can be addressed by implementing the `"text/html" mimetype in
 `Base.show` for the custom type in question. In this case, be sure to
-escape ampersand (`&`) and less-than (`<`). This could be done using
-`replace` or by using our `escape_content` method.
+escape ampersand (`&`) and less-than (`<`).
 
      struct Custom data::String end
 
-     using HypertextLiteral: escape_content
-
      function Base.show(io::IO, mime::MIME"text/html", c::Custom)
-         value = escape_content(c.data)
+         value = replace(replace(c.data, "&"=>"&amp;"), "<"=>"&lt;")
          print(io, "<custom>$(value)</custom>")
      end
 

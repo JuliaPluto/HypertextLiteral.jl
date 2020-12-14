@@ -86,7 +86,7 @@ Functions returning string values will be escaped.
     input() = "<script>alert('a&b!')"
 
     @print htl"$(input())"
-    #-> &lt;script>alert('a&amp;b!')
+    #-> &lt;script>alert(&apos;a&amp;b!&apos;)
 
 Functions returning `HTL` objects are not further escaped. This permits
 us to build reusable HTML templates.
@@ -230,15 +230,12 @@ attempts to reference a user defined type, it will be an error.
 
 This can be addressed by implementing the `"text/html" mimetype in
 `Base.show` for the custom type in question. In this case, be sure to
-escape ampersand (`&`) and less-than (`<`). This could be done using
-`replace` or by using our `escape_content` method.
+escape ampersand (`&`) and less-than (`<`).
 
      struct Custom data::String end
 
-     using HypertextLiteral: escape_content
-
      function Base.show(io::IO, mime::MIME"text/html", c::Custom)
-         value = escape_content(c.data)
+         value = replace(replace(c.data, "&"=>"&amp;"), "<"=>"&lt;")
          print(io, "<custom>$(value)</custom>")
      end
 
@@ -382,12 +379,10 @@ lists to support attributes such as `class`.
     @print htl"<tag att='$([1,2,3])'/>"
     #-> <tag att='1 2 3'/>
 
-For now, Symbols happen to be escaped within attribute values but not
-within content. Ideally, we will not be escaping symbols in any context
-since it is slower and a pathological case we wish not to handle.
+Symbols are also propertly escaped.
 
     @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
-    #-> <tag att='&apos;&amp;'><&</tag>
+    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
 
 Interpolation should handle splat operator by concatenating results.
 
@@ -463,17 +458,17 @@ For more details on this see Julia #37817.
     ERROR: syntax: invalid interpolation syntax: "$["⋮
     =#
 
-Before Julia v1.6 (see issue amp501), string literals should not be used
-within the macro style since we cannot reliably detect them.
+Before Julia v1.6, string literals should not be used within the macro
+style since we cannot reliably detect them.
 
     x = ""
 
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &lt;script>alert('Hello')&lt;/script>
+    #-> &lt;script>alert(&apos;Hello&apos;)&lt;/script>
 
     #? VERSION >= v"1.6.0-DEV"
     @print htl"""$x$("<script>alert('Hello')</script>")"""
-    #-> &lt;script>alert('Hello')&lt;/script>
+    #-> &lt;script>alert(&apos;Hello&apos;)&lt;/script>
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
@@ -524,10 +519,6 @@ according to several design criteria.
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
   Error messages should guide the user towards addressing the problem.
-
-* There is an emphasis on speed not on handling of pathological cases,
-  such as a developer placing escapable content within a `Symbol` 
-  (we won't escape it... since it'll slow other use cases down).
 
 * There should be an extension API that permits custom data types to
   provide their own serialization strategies that are not dependent upon

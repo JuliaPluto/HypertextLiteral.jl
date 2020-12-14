@@ -12,8 +12,9 @@ escaping, however, it can only be used two levels deep (using three
 quotes for the outer nesting, and a single double quote for the inner).
 """
 module HypertextLiteral
-
 export @htl_str, @htl
+
+include("utils.jl")
 
 """
     @htl string-expression
@@ -303,24 +304,6 @@ function escape_double_quote(value)
 end
 
 """
-    escape_content(value)
-
-Escape a string value for use within HTML content, this includes
-replacing `&` with `&amp;` and `<` with `&lt;`. We're not further
-escaping quotes within content since benchmarking shows us that it
-adds about 10% on the runtime for each character escaped.
-"""
-function escape_content(value)
-    if '&' in value
-        value = replace(value, "&" => "&amp;")
-    end
-    if '<' in value
-        value = replace(value, "<" => "&lt;")
-    end
-    return value
-end
-
-"""
     content(value)
 
 Wrap content so that it is `showable("text/html")`. By default, string
@@ -330,18 +313,18 @@ arrays and generators are represented by concatenating their elements.
 As a fallback, we assume the value has implemented `show()` for
 `MIME"text/html"`, if not, a `MethodError` will result.
 """
-content(x) = x
-content(x::AbstractString) = HTML(escape_content(x))
-content(x::Number) = HTML(x)
-content(x::Symbol) = HTML(x)
-content(x::Nothing) = HTML("")
+content(x) = UnwrapHTML(x)
+content(x::AbstractString) = x
+content(x::Number) = x
+content(x::Symbol) = x
+content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    HTML{Function}() do io
-      for x in xs
-        show(io, MIME"text/html"(), content(x))
-      end
+    HTML{Function}() do io::IO
+        for x in xs
+            print(io, content(x))
+        end
     end
 end
 
@@ -359,7 +342,7 @@ attributes(values::Dict) =
 attributes(values::NamedTuple) =
     attribute_pairs(pairs(values))
 attributes(values::Tuple{Pair, Vararg{Pair}}) =
-    attribute_pairs([item for item in values])
+    attribute_pairs((item for item in values))
 attribute_pairs(pairs) =
     HTML() do io
         for (name, value) in pairs
@@ -824,33 +807,28 @@ function interpolate(args, this)
 end
 
 """
-    Result(expr, xs...)
+    Result(expr, unwrap)
 
-Create an object that is `showable` to "text/html" created from
-arguments that are also showable. Leaf entries can be created using
-`HTML`. This expression additionally has an expression which is used
-when displaying the object to the REPL. Calling `print` will produce
-rendered output.
+Address display modalities by showing the macro expression that
+generated the results when shown on the REPL. However, when used with
+`print()` show the results. This object is also showable to any IO
+stream via `"text/html"`.
 """
 struct Result
     content::Function
-    this::Expr
+    expr::Expr
 end
 
-function Result(s::String)
-    Result(io -> print(io, s), Expr(:call, :HTL, s))
-end
-
-function Result(this::Expr, xs...)
-    Result(this) do io
-      for x in xs
-          show(io, MIME"text/html"(), x)
-      end
+function Result(expr::Expr, xs...)
+    Result(expr) do io::IO
+        for x in xs
+            print(io, x)
+        end
     end
 end
 
-Base.show(io::IO, ::MIME"text/html", h::Result) = h.content(io)
-Base.print(io::IO, h::Result) = h.content(io)
-Base.show(io::IO, h::Result) = print(io, h.this)
+Base.show(io::IO, m::MIME"text/html", h::Result) = h.content(EscapeProxy(io))
+Base.print(io::IO, h::Result) = h.content(EscapeProxy(io))
+Base.show(io::IO, h::Result) = print(io, h.expr)
 
 end

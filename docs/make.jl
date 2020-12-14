@@ -19,6 +19,7 @@ makedocs(
     format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true")),
     pages = [
         "Tutorial" => "index.md",
+        "Utilities" => "utils.md",
         "Reference" => "reference.md",
     ],
     modules = [HypertextLiteral])

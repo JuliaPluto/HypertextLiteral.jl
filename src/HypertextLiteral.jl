@@ -12,8 +12,9 @@ escaping, however, it can only be used two levels deep (using three
 quotes for the outer nesting, and a single double quote for the inner).
 """
 module HypertextLiteral
-
 export @htl_str, @htl
+
+include("utils.jl")
 
 """
     @htl string-expression

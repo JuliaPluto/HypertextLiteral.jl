@@ -303,35 +303,6 @@ function escape_double_quote(value)
     return value
 end
 
-const g_inner = IOBuffer()
-function wrap_content(obj)
-    outer -> begin
-        @assert g_inner.ptr == 1 && g_inner.size == 0
-        print(g_inner, obj)
-        next = last = 1
-        pref = pointer(g_inner.data) - 1
-        data = g_inner.data
-        size = g_inner.size
-        while next <= size
-            @inbounds ch = data[next]
-            if ch == Int('<')
-                unsafe_write(outer, pref + last, next - last)
-                print(outer, "&lt;")
-                last = next + 1
-            elseif ch ==  Int('&')
-                unsafe_write(outer, pref + last, next - last)
-                print(outer, "&amp;")
-                last = next + 1
-            end
-            next += 1
-        end
-        if last <= size
-            unsafe_write(outer, pref + last, size - last + 1)
-        end
-        truncate(g_inner, 0)
-    end
-end
-
 """
     escape_content(value)
 
@@ -362,19 +333,12 @@ As a fallback, we assume the value has implemented `show()` for
 """
 content(x) = x
 content(x::AbstractString) = HTML(escape_content(x))
-#content(x::AbstractString) = HTML{Function}(wrap_content(x))
 content(x::Number) = HTML(x)
 content(x::Symbol) = HTML(x)
 content(x::Nothing) = HTML("")
-content(xs...) = content(xs)
-
-function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    HTML{Function}() do io
-      for x in xs
-        show(io, MIME"text/html"(), content(x))
-      end
-    end
-end
+content(xs...) = UnwrapHTML((content(x) for x in xs)...)
+content(xs::Union{Tuple, AbstractArray, Base.Generator}) =
+   UnwrapHTML((content(x) for x in xs)...)
 
 """
     attributes(value)

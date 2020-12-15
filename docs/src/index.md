@@ -192,16 +192,10 @@ converted to `kebab-case`.
     @print htl"""<div style=$(font_size="25px", padding_left="2em")/>"""
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-Only symbols, numbers, and strings have a specified serialization as CSS
-style values. Therefore, use of components from other libraries will
-cause an exception.  However, this can be fixed by registering a
-conversion using `nested_value()`.
+By default any object used within an attribute displays its printed
+value as escaped. This lets us make our CSS even more compact.
 
     using Hyperscript
-
-    HypertextLiteral.nested_value(x::Hyperscript.Unit) = string(x)
-
-Then, the syntax for CSS can be even more compact.
 
     @print htl"<div style=$(font_size=25px, padding_left=2em)/>"
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
@@ -353,6 +347,14 @@ a manner identical to regular string interpolation.
     @print @htl("(\\\")")
     #-> (\")
 
+This has tangible effect on expressions.
+
+    print(@htl("$(("<'", "\"&"))"))
+    #-> &lt;&apos;&quot;&amp;
+
+    print(htl"""$(("<'", "\\"&"))""")
+    #-> &lt;&apos;&quot;&amp;
+
 In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
 those semantics.
@@ -419,12 +421,12 @@ We throw an error if the end tag is accidently included.
 Attribute names should be non-empty and not in a list of excluded
 characters.
 
-    @htl("<tag $("" => "value")/>")
-    #-> ERROR: "Attribute name must not be empty."
+    @print @htl("<tag $("" => "value")/>")
+    #-> …ERROR: "Attribute name must not be empty."
 
-    @htl("<tag $("&att" => "value")/>")
+    @print @htl("<tag $("&att" => "value")/>")
     #=>
-    ERROR: DomainError with &att:
+    …ERROR: DomainError with &att:
     Invalid character ('&') found within an attribute name.
     =#
 

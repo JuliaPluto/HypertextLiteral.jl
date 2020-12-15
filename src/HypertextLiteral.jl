@@ -168,53 +168,6 @@ function normalize_attribute_name(name::String)
 end
 
 """
-    stringify(value)
-
-Convert an attribute `value`` to a `String`. The value returned will
-then be escaped depending upon the particular context.
-
-* `String` values are returned as-is
-* `Number` and `Symbol` values are converted to a `String`
-
-There is no general fallback, hence, a `MethodError` will result when
-attempting to stringify most data types. If your application would like
-to stringify all attribute values, you could register this fallback.
-
-    HypertextLiteral.stringify(value) = string(value)
-
-"""
-stringify(value::AbstractString) = value
-stringify(value::Number) = string(value)
-stringify(value::Symbol) = string(value)
-
-# Behaviors helpful to CSS `style` and `class`, applied generally.
-
-nested_value(value::Symbol) = string(value)
-nested_value(value::Number) = string(value)
-nested_value(value::AbstractString) = value
-
-nested_key(key::Symbol) = normalize_attribute_name(key)
-nested_key(key::String) = normalize_attribute_name(key)
-
-stringify(value::Dict) =
-    join((stringify(pair) for pair in pairs(value)), " ")
-
-stringify(value::NamedTuple) =
-    join((stringify(pair) for pair in pairs(value)), " ")
-
-stringify(value::Tuple{Pair, Vararg{Pair}}) =
-    join((stringify(pair) for pair in value), " ")
-
-stringify((key, value)::Pair) =
-    "$(nested_key(key)): $(nested_value(value));"
-
-stringify(value::AbstractVector) =
-    join((stringify(item) for item in value), " ")
-
-stringify(value::Tuple{Any, Vararg{Any}}) =
-    join((stringify(item) for item in value), " ")
-
-"""
     rawtext(context, value)
 
 Wrap a string value that occurs with RAWTEXT, SCRIPT and other element
@@ -233,74 +186,6 @@ function rawtext(context::Symbol, value::AbstractString)
             "not contain a comment block (`<!--`) "))
     end
     return HTML(value)
-end
-
-#-------------------------------------------------------------------------
-"""
-    attribute_pair(name, value)
-
-Wrap and escape attribute name and pair within a single-quoted context
-so that it is `showable("text/html")`. It's assumed that the attribute
-name has already been normalized.
-
-If an attribute value is `Bool` or `Nothing`, then special treatment is
-provided. If the value is `false` or `nothing` then the entire pair is
-not printed.  If the value is `true` than an empty string is produced.
-"""
-function attribute_pair(name, value)
-    value = escape_single_quote(stringify(value))
-    return HTML(" $name='$value'")
-end
-
-function attribute_pair(name, value::Bool)
-    if value == false
-        return HTML("")
-    end
-    return HTML(" $name=''")
-end
-
-function attribute_pair(name, value::Nothing)
-    return HTML("")
-end
-
-"""
-    single_quoted(value)
-
-Wrap and escape a single-quoted attribute value so that it is
-`showable("text/html")`. This uses `stringify` to do the actual
-conversion of the attribute to a usable string value.
-"""
-single_quoted(value) =
-    HTML(escape_single_quote(stringify(value)))
-
-function escape_single_quote(value)
-    if '&' in value
-        value = replace(value, "&" => "&amp;")
-    end
-    if '\'' in value
-        value = replace(value, "'" => "&apos;")
-    end
-    return value
-end
-
-"""
-    double_quoted(value)
-
-Wrap and escape a double-quoted attribute value so that it is
-`showable("text/html")`. This uses `stringify` to do the actual
-conversion of the attribute to a usable string value.
-"""
-double_quoted(value) =
-    HTML(escape_double_quote(stringify(value)))
-
-function escape_double_quote(value)
-    if '&' in value
-        value = replace(value, "&" => "&amp;")
-    end
-    if '"' in value
-        value = replace(value, "\"" => "&quot;")
-    end
-    return value
 end
 
 """
@@ -345,14 +230,16 @@ function attribute_dict(xs)
     Text{Function}() do io::IO
         prior = false
         for (key, value) in xs
+            name = normalize_attribute_name(key)
             if prior
                 print(io, "; ")
             end
-            print(io, normalize_attribute_name(key))
+            print(io, name)
             print(io, ": ")
             print(attribute_hook(value))
             prior = true
         end
+        print(io, ";")
     end
 end
 
@@ -388,6 +275,46 @@ function content_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
     end
 end
 
+#-------------------------------------------------------------------------
+"""
+    attribute_pair(name, value)
+
+Wrap and escape attribute name and pair within a single-quoted context
+so that it is `showable("text/html")`. It's assumed that the attribute
+name has already been normalized.
+
+If an attribute value is `Bool` or `Nothing`, then special treatment is
+provided. If the value is `false` or `nothing` then the entire pair is
+not printed.  If the value is `true` than an empty string is produced.
+"""
+
+no_content = Text("")
+
+function attribute_pair(key, value)
+    Text{Function}() do io::IO
+        name = normalize_attribute_name(key)
+        print(io, " ")
+        print(io, name)
+        print(io, HTML("='"))
+        print(io, attribute_hook(value))
+        print(io, HTML("'"))
+    end
+end
+
+function attribute_pair(key, value::Bool)
+    if value == false
+        return no_content
+    end
+    Text{Function}() do io::IO
+        name = normalize_attribute_name(key)
+        print(io, " ")
+        print(io, name)
+        print(io, HTML("=''"))
+    end
+end
+
+attribute_pair(name, value::Nothing) = no_content
+
 """
     attributes(value)
 
@@ -396,20 +323,18 @@ Convert Julian object into a serialization of attribute pairs,
 delegates value construction of each pair to `attribute_pair()`.
 """
 attributes(value::Pair) =
-    attribute_pair(normalize_attribute_name(value.first), value.second)
-attributes(values::Dict) =
-    attribute_pairs(pairs(values))
-attributes(values::NamedTuple) =
-    attribute_pairs(pairs(values))
-attributes(values::Tuple{Pair, Vararg{Pair}}) =
-    attribute_pairs((item for item in values))
-attribute_pairs(pairs) =
-    HTML() do io
-        for (name, value) in pairs
-            show(io, MIME"text/html"(),
-               attribute_pair(normalize_attribute_name(name), value))
+    attribute_pair(value.first, value.second)
+
+function attributes(xs)
+    Text{Function}() do io::IO
+        for (key, value) in xs
+            print(io, attribute_pair(key, value))
         end
     end
+end
+
+attributes(values::NamedTuple) =
+    attributes(pairs(values))
 
 """
     interpolate_attributes(element, expr)::Vector{Expr}

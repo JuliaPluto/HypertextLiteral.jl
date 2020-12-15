@@ -290,9 +290,8 @@ not printed.  If the value is `true` than an empty string is produced.
 
 no_content = Text("")
 
-function attribute_pair(key, value)
+function attribute_pair(name, value)
     Text{Function}() do io::IO
-        name = normalize_attribute_name(key)
         print(io, " ")
         print(io, name)
         print(io, HTML("='"))
@@ -301,12 +300,11 @@ function attribute_pair(key, value)
     end
 end
 
-function attribute_pair(key, value::Bool)
+function attribute_pair(name, value::Bool)
     if value == false
         return no_content
     end
     Text{Function}() do io::IO
-        name = normalize_attribute_name(key)
         print(io, " ")
         print(io, name)
         print(io, HTML("=''"))
@@ -322,13 +320,16 @@ Convert Julian object into a serialization of attribute pairs,
 `showable` via `MIME"text/html"`. The default implementation of this
 delegates value construction of each pair to `attribute_pair()`.
 """
-attributes(value::Pair) =
-    attribute_pair(value.first, value.second)
+function attributes(value::Pair)
+    name = normalize_attribute_name(value.first)
+    return attribute_pair(name, value.second)
+end
 
 function attributes(xs)
     Text{Function}() do io::IO
         for (key, value) in xs
-            print(io, attribute_pair(key, value))
+            name = normalize_attribute_name(key)
+            print(io, attribute_pair(name, value))
         end
     end
 end

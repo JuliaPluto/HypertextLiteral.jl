@@ -59,7 +59,7 @@ Let's suppose someone has written a `Custom` object.
     end
 
     Custom("<tag/>")
-    #-> …Custom("<tag/>")
+    #-> Custom("<tag/>")
 
 If we print this though the escape proxy, we'll get the escaped
 representation of the above string value.

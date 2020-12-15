@@ -304,26 +304,86 @@ function escape_double_quote(value)
 end
 
 """
-    content(value)
+    attribute_hook(x)
 
-Wrap content so that it is `showable("text/html")`. By default, string
-values are escaped with `escape_content`. For performance reasons, we
-reproduce `Number` and `Symbol` objects without escaping them. Tuples,
-arrays and generators are represented by concatenating their elements.
-As a fallback, we assume the value has implemented `show()` for
-`MIME"text/html"`, if not, a `MethodError` will result.
+This method may be implemented to specify a printed representation
+suitable for use within a quoted attribute value. By default, the print
+representation of an object is used, and then propertly escaped. There
+are a few overrides that we provide.
+
+* The elements of a `Tuple` or `AbstractArray` object are printed,
+  with a space between each item.
+
+* The `Pair`, `NamedTuple`, and `Dict` objects are treated as if
+  they are CSS style elements, with a colon between key and value,
+  each pair delimited by a semi-colon.
+
+* The `Bool` object, which has special treatment for bare attributes,
+  is an error when used within a quoted attribute.
+
+If an object is wrapped with `HTML` then it is included in the quoted
+attribute value as-is, without inspection or escaping.
 """
-content(x) = UnwrapHTML(x)
-content(x::AbstractString) = x
-content(x::Number) = x
-content(x::Symbol) = x
-content(x::Nothing) = ""
-content(xs...) = content(xs)
+attribute_hook(x) = x
+attribute_hook(x::Bool) =
+  throw("Boolean used within a quoted attribute.")
 
-function content(xs::Union{Tuple, AbstractArray, Base.Generator})
+function attribute_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
+    HTML{Function}() do io::IO
+        prior = false
+        for x in xs
+            if prior
+                print(io, " ")
+            end
+            print(io, attribute_hook(x))
+            prior = true
+        end
+    end
+end
+
+function attribute_dict(xs)
+    HTML{Function}() do io::IO
+        prior = false
+        for (key, value) in xs
+            if prior
+                print(io, "; ")
+            end
+            print(io, normalize_attribute_name(key))
+            print(io, ": ")
+            print(attribute_hook(value))
+            prior = true
+        end
+    end
+end
+
+attribute_hook(pair::Pair) = attribute_dict((pair,))
+attribute_hook(items::Dict) = attribute_dict(items)
+attribute_hook(items::NamedTuple) = attribute_dict(pairs(items))
+attribute_hook(items::Tuple{Pair, Vararg{Pair}}) = attribute_dict(items)
+
+"""
+    content_hook(x)
+
+This method may be implemented to specify a printed representation
+suitable for `text/html` output. As a special case, if the result is
+wrapped with `HTML`, then it is passed along as-is. Otherwise, the
+`print` representation of the resulting value is escaped. By default
+`AbstractString`, `Number` and `Symbol` values are printed and escaped.
+The elements of `Tuple` and `AbstractArray` are concatinated and then
+escaped. If a method is not implemented for a given object, then we
+attempt to `show` it via `MIME"text/html"`.
+"""
+content_hook(x) = UnwrapHTML(x)
+content_hook(x::AbstractString) = x
+content_hook(x::Number) = x
+content_hook(x::Symbol) = x
+content_hook(x::Nothing) = ""
+content_hook(xs...) = content_hook(xs)
+
+function content_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
     HTML{Function}() do io::IO
         for x in xs
-            print(io, content(x))
+            print(io, content_hook(x))
         end
     end
 end
@@ -413,7 +473,7 @@ function interpolate(args, this)
         input = args[j]
         if !isa(input, String)
             if state == STATE_DATA
-                push!(parts, :(content($(esc(input)))))
+                push!(parts, :(content_hook($(esc(input)))))
             elseif state == STATE_RAWTEXT
                 element = QuoteNode(element_tag)
                 push!(parts, :(rawtext($element, $(esc(input)))))
@@ -440,9 +500,9 @@ function interpolate(args, this)
                 throw(DomainError(input, "Unquoted attribute " *
                   "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                push!(parts, :(single_quoted($(esc(input)))))
+                push!(parts, :(attribute_hook($(esc(input)))))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                push!(parts, :(double_quoted($(esc(input)))))
+                push!(parts, :(attribute_hook($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
                 @assert Meta.isexpr(parts[end], :call, 2)

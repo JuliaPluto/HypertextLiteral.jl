@@ -118,14 +118,13 @@ although we only show one level of nesting here.
 
 ## Attribute Interpolation
 
-Escaping of Julia values depends upon the context: within a double
-quoted attribute value, the double quote is escaped; single quoted
-attributes are likewise escaped.
+Escaping of Julia values is not dependent upon context. Both single and
+double quotes are escaped.
 
-    qval = "\"h&b'"
+    qval = "\"&'"
 
     @print htl"""<tag double="$qval" single='$qval' />"""
-    #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
+    #-> <tag double="&quot;&amp;&apos;" single='&quot;&amp;&apos;' />
 
 Unquoted attributes are also supported. These are serialized using the
 single quoted style.
@@ -169,12 +168,11 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
-Boolean values within quoted strings are returned as-is. We could make
-this raise an error, however, there could be cases where this may be the
-desired effect.
+Since boolean values are given special treatment, they become an
+error within quoted attribute values.
 
     @print htl"<button disabled='$(false)'>"
-    #-> <button disabled='false'>
+    #-> ERROR: "Boolean used within a quoted attribute."⋮
 
 ## Cascading Style Sheets
 

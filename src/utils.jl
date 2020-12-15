@@ -67,8 +67,12 @@ Base.print(ep::EscapeProxy, w::UnwrapHTML) =
 function Base.write(ep::EscapeProxy, octet::UInt8)
     if octet == Int('&')
         write(ep.io, "&amp;")
-    elseif  octet == Int('<')
+    elseif octet == Int('<')
         write(ep.io, "&lt;")
+    elseif octet == Int('"')
+        write(ep.io, "&quot;")
+    elseif octet == Int('\'')
+        write(ep.io, "&apos;")
     else
         write(ep.io, octet)
     end

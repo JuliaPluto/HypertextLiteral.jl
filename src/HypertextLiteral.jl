@@ -73,7 +73,6 @@ macro htl_str(expr::String)
     # to `Meta.parse`, treating everything else as a literal string.
     this = Expr(:macrocall, Symbol("@htl_str"), nothing, expr)
     args = Any[]
-    vstr = String[]
     start = idx = 1
     strlen = length(expr)
     escaped = false
@@ -90,11 +89,11 @@ macro htl_str(expr::String)
             continue
         end
         finish = idx - (escaped ? 2 : 1)
-        push!(vstr, unescape_string(SubString(expr, start:finish)))
+        push!(args, unescape_string(SubString(expr, start:finish)))
         start = idx += 1
         if escaped
             escaped = false
-            push!(vstr, "\$")
+            push!(args, "\$")
             continue
         end
         (nest, idx) = Meta.parse(expr, start; greedy=false)
@@ -114,18 +113,10 @@ macro htl_str(expr::String)
             # this is an interpolated string literal
             nest = Expr(:string, nest)
         end
-        if length(vstr) > 0
-            push!(args, join(vstr))
-            empty!(vstr)
-        end
         push!(args, nest)
     end
     if start <= strlen
-        push!(vstr, unescape_string(SubString(expr, start:strlen)))
-    end
-    if length(vstr) > 0
-        push!(args, join(vstr))
-        empty!(vstr)
+        push!(args, unescape_string(SubString(expr, start:strlen)))
     end
     return interpolate(args, this)
 end
@@ -375,7 +366,7 @@ ending tag is in substituted content.
 """
 function interpolate(args, this)
     state = STATE_DATA
-    parts = Expr[]
+    parts = Union{String,Expr}[]
     attribute_start = attribute_end = 0
     element_start = element_end = 0
     buffer_start = buffer_end = 0
@@ -405,12 +396,10 @@ function interpolate(args, this)
                 push!(parts, :(rawtext($element, $(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
-                # rewrite previous HTML string to remove ` attname=`
-                @assert Meta.isexpr(parts[end], :call, 2)
-                previous = parts[end].args
-                @assert previous[1] == :HTML
-                name = previous[2][attribute_start:attribute_end]
-                previous[2] = previous[2][1:(attribute_start-2)]
+                # rewrite previous string to remove ` attname=`
+                @assert parts[end] isa String
+                name = parts[end][attribute_start:attribute_end]
+                parts[end] = parts[end][1:(attribute_start-2)]
                 attribute = normalize_attribute_name(name)
                 push!(parts, :(attribute_pair($attribute, $(esc(input)))))
                 # peek ahead to ensure we have a delimiter
@@ -431,13 +420,9 @@ function interpolate(args, this)
                 push!(parts, :(attribute_hook($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
-                @assert Meta.isexpr(parts[end], :call, 2)
-                previous = parts[end].args
-                if previous[1] == :HTML && previous[2] isa String
-                    if previous[2][end] == ' '
-                        finish = length(previous[2])-1
-                        previous[2] = previous[2][1:finish]
-                    end
+                @assert parts[end] isa String
+                if parts[end][end] == ' '
+                   parts[end] = parts[end][1:length(parts[end])-1]
                 end
                 # move the space to after the element pairs
                 if j < length(args)
@@ -786,9 +771,22 @@ function interpolate(args, this)
 
                 i = i + 1
             end
-            push!(parts, Expr(:call, :HTML, input))
+            push!(parts, input)
         end
     end
+    # collect adjacent strings
+    idx = 2
+    partsize = length(parts)
+    while idx <= partsize
+        if parts[idx] isa String && parts[idx-1] isa String
+            parts[idx-1] = parts[idx-1] * parts[idx]
+            deleteat!(parts, idx)
+            partsize -= 1
+            continue
+        end
+        idx += 1
+    end
+    parts = Expr[(x isa String ? :(HTML($x)) : x) for x in parts]
     return Expr(:call, :Result, QuoteNode(this), parts...)
 end
 

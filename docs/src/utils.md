@@ -34,7 +34,7 @@ This utility class acts as the inverse of HTML.
 This utility class acts wraps an `IO` stream to provide HTML escaping.
 
     using HypertextLiteral: EscapeProxy
-    
+
     io = IOBuffer()
     ep = EscapeProxy(io)
 
@@ -52,21 +52,27 @@ The result of this proxy is that regular content is escaped. We also use
     @echo print(ep, HTML("<span>"), "<A&B>", HTML("</span>"))
     #-> <span>&lt;A&amp;B></span>
 
-Let's suppose someone has written a `Custom` object that is printable
-via `"text/html"`. This could be done as follows.
+Let's suppose someone has written a `Custom` object.
 
     struct Custom
         content
     end
 
-    Base.show(io::IO, m::MIME"text/html", c::Custom) = print(io, c.content)
+    Custom("<tag/>")
+    #-> Custom("<tag/>")
 
-Since there is no standard `trait` for `"text/html"` content and since
-invoking `showable` in a type loop is expensive, we've decided to be a
-bit stupid about custom data. This can be addressed with `UnwrapHTML`.
+If we print this though the escape proxy, we'll get the escaped
+representation of the above string value.
 
     @echo print(ep, Custom("<tag/>"))
-    #-> …Custom("&lt;tag/>")
+    #-> …Custom(&quot;&lt;tag/>&quot;)
+
+We can address this with two parts. First, we can ensure this object is
+`showable` for `"text/html"`. Second, we need to wrap this object so
+that the escape proxy knows to invoke this method.
+
+    Base.show(io::IO, m::MIME"text/html", c::Custom) =
+       print(io, c.content)
 
     @echo print(ep, UnwrapHTML(Custom("<tag/>")))
     #-> <tag/>

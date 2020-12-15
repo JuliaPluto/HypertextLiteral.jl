@@ -58,6 +58,8 @@ end
 
 EscapeProxy(io::EscapeProxy) = io
 
+Base.print(ep::EscapeProxy, h::Text{<:Function}) = h.content(ep)
+Base.print(ep::EscapeProxy, h::Text) = print(ep, h.content)
 Base.print(ep::EscapeProxy, h::HTML{<:Function}) = h.content(ep.io)
 Base.print(ep::EscapeProxy, h::HTML) = print(ep.io, h.content)
 Base.print(ep::EscapeProxy, w::UnwrapHTML{<:Function}) = w.content(ep.io)
@@ -67,8 +69,12 @@ Base.print(ep::EscapeProxy, w::UnwrapHTML) =
 function Base.write(ep::EscapeProxy, octet::UInt8)
     if octet == Int('&')
         write(ep.io, "&amp;")
-    elseif  octet == Int('<')
+    elseif octet == Int('<')
         write(ep.io, "&lt;")
+    elseif octet == Int('"')
+        write(ep.io, "&quot;")
+    elseif octet == Int('\'')
+        write(ep.io, "&apos;")
     else
         write(ep.io, octet)
     end

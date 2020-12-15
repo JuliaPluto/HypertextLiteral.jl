@@ -118,14 +118,13 @@ although we only show one level of nesting here.
 
 ## Attribute Interpolation
 
-Escaping of Julia values depends upon the context: within a double
-quoted attribute value, the double quote is escaped; single quoted
-attributes are likewise escaped.
+Escaping of Julia values is not dependent upon context. Both single and
+double quotes are escaped.
 
-    qval = "\"h&b'"
+    qval = "\"&'"
 
     @print htl"""<tag double="$qval" single='$qval' />"""
-    #-> <tag double="&quot;h&amp;b'" single='"h&amp;b&apos;' />
+    #-> <tag double="&quot;&amp;&apos;" single='&quot;&amp;&apos;' />
 
 Unquoted attributes are also supported. These are serialized using the
 single quoted style.
@@ -169,12 +168,11 @@ attribute is kept, with value being an empty string (`''`).
     @print htl"<button checked=$(true) disabled=$(false)>"
     #-> <button checked=''>
 
-Boolean values within quoted strings are returned as-is. We could make
-this raise an error, however, there could be cases where this may be the
-desired effect.
+Since boolean values are given special treatment, they become an
+error within quoted attribute values.
 
     @print htl"<button disabled='$(false)'>"
-    #-> <button disabled='false'>
+    #-> ERROR: "Boolean used within a quoted attribute."⋮
 
 ## Cascading Style Sheets
 
@@ -194,16 +192,10 @@ converted to `kebab-case`.
     @print htl"""<div style=$(font_size="25px", padding_left="2em")/>"""
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-Only symbols, numbers, and strings have a specified serialization as CSS
-style values. Therefore, use of components from other libraries will
-cause an exception.  However, this can be fixed by registering a
-conversion using `nested_value()`.
+By default any object used within an attribute displays its printed
+value as escaped. This lets us make our CSS even more compact.
 
     using Hyperscript
-
-    HypertextLiteral.nested_value(x::Hyperscript.Unit) = string(x)
-
-Then, the syntax for CSS can be even more compact.
 
     @print htl"<div style=$(font_size=25px, padding_left=2em)/>"
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
@@ -355,6 +347,14 @@ a manner identical to regular string interpolation.
     @print @htl("(\\\")")
     #-> (\")
 
+This has tangible effect on expressions.
+
+    print(@htl("$(("<'", "\"&"))"))
+    #-> &lt;&apos;&quot;&amp;
+
+    print(htl"""$(("<'", "\\"&"))""")
+    #-> &lt;&apos;&quot;&amp;
+
 In Julia, to support regular expressions and other formats, string
 literals don't provide regular escaping semantics. This package adds
 those semantics.
@@ -421,13 +421,13 @@ We throw an error if the end tag is accidently included.
 Attribute names should be non-empty and not in a list of excluded
 characters.
 
-    @htl("<tag $("" => "value")/>")
-    #-> ERROR: "Attribute name must not be empty."
+    @print @htl("<tag $("" => "value")/>")
+    #-> ERROR: LoadError: "Attribute name must not be empty."⋮
 
-    @htl("<tag $("&att" => "value")/>")
+    @print @htl("<tag $("&att" => "value")/>")
     #=>
-    ERROR: DomainError with &att:
-    Invalid character ('&') found within an attribute name.
+    ERROR: LoadError: DomainError with &att:
+    Invalid character ('&') found within an attribute name.⋮
     =#
 
 Unquoted interpolation adjacent to a raw string is also an error.

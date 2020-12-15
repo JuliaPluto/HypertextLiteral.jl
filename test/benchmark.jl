@@ -239,7 +239,7 @@ end
 #println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
-#println("HTL (Attributes): ", @benchmark att_test())
+println("HTL (Attributes): ", @benchmark att_test())
 
 if false
     open("htl.html", "w") do f

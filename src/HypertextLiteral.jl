@@ -329,13 +329,45 @@ attributes(values::NamedTuple) =
     attributes(pairs(values))
 
 """
-    interpolate_attributes(element, expr)::Vector{Expr}
+    interpolate_attributes(expr)
 
-Continue conversion of an arbitrary Julia expression within the
-attribute section of the given element.
+Attempt to speed up serialization of attributes by exploring the
+expression tree at macro expansion time.
 """
-function interpolate_attributes(expr)::Vector{Expr}
-    return [:(attributes($(esc(expr))))]
+function interpolate_attributes(expr)::Vector{Union{String, Expr}}
+    if Meta.isexpr(expr, :tuple)
+        args = expr.args
+    elseif Meta.isexpr(expr, :call) && expr.args[1] == :Dict
+        args = expr.args[2:end]
+    elseif Meta.isexpr(expr, :call) && expr.args[1] == :(=>)
+        args = [expr]
+    else
+        return [:(attributes($(esc(expr))))]
+    end
+    parts = []
+    for pair in args
+        if pair isa Symbol || pair isa String
+            (name, value) = (pair, true)
+        elseif Meta.isexpr(pair, :(=), 2)
+            (name, value) = pair.args
+        elseif Meta.isexpr(pair, :call, 3) && pair.args[1] == :(=>)
+            (_, name, value) = pair.args
+            if name isa String
+                nothing
+            elseif name isa QuoteNode
+                name = name.value
+            else
+                # unexpected, use dynamic method
+                return [:(attributes($(esc(expr))))]
+            end
+        else
+            # unexpected, use dynamic method
+            return [:(attributes($(esc(expr))))]
+        end
+        attribute = normalize_attribute_name(name)
+        push!(parts, :(attribute_pair($attribute, $(esc(value)))))
+    end
+    return parts
 end
 
 @enum HtlParserState STATE_DATA STATE_TAG_OPEN STATE_END_TAG_OPEN STATE_TAG_NAME STATE_BEFORE_ATTRIBUTE_NAME STATE_AFTER_ATTRIBUTE_NAME STATE_ATTRIBUTE_NAME STATE_BEFORE_ATTRIBUTE_VALUE STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED STATE_ATTRIBUTE_VALUE_UNQUOTED STATE_AFTER_ATTRIBUTE_VALUE_QUOTED STATE_SELF_CLOSING_START_TAG STATE_COMMENT_START STATE_COMMENT_START_DASH STATE_COMMENT STATE_COMMENT_LESS_THAN_SIGN STATE_COMMENT_LESS_THAN_SIGN_BANG STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH STATE_COMMENT_END_DASH STATE_COMMENT_END STATE_COMMENT_END_BANG STATE_MARKUP_DECLARATION_OPEN STATE_RAWTEXT STATE_RAWTEXT_LESS_THAN_SIGN STATE_RAWTEXT_END_TAG_OPEN STATE_RAWTEXT_END_TAG_NAME

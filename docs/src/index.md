@@ -422,12 +422,12 @@ Attribute names should be non-empty and not in a list of excluded
 characters.
 
     @print @htl("<tag $("" => "value")/>")
-    #-> ERROR: "Attribute name must not be empty."
+    #-> ERROR: LoadError: "Attribute name must not be empty."⋮
 
     @print @htl("<tag $("&att" => "value")/>")
     #=>
-    ERROR: DomainError with &att:
-    Invalid character ('&') found within an attribute name.
+    ERROR: LoadError: DomainError with &att:
+    Invalid character ('&') found within an attribute name.⋮
     =#
 
 Unquoted interpolation adjacent to a raw string is also an error.

@@ -1,7 +1,7 @@
 name = "HypertextLiteral"
 uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
 authors = ["Clark C. Evans <cce@clarkevans.com>"]
-version = "0.2"
+version = "0.3"
 
 [compat]
 julia = "1"

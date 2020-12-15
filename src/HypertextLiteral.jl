@@ -329,7 +329,7 @@ attribute_hook(x::Bool) =
   throw("Boolean used within a quoted attribute.")
 
 function attribute_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
-    HTML{Function}() do io::IO
+    Text{Function}() do io::IO
         prior = false
         for x in xs
             if prior
@@ -342,7 +342,7 @@ function attribute_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
 end
 
 function attribute_dict(xs)
-    HTML{Function}() do io::IO
+    Text{Function}() do io::IO
         prior = false
         for (key, value) in xs
             if prior
@@ -381,7 +381,7 @@ content_hook(x::Nothing) = ""
 content_hook(xs...) = content_hook(xs)
 
 function content_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
-    HTML{Function}() do io::IO
+    Text{Function}() do io::IO
         for x in xs
             print(io, content_hook(x))
         end

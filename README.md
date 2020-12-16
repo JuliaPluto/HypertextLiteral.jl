@@ -48,21 +48,21 @@ to the needs of HTML generation.
 This library implements many features for working with HTML data within
 the Julia language, including:
 
-* Performant escaping of interpolated `String` valued content
-* Escaping depends upon element content or attribute quoting style
+* Performant escaping of interpolated values
 * Handles boolean valued attributes, such as `disabled`, `checked`
-* Serialization of `Pair` and `Dict` objects as attribute pairs
+* Serialization of `Pair` and `Tuple` objects as attribute pairs
 * Conversion of `snake_case` => `camel-case` for attribute names
-* Support for CSS style formatting via `Pair` and `Dict`
+* Support for CSS style formatting via `Pair`, `Tuple` and `Dict`
 * Detection of `script` and `style` tags to suppress escaping
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Implements both string macros `@htl_str` and regular macros `@htl`
 
-For more detail, please see the [documentation][docs-url] and join us on
-[Julia's Zulip][chat-url].
+For more detail, please see the [documentation][docs-stable-url] and
+join us on [Julia's Zulip][chat-url].
 
 [htl]: https://github.com/observablehq/htl
 [@mbostock]: https://github.com/mbostock
+[@xitology]: https://github.com/xitology
 [@mattt]: https://github.com/mattt
 [names]: https://github.com/NSHipster/HypertextLiteral
 [observablehq]: https://observablehq.com/@observablehq/htl

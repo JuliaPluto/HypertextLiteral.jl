@@ -185,43 +185,102 @@ moreover, pairs are delimited by the semi-colon (`;`). Like attributes,
 
     @print @htl("<div style=$header_styles/>")
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
-   
+
     @print @htl("<div style=$((:font_size=>"25px","padding-left"=>"2em"))/>")
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
     @print @htl("<div style=$((font_size="25px", padding_left="2em"))/>")
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
 
-## Extending Interpolation
+## Integration & Extension
 
-Generally, any object can be used as element content, provided that it
-is showable using the `"text/html"` mimetype.
+For hypertext content, Julia has a protocol to let independent libraries
+work together. For any object, one could ask if it is `showable` to
+displays supporting the `"text/html"` mimetype.
+
+    showable("text/html", @htl("<tag/>"))
+    #-> true
+
+We use this protocol to integrate with third party tools, such as
+`Hyperscript` without introducing dependencies.
+
+    using Hyperscript
+    @tags span div
+
+    @print component = span("...")
+    #-> <span>...</span>
+
+Since `component` is showable via `"text/html"`, it can be integrated
+directly. Conversely, results of `@htl` interpolation can be included
+directly as a Hyperscript node.
+
+    @print @htl("<div>$(span("..."))</div>")
+    #-> <div><span>...</span></div>
+
+    @print div(@htl("<span>...</span>"))
+    #-> <div><span>...</span></div>
+
+Unfortunately, there is no such protocol for attribute values, which
+have different escaping needs (single or double quote, respectively).
+Hence, integrating `Hyperscript`'s CSS `Unit` object, such as `2em`,
+isn't automatic. By default, a `MethodError` is raised.
+
+    typeof(2em)
+    #-> Hyperscript.Unit{:em, Int64}
+
+    @print @htl("<div style=$((border=2em,))>...</div>")
+    #-> …ERROR: MethodError: no method matching attribute(…Unit{:em,⋮
+
+Letting objects of an unknown type work with `@htl` macros follows
+Julia's sensibilities, you implement `attribute` for that type.
+
+    HypertextLiteral.attribute(x::Hyperscript.Unit) = x
+
+    @print @htl("<div style=$((border=2em,))>...</div>")
+    #-> <div style='border: 2em;'>...</div>
+
+This works as follows. When `obj` is encountered in an attribute
+context, `attribute(obj)` is called. Then, `print()` is called on the
+result to create a character stream. This stream is then escaped and
+included into the results. Let's do this with a `Custom` object.
 
     struct Custom data::String end
 
-    function Base.show(io::IO, mime::MIME"text/html", c::Custom)
+    HypertextLiteral.attribute(x::Custom) = x.data
+
+    @print @htl("<tag attribute=$(Custom("'A&B'"))/>")
+    #-> <tag attribute='&apos;A&amp;B&apos;'/>
+
+There is a corresponding `content()` function used when an object is
+encountered within element content. Therefore, we could provide a
+representation there as well.
+
+    HypertextLiteral.content(x::Custom) = "<span>$(x.data)</span>"
+
+    @print @htl("<div>$(Custom("Hello World"))</div>")
+    #-> <div>&lt;span>Hello World&lt;/span></div>
+
+If one knows that the resulting data is *always* properly escaped, one
+can use Julia's `HTML` wrapper to signal this property.
+
+    HypertextLiteral.content(x::Custom) = HTML("<span>$(x.data)</span>")
+
+    @print @htl("<div>$(Custom("Hello World"))</div>")
+    #-> <div><span>Hello World</span></div>
+
+However, in this case, it's more robust to construct the `"text/html"`
+representation for the object using Julia's showable protocol.
+
+    struct MoreCustom data::String end
+
+    function Base.show(io::IO, mime::MIME"text/html", c::MoreCustom)
         value = replace(replace(c.data, "&"=>"&amp;"), "<"=>"&lt;")
         print(io, "<custom>$(value)</custom>")
     end
 
-    @print @htl("<span>$(Custom("a&b"))</span>")
+    @print @htl("<span>$(MoreCustom("a&b"))</span>")
     #-> <span><custom>a&amp;b</custom></span>
 
-That said, many objects do not have a translation. It's a design choice
-to raise an `MethodError` rather than assume the output of `print` is
-suitable for inclusion into an HTML data stream.
-
-    obj = Dict()
-    
-    @print @htl("$obj")
-    #-> ERROR: MethodError: no method matching show(…"text/html"…Dict⋮
-
-At this time (and this may change before 1.0 release), any object used
-within an attribute displays its printed output. This lets us make our
-prior CSS example more compact.
-
-    using Hyperscript
-
-    @print @htl("<div style=$((font_size=25px, padding_left=2em))/>")
-    #-> <div style='font-size: 25px; padding-left: 2em;'/>
-
+There is additionally an `attributes` function which can be used
+to handle objects inside an element's tag. For more detail, please see
+the design section of this documentation.

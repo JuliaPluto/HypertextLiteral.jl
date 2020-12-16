@@ -180,7 +180,7 @@ function rawtext(context::Symbol, value::AbstractString)
 end
 
 """
-    attribute_hook(x)
+    attribute(x)
 
 This method may be implemented to specify a printed representation
 suitable for use within a quoted attribute value. By default, the print
@@ -200,18 +200,21 @@ are a few overrides that we provide.
 If an object is wrapped with `HTML` then it is included in the quoted
 attribute value as-is, without inspection or escaping.
 """
-attribute_hook(x) = x
-attribute_hook(x::Bool) =
+attribute(x::AbstractString) = x
+attribute(x::Number) = x
+attribute(x::Symbol) = x
+attribute(x::Nothing) = ""
+attribute(x::Bool) =
   throw("Boolean used within a quoted attribute.")
 
-function attribute_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
+function attribute(xs::Union{Tuple, AbstractArray, Base.Generator})
     Text{Function}() do io::IO
         prior = false
         for x in xs
             if prior
                 print(io, " ")
             end
-            print(io, attribute_hook(x))
+            print(io, attribute(x))
             prior = true
         end
     end
@@ -227,20 +230,20 @@ function attribute_dict(xs)
             end
             print(io, name)
             print(io, ": ")
-            print(attribute_hook(value))
+            print(attribute(value))
             prior = true
         end
         print(io, ";")
     end
 end
 
-attribute_hook(pair::Pair) = attribute_dict((pair,))
-attribute_hook(items::Dict) = attribute_dict(items)
-attribute_hook(items::NamedTuple) = attribute_dict(pairs(items))
-attribute_hook(items::Tuple{Pair, Vararg{Pair}}) = attribute_dict(items)
+attribute(pair::Pair) = attribute_dict((pair,))
+attribute(items::Dict) = attribute_dict(items)
+attribute(items::NamedTuple) = attribute_dict(pairs(items))
+attribute(items::Tuple{Pair, Vararg{Pair}}) = attribute_dict(items)
 
 """
-    content_hook(x)
+    content(x)
 
 This method may be implemented to specify a printed representation
 suitable for `text/html` output. As a special case, if the result is
@@ -251,17 +254,17 @@ The elements of `Tuple` and `AbstractArray` are concatinated and then
 escaped. If a method is not implemented for a given object, then we
 attempt to `show` it via `MIME"text/html"`.
 """
-content_hook(x) = UnwrapHTML(x)
-content_hook(x::AbstractString) = x
-content_hook(x::Number) = x
-content_hook(x::Symbol) = x
-content_hook(x::Nothing) = ""
-content_hook(xs...) = content_hook(xs)
+content(x) = UnwrapHTML(x)
+content(x::AbstractString) = x
+content(x::Number) = x
+content(x::Symbol) = x
+content(x::Nothing) = ""
+content(xs...) = content(xs)
 
-function content_hook(xs::Union{Tuple, AbstractArray, Base.Generator})
+function content(xs::Union{Tuple, AbstractArray, Base.Generator})
     Text{Function}() do io::IO
         for x in xs
-            print(io, content_hook(x))
+            print(io, content(x))
         end
     end
 end
@@ -286,7 +289,7 @@ function attribute_pair(name, value)
         print(io, " ")
         print(io, name)
         print(io, HTML("='"))
-        print(io, attribute_hook(value))
+        print(io, attribute(value))
         print(io, HTML("'"))
     end
 end
@@ -422,7 +425,7 @@ function interpolate(args, this)
         input = args[j]
         if !isa(input, String)
             if state == STATE_DATA
-                push!(parts, :(content_hook($(esc(input)))))
+                push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
                 element = QuoteNode(element_tag)
                 push!(parts, :(rawtext($element, $(esc(input)))))
@@ -447,9 +450,9 @@ function interpolate(args, this)
                 throw(DomainError(input, "Unquoted attribute " *
                   "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                push!(parts, :(attribute_hook($(esc(input)))))
+                push!(parts, :(attribute($(esc(input)))))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                push!(parts, :(attribute_hook($(esc(input)))))
+                push!(parts, :(attribute($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
                 @assert parts[end] isa String

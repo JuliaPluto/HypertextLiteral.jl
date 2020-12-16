@@ -18,7 +18,8 @@ makedocs(
     sitename = "HypertextLiteral.jl",
     format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true")),
     pages = [
-        "Tutorial" => "index.md",
+        "Usage" => "index.md",
+        "Extend" => "extend.md",
         "Design" => "design.md",
         "Utilities" => "utils.md",
         "Reference" => "reference.md",

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · HypertextLiteral.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">HypertextLiteral.jl</span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Content-Interpolation"><span>Content Interpolation</span></a></li><li><a class="tocitem" href="#Attribute-Interpolation"><span>Attribute Interpolation</span></a></li><li><a class="tocitem" href="#Integration-and-Extension"><span>Integration &amp; Extension</span></a></li></ul></li><li><a class="tocitem" href="design/">Design</a></li><li><a class="tocitem" href="utils/">Utilities</a></li><li><a class="tocitem" href="reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/clarkevans/HypertextLiteral.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="HypertextLiteral.jl"><a class="docs-heading-anchor" href="#HypertextLiteral.jl">HypertextLiteral.jl</a><a id="HypertextLiteral.jl-1"></a><a class="docs-heading-anchor-permalink" href="#HypertextLiteral.jl" title="Permalink"></a></h1><p>This package provides a Julia string literal, <code>htl</code>, and equivalent macro, <code>@htl</code>, that construct an object that could be rendered to <code>MIME&quot;text/html&quot;</code> displays. These macros support interpolation sensible to the needs of HTML generation.</p><pre><code class="language-julia">using HypertextLiteral</code></pre><p>When printed directly to the console (via <code>show</code>), the output of these macros reproduce a verified expression that generated them.</p><pre><code class="language-julia">name = &quot;World&quot;
+
+htl&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;
+#-&gt; htl&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;
+
+@htl(&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;)
+#-&gt; @htl &quot;&lt;span&gt;Hello $(name)&lt;/span&gt;&quot;</code></pre><p>When displayed to <code>&quot;text/html&quot;</code> the evaluation is shown.</p><pre><code class="language-julia">name = &quot;World&quot;
+
+display(&quot;text/html&quot;, htl&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;
+
+display(&quot;text/html&quot;, @htl(&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;))
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>We use <code>NarrativeTest.jl</code> to ensure our examples are correct. After each command is a comment with the expected output. To enhance readability, we&#39;ll also use the following macro.</p><pre><code class="language-julia">macro print(expr)
+    :(display(&quot;text/html&quot;, $expr))
+end
+
+@print htl&quot;&lt;span&gt;Hello World&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;
+
+@print @htl(&quot;&lt;span&gt;Hello World&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>Throughout this tutorial, we&#39;ll mostly stick with the macro form since it has better syntax highlighting support, however, the string literal form works (almost) equivalently (and is a tad shorter).</p><h2 id="Content-Interpolation"><a class="docs-heading-anchor" href="#Content-Interpolation">Content Interpolation</a><a id="Content-Interpolation-1"></a><a class="docs-heading-anchor-permalink" href="#Content-Interpolation" title="Permalink"></a></h2><p>Hypertext literal provides interpolation via <code>$</code>. Within content, the ampersand (<code>&amp;</code>), less-than (<code>&lt;</code>), single-quote (<code>&#39;</code>) and double-quote (<code>&quot;</code>) are escaped.</p><pre><code class="language-julia">book = &quot;Strunk &amp; White&quot;
+
+@print @htl(&quot;&lt;span&gt;Today&#39;s Reading: $book&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;Today&#39;s Reading: Strunk &amp;amp; White&lt;/span&gt;</code></pre><p>To include a literal <code>$</code> in the output, use <code>\$</code> as one would in a regular Julia string. Other escape sequences, such as <code>\&quot;</code> also work.</p><pre><code class="language-julia">@print @htl(&quot;They said, \&quot;your total is \$42.50\&quot;.&quot;)
+#-&gt; They said, &quot;your total is $42.50&quot;.</code></pre><p>Within triple quotes, single quoted strings can go unescaped, however, we still need to escape the dollar sign (<code>$</code>).</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;They said, &quot;your total is \$42.50&quot;.&quot;&quot;&quot;)
+#-&gt; They said, &quot;your total is $42.50&quot;.</code></pre><p>Julia results can be interpolated using the <code>$(expr)</code> notation. Strings, numeric values (including <code>Bool</code>) and symbols are supported.</p><pre><code class="language-julia">@print @htl(&quot;2+2 = $(2+2)&quot;)
+#-&gt; 2+2 = 4
+
+@print @htl(&quot;&lt;bool&gt;$(false)&lt;/bool&gt;&lt;sym&gt;$(:sym)&lt;/sym&gt;&quot;)
+#-&gt; &lt;bool&gt;false&lt;/bool&gt;&lt;sym&gt;sym&lt;/sym&gt;</code></pre><p>Functions returning objects created by this macro are not further escaped, permitting us to build reusable HTML templates.</p><pre><code class="language-julia">sq(x) = @htl(&quot;&lt;span&gt;$(x*x)&lt;/span&gt;&quot;)
+
+@print @htl(&quot;&lt;div&gt;3^2 is $(sq(3))&lt;/div&gt;&quot;)
+#-&gt; &lt;div&gt;3^2 is &lt;span&gt;9&lt;/span&gt;&lt;/div&gt;</code></pre><p>Content generated by these macros can be nested. Within element content, vectors are automatically expanded. By default, arrays and tuples are enumerated, printing each of their values.</p><pre><code class="language-julia">books = [&quot;Who Gets What &amp; Why&quot;, &quot;Switch&quot;, &quot;Governing The Commons&quot;]
+
+@print @htl(&quot;&lt;ul&gt;$([@htl(&quot;&lt;li&gt;$b&quot;) for b in books])&lt;/ul&gt;&quot;)
+#=&gt;
+&lt;ul&gt;&lt;li&gt;Who Gets What &amp;amp; Why&lt;li&gt;Switch&lt;li&gt;Governing The Commons&lt;/ul&gt;
+=#
+
+@print @htl(&quot;&lt;ul&gt;$(map(books) do b @htl(&quot;&lt;li&gt;$b&quot;) end)&lt;/ul&gt;&quot;)
+#=&gt;
+&lt;ul&gt;&lt;li&gt;Who Gets What &amp;amp; Why&lt;li&gt;Switch&lt;li&gt;Governing The Commons&lt;/ul&gt;
+=#</code></pre><h2 id="Attribute-Interpolation"><a class="docs-heading-anchor" href="#Attribute-Interpolation">Attribute Interpolation</a><a id="Attribute-Interpolation-1"></a><a class="docs-heading-anchor-permalink" href="#Attribute-Interpolation" title="Permalink"></a></h2><p>Interpolation within single and double quoted attribute values are supported. Regardless of context, all four characters are escaped.</p><pre><code class="language-julia">qval = &quot;\&quot;&amp;&#39;&quot;
+
+@print @htl(&quot;&quot;&quot;&lt;tag double=&quot;$qval&quot; single=&#39;$qval&#39; /&gt;&quot;&quot;&quot;)
+#-&gt; &lt;tag double=&quot;&amp;quot;&amp;amp;&amp;apos;&quot; single=&#39;&amp;quot;&amp;amp;&amp;apos;&#39; /&gt;</code></pre><p>Unquoted or bare attributes are also supported. These are serialized using the single quoted style so that spaces and other characters do not need to be escaped.</p><pre><code class="language-julia">arg = &quot;book=&#39;Strunk &amp; White&#39;&quot;
+
+@print @htl(&quot;&lt;tag bare=$arg /&gt;&quot;)
+#-&gt; &lt;tag bare=&#39;book=&amp;apos;Strunk &amp;amp; White&amp;apos;&#39; /&gt;</code></pre><p>Attributes may also be provided by any combination of dictionaries, named tuples, and pairs. Attribute names are normalized, where <code>snake_case</code> becomes <code>kebab-case</code>. We do not convert <code>camelCase</code> due to XML (MathML and SVG) attribute case sensitivity. Moreover, <code>String</code> attribute names are passed along as-is.</p><pre><code class="language-julia"> attributes = Dict(:data_style =&gt; :green, &quot;data_value&quot; =&gt; 42, )
+
+ @print @htl(&quot;&lt;div $attributes/&gt;&quot;)
+ #-&gt; &lt;div data-style=&#39;green&#39; data_value=&#39;42&#39;/&gt;
+
+ @print @htl(&quot;&lt;div $(:data_style=&gt;:green) $(:dataValue=&gt;42)/&gt;&quot;)
+ #-&gt; &lt;div data-style=&#39;green&#39; dataValue=&#39;42&#39;/&gt;
+
+ @print @htl(&quot;&lt;div $((:data_style=&gt;:green, &quot;data_value&quot;=&gt;42))/&gt;&quot;)
+ #-&gt; &lt;div data-style=&#39;green&#39; data_value=&#39;42&#39;/&gt;
+
+ @print @htl(&quot;&lt;div $((data_style=:green, dataValue=42))/&gt;&quot;)
+ #-&gt; &lt;div data-style=&#39;green&#39; dataValue=&#39;42&#39;/&gt;</code></pre><p>As you can see from this example, symbols and numbers (but not boolean values) are automatically printed within attributes. This interpolation works within quoted values as well.</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;&lt;tag numeric=&quot;$(0)&quot; symbol=&#39;$(:sym)&#39;/&gt;&quot;&quot;&quot;)
+#-&gt; &lt;tag numeric=&quot;0&quot; symbol=&#39;sym&#39;/&gt;</code></pre><p>Within bare attributes, boolean values provide special support for boolean HTML properties, such as <code>&quot;disabled&quot;</code>. When a bare value <code>false</code> then the attribute is removed. When the value is <code>true</code> then the attribute is kept, with value being an empty string (<code>&#39;&#39;</code>).</p><pre><code class="language-julia">@print @htl(&quot;&lt;button checked=$(true) disabled=$(false)&gt;&quot;)
+#-&gt; &lt;button checked=&#39;&#39;&gt;</code></pre><p>Since boolean values are given special treatment, they become an error within quoted attribute values. At this time, this behavior is universal and does not depend upon the exact attribute used.</p><pre><code class="language-julia">@print @htl(&quot;&lt;button disabled=&#39;$(false)&#39;&gt;&quot;)
+#-&gt; ERROR: &quot;Boolean used within a quoted attribute.&quot;⋮</code></pre><p>In HTML, many attributes specify values with space-delimited tokens, such as the Cascading Style Sheet (CSS) <code>&quot;class&quot;</code> attribute. To support these attributes, arrays and tuples produce space delimited output.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div class=$([:one, :two])/&gt;&quot;)
+#-&gt; &lt;div class=&#39;one two&#39;/&gt;
+
+@print htl&quot;&lt;div class=$(:one, :two)/&gt;&quot;
+#-&gt; &lt;div class=&#39;one two&#39;/&gt;</code></pre><p>To support nested key/value structures, such as the CSS <code>&quot;style&quot;</code> attribute, we have specialized expansion of dictionary like objects. For each pair, keys are separated from their value with a colon <code>:</code>, moreover, pairs are delimited by the semi-colon (<code>;</code>). Like attributes, <code>snake_case</code> is converted to <code>kebab-case</code>.</p><pre><code class="language-julia">header_styles = Dict(:font_size =&gt; &quot;25px&quot;, &quot;padding-left&quot; =&gt; &quot;2em&quot;)
+
+@print @htl(&quot;&lt;div style=$header_styles/&gt;&quot;)
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;
+
+@print @htl(&quot;&lt;div style=$((:font_size=&gt;&quot;25px&quot;,&quot;padding-left&quot;=&gt;&quot;2em&quot;))/&gt;&quot;)
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;
+
+@print @htl(&quot;&lt;div style=$((font_size=&quot;25px&quot;, padding_left=&quot;2em&quot;))/&gt;&quot;)
+#-&gt; &lt;div style=&#39;font-size: 25px; padding-left: 2em;&#39;/&gt;</code></pre><h2 id="Integration-and-Extension"><a class="docs-heading-anchor" href="#Integration-and-Extension">Integration &amp; Extension</a><a id="Integration-and-Extension-1"></a><a class="docs-heading-anchor-permalink" href="#Integration-and-Extension" title="Permalink"></a></h2><p>For hypertext content, Julia has a protocol to let independent libraries work together. For any object, one could ask if it is <code>showable</code> to displays supporting the <code>&quot;text/html&quot;</code> mimetype.</p><pre><code class="language-julia">showable(&quot;text/html&quot;, @htl(&quot;&lt;tag/&gt;&quot;))
+#-&gt; true</code></pre><p>We use this protocol to integrate with third party tools, such as <code>Hyperscript</code> without introducing dependencies.</p><pre><code class="language-julia">using Hyperscript
+@tags span div
+
+@print component = span(&quot;...&quot;)
+#-&gt; &lt;span&gt;...&lt;/span&gt;</code></pre><p>Since <code>component</code> is showable via <code>&quot;text/html&quot;</code>, it can be integrated directly. Conversely, results of <code>@htl</code> interpolation can be included directly as a Hyperscript node.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div&gt;$(span(&quot;...&quot;))&lt;/div&gt;&quot;)
+#-&gt; &lt;div&gt;&lt;span&gt;...&lt;/span&gt;&lt;/div&gt;
+
+@print div(@htl(&quot;&lt;span&gt;...&lt;/span&gt;&quot;))
+#-&gt; &lt;div&gt;&lt;span&gt;...&lt;/span&gt;&lt;/div&gt;</code></pre><p>Unfortunately, there is no such protocol for attribute values, which have different escaping needs (single or double quote, respectively). Hence, integrating <code>Hyperscript</code>&#39;s CSS <code>Unit</code> object, such as <code>2em</code>, isn&#39;t automatic. By default, a <code>MethodError</code> is raised.</p><pre><code class="language-julia">typeof(2em)
+#-&gt; Hyperscript.Unit{:em, Int64}
+
+@print @htl(&quot;&lt;div style=$((border=2em,))&gt;...&lt;/div&gt;&quot;)
+#-&gt; …ERROR: MethodError: no method matching attribute(…Unit{:em,⋮</code></pre><p>Letting objects of an unknown type work with <code>@htl</code> macros follows Julia&#39;s sensibilities, you implement <code>attribute</code> for that type.</p><pre><code class="language-julia">HypertextLiteral.attribute(x::Hyperscript.Unit) = x
+
+@print @htl(&quot;&lt;div style=$((border=2em,))&gt;...&lt;/div&gt;&quot;)
+#-&gt; &lt;div style=&#39;border: 2em;&#39;&gt;...&lt;/div&gt;</code></pre><p>This works as follows. When <code>obj</code> is encountered in an attribute context, <code>attribute(obj)</code> is called. Then, <code>print()</code> is called on the result to create a character stream. This stream is then escaped and included into the results. Let&#39;s do this with a <code>Custom</code> object.</p><pre><code class="language-julia">struct Custom data::String end
+
+HypertextLiteral.attribute(x::Custom) = x.data
+
+@print @htl(&quot;&lt;tag attribute=$(Custom(&quot;&#39;A&amp;B&#39;&quot;))/&gt;&quot;)
+#-&gt; &lt;tag attribute=&#39;&amp;apos;A&amp;amp;B&amp;apos;&#39;/&gt;</code></pre><p>There is a corresponding <code>content()</code> function used when an object is encountered within element content. Therefore, we could provide a representation there as well.</p><pre><code class="language-julia">HypertextLiteral.content(x::Custom) = &quot;&lt;span&gt;$(x.data)&lt;/span&gt;&quot;
+
+@print @htl(&quot;&lt;div&gt;$(Custom(&quot;Hello World&quot;))&lt;/div&gt;&quot;)
+#-&gt; &lt;div&gt;&amp;lt;span&gt;Hello World&amp;lt;/span&gt;&lt;/div&gt;</code></pre><p>If one knows that the resulting data is <em>always</em> properly escaped, one can use Julia&#39;s <code>HTML</code> wrapper to signal this property.</p><pre><code class="language-julia">HypertextLiteral.content(x::Custom) = HTML(&quot;&lt;span&gt;$(x.data)&lt;/span&gt;&quot;)
+
+@print @htl(&quot;&lt;div&gt;$(Custom(&quot;Hello World&quot;))&lt;/div&gt;&quot;)
+#-&gt; &lt;div&gt;&lt;span&gt;Hello World&lt;/span&gt;&lt;/div&gt;</code></pre><p>However, in this case, it&#39;s more robust to construct the <code>&quot;text/html&quot;</code> representation for the object using Julia&#39;s showable protocol.</p><pre><code class="language-julia">struct MoreCustom data::String end
+
+function Base.show(io::IO, mime::MIME&quot;text/html&quot;, c::MoreCustom)
+    value = replace(replace(c.data, &quot;&amp;&quot;=&gt;&quot;&amp;amp;&quot;), &quot;&lt;&quot;=&gt;&quot;&amp;lt;&quot;)
+    print(io, &quot;&lt;custom&gt;$(value)&lt;/custom&gt;&quot;)
+end
+
+@print @htl(&quot;&lt;span&gt;$(MoreCustom(&quot;a&amp;b&quot;))&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;&lt;custom&gt;a&amp;amp;b&lt;/custom&gt;&lt;/span&gt;</code></pre><p>There is additionally an <code>attributes</code> function which can be used to handle objects inside an element&#39;s tag. For more detail, please see the design section of this documentation.</p></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="design/">Design »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 16 December 2020 03:49">Wednesday 16 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

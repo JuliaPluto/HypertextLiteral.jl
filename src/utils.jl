@@ -5,12 +5,6 @@ This is the inverse wrapper to `Docs.HTML` -- instead of enabling
 regular objects to be printed as `MIME"text/html"` it unwraps an `HTML`
 or any other object showable as `text/html` to be printable. Conversely,
 it will cause an error if that object is not showable as `text/html`.
-
-# Examples
-```julia-repl
-julia> print(UnwrapHTML(HTML("Hello World")))
-Hello World
-```
 """
 struct UnwrapHTML{T}
     content::T
@@ -39,16 +33,16 @@ Base.show(io::IO, m::MIME"text/html", wrap::UnwrapHTML{<:Function}) =
     EscapeProxy(io) - wrap an `io` to perform HTML escaping
 
 This is a transparent proxy that performs HTML escaping so that objects
-that are printed are properly converted into valid HTML values.  As a
-special case, `HTML` objects are not escaped, hence, they could be used
-to bypass this proxy. At this time, it only supports & and < escaping. 
+that are printed are properly converted into valid HTML values. As a
+special case, objects wrapped with `BypassEscape` are not escaped, and
+bypass the proxy.
 
 # Examples
 ```julia-repl
 julia> ep = EscapeProxy(stdout);
 julia> print(ep, "A&B")
 A&amp;B
-julia> print(ep, HTML("<tag/>"))
+julia> print(ep, BypassEscape("<tag/>"))
 <tag/>
 ```
 """
@@ -60,8 +54,6 @@ EscapeProxy(io::EscapeProxy) = io
 
 Base.print(ep::EscapeProxy, h::Text{<:Function}) = h.content(ep)
 Base.print(ep::EscapeProxy, h::Text) = print(ep, h.content)
-Base.print(ep::EscapeProxy, h::HTML{<:Function}) = h.content(ep.io)
-Base.print(ep::EscapeProxy, h::HTML) = print(ep.io, h.content)
 Base.print(ep::EscapeProxy, w::UnwrapHTML{<:Function}) = w.content(ep.io)
 Base.print(ep::EscapeProxy, w::UnwrapHTML) =
     show(ep.io, MIME"text/html"(), w.content)
@@ -122,4 +114,30 @@ function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
     return written
 end
 
+"""
+    BypassEscape(data)
 
+This object wraps content to indicate that it should not be escaped by
+`EscapeProxy` and can be forwarded directly to the underlying stream.
+It is a replacement for `Docs.HTML` object that is deprecated (see Julia
+issue #29841).
+"""
+
+mutable struct BypassEscape{T}
+    obj::T
+end
+
+function BypassEscape(xs...)
+    BypassEscape() do io
+        for x in xs
+            print(io, x)
+        end
+    end
+end
+
+Base.print(io::IO, x::BypassEscape) = print(io, h.obj)
+Base.print(io::IO, x::BypassEscape{<:Function}) = h.obj(io)
+Base.show(io::IO, ::MIME"text/html", x::BypassEscape) = print(io, x.obj)
+Base.show(io::IO, ::MIME"text/html", x::BypassEscape{<:Function}) = x.obj(io)
+Base.print(ep::EscapeProxy, x::BypassEscape{<:Function}) = x.obj(ep.io)
+Base.print(ep::EscapeProxy, x::BypassEscape) = print(ep.io, x.obj)

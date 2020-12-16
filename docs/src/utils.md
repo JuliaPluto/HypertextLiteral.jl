@@ -33,7 +33,7 @@ This utility class acts as the inverse of HTML.
 
 This utility class acts wraps an `IO` stream to provide HTML escaping.
 
-    using HypertextLiteral: EscapeProxy
+    using HypertextLiteral: EscapeProxy, BypassEscape
 
     io = IOBuffer()
     ep = EscapeProxy(io)
@@ -49,7 +49,7 @@ The result of this proxy is that regular content is escaped. We also use
     @echo print(ep, "(&'<\")")
     #-> (&amp;&apos;&lt;&quot;)
 
-    @echo print(ep, HTML("<span>"), "<A&B>", HTML("</span>"))
+    @echo print(ep, BypassEscape("<span>"), "<A&B>", BypassEscape("</span>"))
     #-> <span>&lt;A&amp;B></span>
 
 Let's suppose someone has written a `Custom` object.

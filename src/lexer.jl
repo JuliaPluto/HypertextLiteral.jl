@@ -446,6 +446,6 @@ function interpolate(args, this)
         end
         idx += 1
     end
-    parts = Expr[(x isa String ? :(HTML($x)) : x) for x in parts]
+    parts = Expr[(x isa String ? :(BypassEscape($x)) : x) for x in parts]
     return Expr(:call, :Result, QuoteNode(this), parts...)
 end

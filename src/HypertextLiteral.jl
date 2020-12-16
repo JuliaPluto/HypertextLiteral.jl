@@ -14,8 +14,8 @@ quotes for the outer nesting, and a single double quote for the inner).
 module HypertextLiteral
 export @htl_str, @htl
 
+include("utils.jl")    # Wrap, Unwrap, EscapeProxy
 include("macros.jl")   # @htl and @htl_str
-include("utils.jl")    # UnwrapHTML, EscapeProxy
 include("convert.jl")  # runtime conversion of objects
 include("lexer.jl")    # interpolate string to macro expression
 include("rewrite.jl")  # macro optimizations called by interpolate

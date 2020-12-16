@@ -20,7 +20,7 @@ print(UnwrapHTML(&quot;This is an error!&quot;))
 #-&gt; ERROR: MethodError: … show(… ::MIME{Symbol(&quot;text/html&quot;)}⋮
 
 print(UnwrapHTML(&quot;Error&quot;, HTML(&quot;Good&quot;)))
-#-&gt; ERROR: MethodError: … show(… ::MIME{Symbol(&quot;text/html&quot;)}⋮</code></pre><h2 id="EscapeProxy"><a class="docs-heading-anchor" href="#EscapeProxy">EscapeProxy</a><a id="EscapeProxy-1"></a><a class="docs-heading-anchor-permalink" href="#EscapeProxy" title="Permalink"></a></h2><p>This utility class acts wraps an <code>IO</code> stream to provide HTML escaping.</p><pre><code class="language-julia">using HypertextLiteral: EscapeProxy
+#-&gt; ERROR: MethodError: … show(… ::MIME{Symbol(&quot;text/html&quot;)}⋮</code></pre><h2 id="EscapeProxy"><a class="docs-heading-anchor" href="#EscapeProxy">EscapeProxy</a><a id="EscapeProxy-1"></a><a class="docs-heading-anchor-permalink" href="#EscapeProxy" title="Permalink"></a></h2><p>This utility class acts wraps an <code>IO</code> stream to provide HTML escaping.</p><pre><code class="language-julia">using HypertextLiteral: EscapeProxy, BypassEscape
 
 io = IOBuffer()
 ep = EscapeProxy(io)
@@ -30,7 +30,7 @@ macro echo(expr)
 end</code></pre><p>The result of this proxy is that regular content is escaped. We also use <code>HTML</code> as a way to bypass this proxy.</p><pre><code class="language-julia">@echo print(ep, &quot;(&amp;&#39;&lt;\&quot;)&quot;)
 #-&gt; (&amp;amp;&amp;apos;&amp;lt;&amp;quot;)
 
-@echo print(ep, HTML(&quot;&lt;span&gt;&quot;), &quot;&lt;A&amp;B&gt;&quot;, HTML(&quot;&lt;/span&gt;&quot;))
+@echo print(ep, BypassEscape(&quot;&lt;span&gt;&quot;), &quot;&lt;A&amp;B&gt;&quot;, BypassEscape(&quot;&lt;/span&gt;&quot;))
 #-&gt; &lt;span&gt;&amp;lt;A&amp;amp;B&gt;&lt;/span&gt;</code></pre><p>Let&#39;s suppose someone has written a <code>Custom</code> object.</p><pre><code class="language-julia">struct Custom
     content
 end
@@ -41,4 +41,4 @@ Custom(&quot;&lt;tag/&gt;&quot;)
    print(io, c.content)
 
 @echo print(ep, UnwrapHTML(Custom(&quot;&lt;tag/&gt;&quot;)))
-#-&gt; &lt;tag/&gt;</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../design/">« Design</a><a class="docs-footer-nextpage" href="../reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 16 December 2020 17:33">Wednesday 16 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#-&gt; &lt;tag/&gt;</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../design/">« Design</a><a class="docs-footer-nextpage" href="../reference/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 16 December 2020 18:10">Wednesday 16 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

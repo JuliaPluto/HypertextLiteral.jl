@@ -73,7 +73,7 @@ The elements of `Tuple` and `AbstractArray` are concatinated and then
 escaped. If a method is not implemented for a given object, then we
 attempt to `show` it via `MIME"text/html"`.
 """
-content(x) = UnwrapHTML(x)
+content(x) = Render(x)
 content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x
@@ -107,9 +107,9 @@ function attribute_pair(name, value)
     Reprint() do io::IO
         print(io, " ")
         print(io, name)
-        print(io, BypassEscape("='"))
+        print(io, Passthru("='"))
         print(io, attribute_value(value))
-        print(io, BypassEscape("'"))
+        print(io, Passthru("'"))
     end
 end
 
@@ -120,7 +120,7 @@ function attribute_pair(name, value::Bool)
     Reprint() do io::IO
         print(io, " ")
         print(io, name)
-        print(io, BypassEscape("=''"))
+        print(io, Passthru("=''"))
     end
 end
 
@@ -168,5 +168,5 @@ function rawtext(context::Symbol, value::AbstractString)
         throw(DomainError(repr(value), "  Content of <$context> should " *
             "not contain a comment block (`<!--`) "))
     end
-    return BypassEscape(value)
+    return Passthru(value)
 end

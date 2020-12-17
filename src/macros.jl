@@ -127,3 +127,6 @@ end
 Base.show(io::IO, m::MIME"text/html", h::Result) = h.content(EscapeProxy(io))
 Base.print(io::IO, h::Result) = h.content(EscapeProxy(io))
 Base.show(io::IO, h::Result) = print(io, h.expr)
+# avoid a show() dispatch for nested results
+Base.print(io::EscapeProxy, h::Result) = h.content(io)
+content(h::Result) = h

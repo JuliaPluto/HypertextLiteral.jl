@@ -107,9 +107,9 @@ function attribute_pair(name, value)
     Reprint() do io::IO
         print(io, " ")
         print(io, name)
-        print(io, Passthru("='"))
+        print(io, Bypass("='"))
         print(io, attribute_value(value))
-        print(io, Passthru("'"))
+        print(io, Bypass("'"))
     end
 end
 
@@ -120,7 +120,7 @@ function attribute_pair(name, value::Bool)
     Reprint() do io::IO
         print(io, " ")
         print(io, name)
-        print(io, Passthru("=''"))
+        print(io, Bypass("=''"))
     end
 end
 
@@ -168,5 +168,5 @@ function rawtext(context::Symbol, value::AbstractString)
         throw(DomainError(repr(value), "  Content of <$context> should " *
             "not contain a comment block (`<!--`) "))
     end
-    return Passthru(value)
+    return Bypass(value)
 end

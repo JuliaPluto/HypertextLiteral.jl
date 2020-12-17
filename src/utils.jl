@@ -18,24 +18,21 @@ Base.print(io::IO, r::Render) =
     show(io, MIME"text/html"(), r.content)
 
 """
-    Passthru(data) - printed object bypasses EscapeProxy
-
-This object wraps content to indicate that it should not be escaped by
-`EscapeProxy` and can be forwarded directly to the underlying stream.
+    Bypass(data) - printed object passes though EscapeProxy unescaped
 """
 
-mutable struct Passthru{T}
+mutable struct Bypass{T}
     content::T
 end
 
-Base.print(io::IO, x::Passthru) = print(io, x.content)
+Base.print(io::IO, x::Bypass) = print(io, x.content)
 
 """
     EscapeProxy(io) - wrap an `io` to perform HTML escaping
 
 This is a transparent proxy that performs HTML escaping so that objects
 that are printed are properly converted into valid HTML values. As a
-special case, objects wrapped with `Passthru` are not escaped, and
+special case, objects wrapped with `Bypass` are not escaped, and
 bypass the proxy.
 
 # Examples
@@ -43,7 +40,7 @@ bypass the proxy.
 julia> ep = EscapeProxy(stdout);
 julia> print(ep, "A&B")
 A&amp;B
-julia> print(ep, Passthru("<tag/>"))
+julia> print(ep, Bypass("<tag/>"))
 <tag/>
 ```
 """
@@ -56,7 +53,7 @@ EscapeProxy(io::EscapeProxy) = io
 Base.print(ep::EscapeProxy, h::Reprint) = h.content(ep)
 Base.print(ep::EscapeProxy, w::Render) =
     show(ep.io, MIME"text/html"(), w.content)
-Base.print(ep::EscapeProxy, x::Passthru) = print(ep.io, x.content)
+Base.print(ep::EscapeProxy, x::Bypass) = print(ep.io, x.content)
 
 function Base.write(ep::EscapeProxy, octet::UInt8)
     if octet == Int('&')

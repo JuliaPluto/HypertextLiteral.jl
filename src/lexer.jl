@@ -446,6 +446,6 @@ function interpolate(args, this)
         end
         idx += 1
     end
-    parts = Expr[(x isa String ? :(Passthru($x)) : x) for x in parts]
+    parts = Expr[(x isa String ? :(Bypass($x)) : x) for x in parts]
     return Expr(:call, :Result, QuoteNode(this), parts...)
 end

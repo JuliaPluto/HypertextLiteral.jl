@@ -49,12 +49,64 @@ In this case, properly escaping concent is important.
 Conservatively, many more characters should be escaped, including both
 single (`'`) and double (`"`) quotes. However, we shouldn't assume this.
 
+## Content Extensions
+
+Sometimes it's useful to extend `@htl` so that it knows how to print
+your object without implementing `show` for `"text/html"` this can be
+done by implementing a method for the `content()` function.
+
+    struct Custom data::String end
+
+    HypertextLiteral.content(c::Custom) = "They said: '$(c.data)'"
+
+    @print @htl("<span>$(Custom("Hello"))</span>")
+    #-> <span>They said: &apos;Hello&apos;</span>
+
+By default, the result of the `content()` is fully escaped, in this way
+you don't have to worry about implement one's own escaping. If your
+custom object is building tagged content, you can bypass escaping.
+
+    HypertextLiteral.content(c::Custom) =
+        HypertextLiteral.Bypass("<span>$(c.data)</span>")
+
+    @print @htl("<div>$(Custom("Hello"))</div>")
+    #-> <div><span>Hello</span></div>
+
+Unfortunately, this won't encode the argument to your object.
+
+    @print @htl("<div>$(Custom("<script>alert('whoops!);"))</div>")
+    #-> <div><span><script>alert('whoops!);</span></div>
+
+This can be addressed with `Reprint`. In this case, the value you return
+is a functor (and object holding a function) built by `Reprint`.
+
+    using HypertextLiteral: Bypass, Reprint
+
+    HypertextLiteral.content(c::Custom) =
+        Reprint(io::IO -> begin
+            print(io, Bypass("<span>"))
+            print(io, c.data)
+            print(io, Bypass("</span>"))
+        end)
+
+    @print @htl("<div>$(Custom("a&b"))</div>")
+    #-> <div><span>a&amp;b</span></div>
+
+Once you go though all this work though, you could simply use `@htl`.
+
+    HypertextLiteral.content(c::Custom) =
+        @htl("<span>$(c.data)</span>")
+
+    @print @htl("<div>$(Custom("a&b"))</div>")
+    #-> <div><span>a&amp;b</span></div>
+
 ## Attribute Value Context
 
-Unfortunately, there is no such protocol for attribute values, which
-have different escaping needs (single or double quote, respectively).
-Hence, integrating `Hyperscript`'s CSS `Unit` object, such as `2em`,
-isn't automatic. By default, a `MethodError` is raised.
+Unlike `content` which has a `show` `"text/html"` fallback, there is no
+such protocol for attribute values, which have different escaping needs
+(single or double quote, respectively). Hence, integrating
+`Hyperscript`'s CSS `Unit` object, such as `2em`, isn't automatic. By
+default, a `MethodError` is raised.
 
     typeof(2em)
     #-> Hyperscript.Unit{:em, Int64}
@@ -71,9 +123,9 @@ Julia's sensibilities, you implement `attribute_value` for that type.
     #-> <div style='border: 2em;'>...</div>
 
 This works as follows. When `obj` is encountered in an attribute
-context, `attribute_value(obj)` is called. Then, `print()` is called
-on the result to create a character stream. This stream is then escaped
-and included into the results. Let's do this with a `Custom` object.
+context, `attribute_value(obj)` is called. Then, `print()` is called on
+the result to create a character stream. This stream is then escaped and
+included into the results. Let's do this with a `Custom` object.
 
     struct Custom data::String end
 
@@ -82,9 +134,10 @@ and included into the results. Let's do this with a `Custom` object.
     @print @htl("<tag attribute=$(Custom("'A&B'"))/>")
     #-> <tag attribute='&apos;A&amp;B&apos;'/>
 
-## Content Context
-
-TODO: Discuss `content` extensions.
+Like `content` above, `Bypass` and `Reprint` work identically. That
+said, nested `@htl` macros will not work (they assume element content is
+the output). For more complicated `attribute_value` plugins, directly
+constructing the escaping pipeline is needed.
 
 ## Inside Tag Context
 

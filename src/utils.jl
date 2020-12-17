@@ -1,4 +1,13 @@
 """
+    Reprint(fn) -- apply the lambda function when printed
+"""
+mutable struct Reprint
+    content::Function
+end
+
+Base.print(io::IO, t::Reprint) = t.content(io)
+
+"""
     UnwrapHTML(data) - delegate regular printing to text/html
 
 This is the inverse wrapper to `Docs.HTML` -- instead of enabling
@@ -28,7 +37,6 @@ Base.show(io::IO, wrap::UnwrapHTML{<:Function}) = wrap.content(io)
 Base.show(io::IO, m::MIME"text/html", wrap::UnwrapHTML{<:Function}) =
     wrap.content(io)
 
-
 """
     EscapeProxy(io) - wrap an `io` to perform HTML escaping
 
@@ -52,8 +60,7 @@ end
 
 EscapeProxy(io::EscapeProxy) = io
 
-Base.print(ep::EscapeProxy, h::Text{<:Function}) = h.content(ep)
-Base.print(ep::EscapeProxy, h::Text) = print(ep, h.content)
+Base.print(ep::EscapeProxy, h::Reprint) = h.content(ep)
 Base.print(ep::EscapeProxy, w::UnwrapHTML{<:Function}) = w.content(ep.io)
 Base.print(ep::EscapeProxy, w::UnwrapHTML) =
     show(ep.io, MIME"text/html"(), w.content)

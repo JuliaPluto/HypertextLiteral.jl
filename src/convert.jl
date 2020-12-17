@@ -27,7 +27,7 @@ attribute_value(x::Bool) =
   throw("Boolean used within a quoted attribute.")
 
 function attribute_value(xs::Union{Tuple, AbstractArray, Base.Generator})
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         prior = false
         for x in xs
             if prior
@@ -40,7 +40,7 @@ function attribute_value(xs::Union{Tuple, AbstractArray, Base.Generator})
 end
 
 function attribute_pairs(xs)
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         prior = false
         for (key, value) in xs
             name = normalize_attribute_name(key)
@@ -81,7 +81,7 @@ content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         for x in xs
             print(io, content(x))
         end
@@ -101,10 +101,10 @@ provided. If the value is `false` or `nothing` then the entire pair is
 not printed.  If the value is `true` than an empty string is produced.
 """
 
-no_content = Text("")
+no_content = Reprint(io::IO -> nothing)
 
 function attribute_pair(name, value)
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         print(io, " ")
         print(io, name)
         print(io, BypassEscape("='"))
@@ -117,7 +117,7 @@ function attribute_pair(name, value::Bool)
     if value == false
         return no_content
     end
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         print(io, " ")
         print(io, name)
         print(io, BypassEscape("=''"))
@@ -139,7 +139,7 @@ function inside_tag(value::Pair)
 end
 
 function inside_tag(xs)
-    Text{Function}() do io::IO
+    Reprint() do io::IO
         for (key, value) in xs
             name = normalize_attribute_name(key)
             print(io, attribute_pair(name, value))

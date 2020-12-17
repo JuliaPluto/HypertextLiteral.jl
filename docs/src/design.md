@@ -1,25 +1,37 @@
 # Design
 
-We are open to suggested improvements. This package is implemented
-according to several design criteria.
+This package is implemented according to several design criteria.
 
 * Operation of interpolated expressions (`$`) should (mostly) mirror
   what they would do with regular Julia strings, updated with hypertext
   escaping sensibilities including proper escaping.
 
+* Speed of construction is critically important. This library is
+  intended to be used deep within systems that generate extensive
+  number of very large reports, interactively or in batch.
+
 * With exception of boolean attributes (which must be removed to be
   false), input is treated as-is and not otherwise modified.
 
 * Provide reasonable interpretation for `Dict`, `Vector` and other
-  objects as attributes, element content, or attribute values.
+  objects as element content, attributes, and attribute values; to
+  ensure the library is predictable, these interpretations should
+  not depend upon namespace, element name, or the attribute name.
+
+* Since the `style` and `class` attributes are so important in HTML
+  construction, universal interpretations of Julia constructs
+  should make sense to aid these CSS attributes.
+
+* There should be a discoverable and well documented extension API that
+  permits custom data types to provide their own serialization
+  strategies based upon syntactical context.
+
+* By default, use of unknown objects is an error. However, it should
+  be trivial to permit their usage via Julia method implementation.
 
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
-  Error messages should guide the user towards addressing the problem.
-
-* There should be an extension API that permits custom data types to
-  provide their own serialization strategies that are not dependent upon
-  the namespace, element name, or attribute name.
+  We'll be slightly slower on interactive use to be fast in batch.
 
 * Full coverage of HTML syntax or reporting syntax or semantic errors
   within the HTML content is not a goal.
@@ -32,7 +44,25 @@ To discuss the design in more depth, let's restart our environment.
         :(display("text/html", $expr))
     end
 
-## Implementation Notes
+## Specific Design Decisions
+
+Objects created by `@htl` are lazily constructed. What do we show on the
+REPL? We decided to parrot back the macro expression.
+
+    x = "Hello World"
+    "Hello World"
+
+    @htl("<span>$x</span>")
+    #-> @htl "<span>$(x)</span>"
+
+You could use the `print` command to evaluate the expression, showing
+the `"text/html"` results.
+
+    x = "Hello World"
+    "Hello World"
+
+    print(@htl("<span>$x</span>"))
+    #-> <span>Hello World</span>
 
 So that the scope of objects serialized in this manner is clear, we
 don't permit adjacent unquoted values.
@@ -42,22 +72,6 @@ don't permit adjacent unquoted values.
     ERROR: LoadError: DomainError with :invalid:
     Unquoted attribute interpolation is limited to a single component⋮
     =#
-
-To have a convenient notation, our string macro syntax interpolate
-tuples and generated expressions as concatenated output. This is
-currently not supported by `@htl` macro (see Julia ticket amp734).
-
-    a = "A"
-    b = "B"
-
-    @print htl"$(a,b)"
-    #-> AB
-
-    @print htl"$(x for x in (a,b))"
-    #-> AB
-
-    @htl("$(x for x in (a,b))")
-    #-> ERROR: syntax: invalid interpolation syntax
 
 While assignment operator is permitted in Julia string interpolation, we
 exclude it in both string literal and macro forms so to guard against
@@ -78,38 +92,85 @@ accidentally forgetting the trailing comma for a 1-tuple.
     assignments are not permitted in an interpolation⋮
     =#
 
-## Quirks
+Symbols and Numeric values are properly escaped. While it is perhaps
+faster to assume all `Symbol` and `Number` objects could never
+contain invalid characters, we don't make this assumption.
 
-Since this string format uses Julia macro processing, there are some
-differences between an `htl` literal and native Julia interpolation.
-For starters, Julia doesn't recognize and treat `$` syntax natively for
-these macros, hence, at a very deep level parsing is different.
+    @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
+    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
 
-    "$("Hello")"
-    #-> "Hello"
+Julia's regular interpolation stringifies everything. We don't do that
+we treat a `Vector` as a sequence to be concatenated. Moreover, we let
+the interpretation be customized though an extensive API.
 
-In this interpolation, the expression `"Hello"` is seen as a string, and
-hence Julia can produce the above output. However, Julia does not given
-this special treatment to string literals. Hence, if you try this
-expression using `htl` you'll get an error.
+    @print htl"$([x for x in 1:3])"
+    #-> 123
 
-    htl"$("Hello")"
-    #-> ERROR: syntax: cannot juxtapose string literal
+    @print @htl "$([x for x in 1:3])"
+    #-> 123
 
-The above expression is seen by Julia as 3 tokens, `htl"$("`, followed
-by `Hello`, and then `")`. This combination is a syntax error. One might
-correct this using triple strings.
+Since Julia's regular string interpolation works with the splat
+operator, we implement this as well, by concatenating results.
 
-    #? VERSION > v"1.5.0"
-    htl"""$("Hello")"""
-    #-> htl"$(\"Hello\")"
+    @print htl"$([x for x in 1:3]...)"
+    #-> 123
 
-Alternatively, in Julia v1.6+, one could use the `@htl` macro format for
-cases where there are string literals.
+    @print @htl "$([x for x in 1:3]...)"
+    #-> 123
 
-    #? VERSION >= v"1.6.0-DEV"
-    @htl "$("Hello")"
-    #-> @htl "$("Hello")"
+The `script` and `style` tags use a "raw text" encoding where all
+content up-to the end tag is not escaped using ampersands.
+
+    book = "Strunk & White"
+    @print htl"""<script>var book = "$book"</script>"""
+    #-> <script>var book = "Strunk & White"</script>
+
+We throw an error if the end tag is accidently included. It is possible
+to improve the public API to let this be customized.
+
+    bad = "</style>"
+
+    htl"""<style>$bad</style>"""
+    #=>
+    ERROR: DomainError with "</style>":
+      Content of <style> cannot contain the end tag (`</style>`).
+    =#
+
+## String Macro Notes
+
+We've designed to implement both the `@htl` macro and a `htl` string
+syntax. For the most part, we've tried to keep them equivalent. The
+`@htl` macro has significant advantages, so this is promoted.
+
+* It can nest arbitrarily deep.
+* It has syntax highlighting support.
+* It has a robust implementation.
+
+On the other hand, we implemented a string macro as well, for one
+important reason -- it's more succinct for simple use cases. Further,
+till Julia ticket #38734 is addressed, it'll be much nicer for named
+tuples within attributes.
+
+    @print htl"<tag $(att=:value,)/>"
+    #-> <tag att='value'/>
+
+    @print @htl("<tag $(att=:value,)/>")
+    #-> ERROR: syntax: invalid interpolation syntax
+
+This same ticket should also improve use of tuples and generators,
+however, we can use the syntax macro till then.
+
+    a = "A"
+    b = "B"
+
+    @print htl"$(a,b)"
+    #-> AB
+
+    @print htl"$(x for x in (a,b))"
+    #-> AB
+
+    @htl("$(x for x in (a,b))")
+    #-> ERROR: syntax: invalid interpolation syntax
 
 Before v1.6, we cannot reliably detect interpolated string literals
 using the `@htl` macro, so they are errors (when we can detect them).
@@ -123,6 +184,15 @@ However, you can fix by wrapping a value in a `string` function.
     @print @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
     #-> Look, Ma, &lt;i>automatic escaping&lt;/i>!
 
+In particular, there are edge cases with macros and string literals
+where unescaped content can leak.
+
+    x = ""
+
+    #? VERSION < v"1.6.0-DEV"
+    @print @htl("$x$("<script>alert(\"Hello\")</script>")")
+    #-> <script>alert("Hello")</script>
+
 The string literal style is not without its quirks. See `@raw_str` for
 exceptional cases where a slash immediately precedes the double quote.
 This is one case where the `htl` string macro cannot be made to work in
@@ -134,7 +204,8 @@ a manner identical to regular string interpolation.
     @print @htl("(\\\")")
     #-> (\")
 
-This has tangible effect on expressions.
+This has tangible effect on the interpretation of expressions. This
+cannot be fixed.
 
     print(@htl("$(("<'", "\"&"))"))
     #-> &lt;&apos;&quot;&amp;
@@ -142,11 +213,25 @@ This has tangible effect on expressions.
     print(htl"""$(("<'", "\\"&"))""")
     #-> &lt;&apos;&quot;&amp;
 
-## Regression Tests
+Unlike macros, string macro format doesn't nest nicely.
 
-In Julia, to support regular expressions and other formats, string
-literals don't provide regular escaping semantics. This package adds
-those semantics.
+    htl"$("Hello")"
+    #-> ERROR: syntax: cannot juxtapose string literal
+
+The above expression is seen by Julia as 3 tokens, `htl"$("`, followed
+by `Hello`, and then `")`. This combination is a syntax error. One might
+correct this using triple strings.
+
+    @print htl"""$("Hello")"""
+    #-> Hello
+
+Finally, since the string macro includes its own top-level parser,
+there's a chance of additional bugs. For example, we've manually
+implemented traditional escaping.
+
+## Regression Test Cases
+
+Following are some edge cases we want to test.
 
     htl"Hello\World"
     #-> ERROR: LoadError: ArgumentError: invalid escape sequence⋮
@@ -161,51 +246,6 @@ Escaped strings should just pass-though.
 
     @print @htl("\"\t\\")
     #-> "	\
-
-Within attributes, `Vector` objects are serialized as space separated
-lists to support attributes such as `class`.
-
-    @print htl"<tag att='$([1,2,3])'/>"
-    #-> <tag att='1 2 3'/>
-
-Symbols are also propertly escaped.
-
-    @print htl"""<tag att=$(Symbol("'&"))>$(Symbol("<&"))</tag>"""
-    #-> <tag att='&apos;&amp;'>&lt;&amp;</tag>
-
-Interpolation should handle splat operator by concatenating results.
-
-    @print htl"$([x for x in 1:3]...)"
-    #-> 123
-
-    @print @htl "$([x for x in 1:3]...)"
-    #-> 123
-
-Within element content, we treat a `Vector` as a sequence to be
-concatenated.
-
-    @print htl"$([x for x in 1:3])"
-    #-> 123
-
-    @print @htl "$([x for x in 1:3])"
-    #-> 123
-
-The `script` and `style` tags use a "raw text" encoding where all
-content up-to the end tag is not escaped using ampersands.
-
-    book = "Strunk & White"
-    @print htl"""<script>var book = "$book"</script>"""
-    #-> <script>var book = "Strunk & White"</script>
-
-We throw an error if the end tag is accidently included.
-
-    bad = "</style>"
-
-    htl"""<style>$bad</style>"""
-    #=>
-    ERROR: DomainError with "</style>":
-      Content of <style> cannot contain the end tag (`</style>`).
-    =#
 
 Attribute names should be non-empty and not in a list of excluded
 characters.
@@ -285,8 +325,3 @@ interpolation.
 
     @print htl"Foo$"
     #-> ERROR: LoadError: "missing interpolation expression"⋮
-
-Here's something that perhaps should work... but fails currently.
-
-    # htl"<div $(:dataValue=>42, "data-style"=>:green)/>
-

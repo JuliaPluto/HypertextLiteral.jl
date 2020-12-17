@@ -34,7 +34,7 @@ directly as a Hyperscript node.
 
 Generally, any custom component can be enhanced to work directly with
 this and similar libraries by implementing `show` for `"text/html"`.
-In this case, properly escaping concent is important.
+In this case, properly escaping content is important.
 
     struct Custom data::String end
 
@@ -141,4 +141,28 @@ constructing the escaping pipeline is needed.
 
 ## Inside Tag Context
 
-TODO: Discuss `inside_tag` extensions.
+In some important cases one wishes to expand a `Julia` object into a set
+of attributes. This can be done by implementing `insidetag()`. At this
+point, it's better to study the implementation in `convert.jl`. Here is
+an example.
+
+    using HypertextLiteral: attribute_pair
+
+    struct CustomCSS class::Vector{Symbol}; style end
+
+    HypertextLiteral.inside_tag(s::CustomCSS) = begin
+        myclass = join((string(x) for x in s.class), " ")
+        Reprint() do io::IO
+            print(io, attribute_pair(:class, myclass))
+            print(io, attribute_pair(:style, s.style))
+        end
+    end
+
+    style = CustomCSS([:one, :two], :background_color => "#92a8d1")
+
+    @print @htl("<div $style>Hello</div>")
+    #-> <div class='one two' style='background-color: #92a8d1;'>Hello</div>
+
+There is a small ecosystem of methods to implement the expansion of
+`Dict`, `Pair`, `NamedTuple`, `Vector`, `Tuple` and `Base.Generator` in
+multiple contexts. They could be reused or just ignored.

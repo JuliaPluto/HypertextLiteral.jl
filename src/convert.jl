@@ -39,7 +39,7 @@ function attribute_value(xs::Union{Tuple, AbstractArray, Base.Generator})
     end
 end
 
-function attribute_pairs(xs)
+function attribute_values(xs)
     Reprint() do io::IO
         prior = false
         for (key, value) in xs
@@ -56,10 +56,10 @@ function attribute_pairs(xs)
     end
 end
 
-attribute_value(pair::Pair) = attribute_pairs((pair,))
-attribute_value(items::Dict) = attribute_pairs(items)
-attribute_value(items::NamedTuple) = attribute_pairs(pairs(items))
-attribute_value(items::Tuple{Pair, Vararg{Pair}}) = attribute_pairs(items)
+attribute_value(pair::Pair) = attribute_values((pair,))
+attribute_value(items::Dict) = attribute_values(items)
+attribute_value(items::NamedTuple) = attribute_values(pairs(items))
+attribute_value(items::Tuple{Pair, Vararg{Pair}}) = attribute_values(items)
 
 """
     content(x)

@@ -74,7 +74,7 @@ don't permit adjacent unquoted values.
     =#
 
 While assignment operator is permitted in Julia string interpolation, we
-exclude it in both string literal and macro forms so to guard against
+exclude it in both notation and macro forms so to guard against
 accidentally forgetting the trailing comma for a 1-tuple.
 
     @print htl"""<div $(data_value=42,)/>"""
@@ -172,8 +172,8 @@ however, we can use the syntax macro till then.
     @htl("$(x for x in (a,b))")
     #-> ERROR: syntax: invalid interpolation syntax
 
-Before v1.6, we cannot reliably detect interpolated string literals
-using the `@htl` macro, so they are errors (when we can detect them).
+Before v1.6, we cannot reliably detect string literals using the `@htl`
+macro, so they are errors (when we can detect them).
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl "Look, Ma, $("<i>automatic escaping</i>")!"
@@ -184,8 +184,8 @@ However, you can fix by wrapping a value in a `string` function.
     @print @htl "Look, Ma, $(string("<i>automatic escaping</i>"))!"
     #-> Look, Ma, &lt;i>automatic escaping&lt;/i>!
 
-In particular, there are edge cases with macros and string literals
-where unescaped content can leak.
+In particular, there are edge cases with the macro syntax where
+unescaped string literal content can leak.
 
     x = ""
 
@@ -193,10 +193,10 @@ where unescaped content can leak.
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
     #-> <script>alert("Hello")</script>
 
-The string literal style is not without its quirks. See `@raw_str` for
+The notation style is not without its quirks. See `@raw_str` for
 exceptional cases where a slash immediately precedes the double quote.
-This is one case where the `htl` string macro cannot be made to work in
-a manner identical to regular string interpolation.
+This is one case where the `htl` notation cannot be made to work in a
+manner identical to regular string interpolation.
 
     @print htl"(\\\")"
     #-> (")

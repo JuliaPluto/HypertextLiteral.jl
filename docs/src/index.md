@@ -1,6 +1,6 @@
 ## Introduction
 
-This package provides a Julia string literal, `htl`, and equivalent
+This package provides a Julia string notation, `htl`, and equivalent
 macro, `@htl`, that construct an object that could be rendered to
 `MIME"text/html"` displays. These macros support interpolation sensible
 to the needs of HTML generation.
@@ -45,7 +45,7 @@ we'll also use the following macro.
     #-> <span>Hello World</span>
 
 Throughout this tutorial, we'll mostly stick with the macro form since
-it has better syntax highlighting support, however, the string literal
+it has better syntax highlighting support, however, the string notation
 form works (almost) equivalently (and is a tad shorter).
 
 ## Content Interpolation
@@ -59,8 +59,8 @@ ampersand (`&`), less-than (`<`), single-quote (`'`) and double-quote
     @print @htl("<span>Today's Reading: $book</span>")
     #-> <span>Today's Reading: Strunk &amp; White</span>
 
-To include a literal `$` in the output, use `\$` as one would in a
-regular Julia string. Other escape sequences, such as `\"` also work.
+To include `$` in the output, use `\$` as one would in a regular Julia
+string. Other escape sequences, such as `\"` also work.
 
     @print @htl("They said, \"your total is \$42.50\".")
     #-> They said, "your total is $42.50".

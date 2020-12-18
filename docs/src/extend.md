@@ -47,7 +47,7 @@ In this case, properly escaping content is important.
     #-> <span><custom>a&amp;b</custom></span>
 
 Conservatively, many more characters should be escaped, including both
-single (`'`) and double (`"`) quotes. However, we shouldn't assume this.
+single (`'`) and double (`"`) quotes.
 
 ## Content Extensions
 
@@ -92,7 +92,7 @@ is a functor (and object holding a function) built by `Reprint`.
     @print @htl("<div>$(Custom("a&b"))</div>")
     #-> <div><span>a&amp;b</span></div>
 
-Once you go though all this work though, you could simply use `@htl`.
+This is essentially what `@htl` macro produces.
 
     HypertextLiteral.content(c::Custom) =
         @htl("<span>$(c.data)</span>")
@@ -134,10 +134,7 @@ included into the results. Let's do this with a `Custom` object.
     @print @htl("<tag attribute=$(Custom("'A&B'"))/>")
     #-> <tag attribute='&apos;A&amp;B&apos;'/>
 
-Like `content` above, `Bypass` and `Reprint` work identically. That
-said, nested `@htl` macros will not work (they assume element content is
-the output). For more complicated `attribute_value` plugins, directly
-constructing the escaping pipeline is needed.
+Like `content` above, `Bypass` and `Reprint` work identically.
 
 ## Inside Tag Context
 

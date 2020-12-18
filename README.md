@@ -35,7 +35,7 @@ sensible to the needs of HTML construction.
     render_table(books) = @htl("""
       <table><caption><h3>Selected Books</h3></caption>
       <thead><tr><th>Book<th>Authors<tbody>
-      $([render_row(b) for b in books]...)</tbody></table>""")
+      $((render_row(b) for b in books))</tbody></table>""")
 
     display("text/html", render_table(books))
     #=>

@@ -15,7 +15,7 @@ print(@htl(&quot;&lt;span&gt;$x&lt;/span&gt;&quot;))
 #=&gt;
 ERROR: LoadError: DomainError with :invalid:
 Unquoted attribute interpolation is limited to a single component⋮
-=#</code></pre><p>While assignment operator is permitted in Julia string interpolation, we exclude it in both string literal and macro forms so to guard against accidentally forgetting the trailing comma for a 1-tuple.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;div $(data_value=42,)/&gt;&quot;&quot;&quot;
+=#</code></pre><p>While assignment operator is permitted in Julia string interpolation, we exclude it in both notation and macro forms so to guard against accidentally forgetting the trailing comma for a 1-tuple.</p><pre><code class="language-julia">@print htl&quot;&quot;&quot;&lt;div $(data_value=42,)/&gt;&quot;&quot;&quot;
 #-&gt; &lt;div data-value=&#39;42&#39;/&gt;
 
 htl&quot;&quot;&quot;&lt;div $(data_value=42)/&gt;&quot;&quot;&quot;
@@ -59,14 +59,14 @@ b = &quot;B&quot;
 #-&gt; AB
 
 @htl(&quot;$(x for x in (a,b))&quot;)
-#-&gt; ERROR: syntax: invalid interpolation syntax</code></pre><p>Before v1.6, we cannot reliably detect interpolated string literals using the <code>@htl</code> macro, so they are errors (when we can detect them).</p><pre><code class="language-julia">#? VERSION &lt; v&quot;1.6.0-DEV&quot;
+#-&gt; ERROR: syntax: invalid interpolation syntax</code></pre><p>Before v1.6, we cannot reliably detect string literals using the <code>@htl</code> macro, so they are errors (when we can detect them).</p><pre><code class="language-julia">#? VERSION &lt; v&quot;1.6.0-DEV&quot;
 @print @htl &quot;Look, Ma, $(&quot;&lt;i&gt;automatic escaping&lt;/i&gt;&quot;)!&quot;
 #-&gt; ERROR: LoadError: &quot;interpolated string literals are not supported&quot;⋮</code></pre><p>However, you can fix by wrapping a value in a <code>string</code> function.</p><pre><code class="language-julia">@print @htl &quot;Look, Ma, $(string(&quot;&lt;i&gt;automatic escaping&lt;/i&gt;&quot;))!&quot;
-#-&gt; Look, Ma, &amp;lt;i&gt;automatic escaping&amp;lt;/i&gt;!</code></pre><p>In particular, there are edge cases with macros and string literals where unescaped content can leak.</p><pre><code class="language-julia">x = &quot;&quot;
+#-&gt; Look, Ma, &amp;lt;i&gt;automatic escaping&amp;lt;/i&gt;!</code></pre><p>In particular, there are edge cases with the macro syntax where unescaped string literal content can leak.</p><pre><code class="language-julia">x = &quot;&quot;
 
 #? VERSION &lt; v&quot;1.6.0-DEV&quot;
 @print @htl(&quot;$x$(&quot;&lt;script&gt;alert(\&quot;Hello\&quot;)&lt;/script&gt;&quot;)&quot;)
-#-&gt; &lt;script&gt;alert(&quot;Hello&quot;)&lt;/script&gt;</code></pre><p>The string literal style is not without its quirks. See <code>@raw_str</code> for exceptional cases where a slash immediately precedes the double quote. This is one case where the <code>htl</code> string macro cannot be made to work in a manner identical to regular string interpolation.</p><pre><code class="language-julia">@print htl&quot;(\\\&quot;)&quot;
+#-&gt; &lt;script&gt;alert(&quot;Hello&quot;)&lt;/script&gt;</code></pre><p>The notation style is not without its quirks. See <code>@raw_str</code> for exceptional cases where a slash immediately precedes the double quote. This is one case where the <code>htl</code> notation cannot be made to work in a manner identical to regular string interpolation.</p><pre><code class="language-julia">@print htl&quot;(\\\&quot;)&quot;
 #-&gt; (&quot;)
 
 @print @htl(&quot;(\\\&quot;)&quot;)
@@ -134,4 +134,4 @@ ERROR: syntax: invalid interpolation syntax: &quot;$[&quot;⋮
 #-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮
 
 @print htl&quot;Foo$&quot;
-#-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../extend/">« Extend</a><a class="docs-footer-nextpage" href="../utils/">Utilities »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 17 December 2020 19:29">Thursday 17 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#-&gt; ERROR: LoadError: &quot;missing interpolation expression&quot;⋮</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../extend/">« Extend</a><a class="docs-footer-nextpage" href="../utils/">Utilities »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 18 December 2020 17:47">Friday 18 December 2020</span>. Using Julia version 1.5.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

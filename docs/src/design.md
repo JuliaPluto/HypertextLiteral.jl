@@ -36,6 +36,9 @@ This package is implemented according to several design criteria.
 * Full coverage of HTML syntax or reporting syntax or semantic errors
   within the HTML content is not a goal.
 
+* The non-standard string literal form `htl` uses `@raw_str` escaping,
+  and hence `&#36;` can be used to represent the dollar-sign (`$`).
+
 To discuss the design in more depth, let's restart our environment.
 
     using HypertextLiteral
@@ -139,12 +142,12 @@ to improve the public API to let this be customized.
 ## String Macro Notes
 
 We've designed to implement both the `@htl` macro and a `htl` string
-syntax. For the most part, we've tried to keep them equivalent. The
-`@htl` macro has significant advantages, so this is promoted.
+syntax. The `@htl` macro has significant advantages, so this form is
+promoted.
 
 * It can nest arbitrarily deep.
 * It has syntax highlighting support.
-* It has a robust implementation.
+* It uses Julia escaping.
 
 On the other hand, we implemented a string macro as well, for one
 important reason -- it's more succinct for simple use cases. Further,
@@ -193,17 +196,6 @@ unescaped string literal content can leak.
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
     #-> <script>alert("Hello")</script>
 
-The notation style is not without its quirks. See `@raw_str` for
-exceptional cases where a slash immediately precedes the double quote.
-This is one case where the `htl` notation cannot be made to work in a
-manner identical to regular string interpolation.
-
-    @print htl"(\\\")"
-    #-> (")
-
-    @print @htl("(\\\")")
-    #-> (\")
-
 This has tangible effect on the interpretation of expressions. This
 cannot be fixed.
 
@@ -225,27 +217,45 @@ correct this using triple strings.
     @print htl"""$("Hello")"""
     #-> Hello
 
-Finally, since the string macro includes its own top-level parser,
-there's a chance of additional bugs. For example, we've manually
-implemented traditional escaping.
+One difference between the `@htl` and the string literal is that it does
+not provide slash escaping. Therefore, to produce a dollar-sign in the
+rendered output, one uses HTML's ampersand escaped form.
+
+    amount = 42
+
+    @print htl"<span>They paid &#36;$amount</span>"
+    #-> <span>They paid &#36;42</span>
+
+With this technique, one may also render a quoted value.
+
+    @print htl"<span>She said: &quot;Hello&quot;</span>"
+    #-> <span>She said: &quot;Hello&quot;</span>
 
 ## Regression Test Cases
 
 Following are some edge cases we want to test.
 
-    htl"Hello\World"
-    #-> ERROR: LoadError: ArgumentError: invalid escape sequence⋮
-
     @htl "Hello\World"
     #-> ERROR: syntax: invalid escape sequence⋮
 
-Escaped strings should just pass-though.
+    @print htl"Hello\World"
+    #-> Hello\World
 
-    @print htl"\"\t\\"
-    #-> "	\
+Escaped strings are handled by `@htl` as one might expect.
 
     @print @htl("\"\t\\")
     #-> "	\
+
+    @print @htl("(\\\")")
+    #-> (\")
+
+Due to `@raw_str` escaping, string literal forms are quirky.
+
+    @print htl"\"\t\\"
+    #-> "\t\
+
+    @print htl"(\\\")"
+    #-> (\")
 
 Attribute names should be non-empty and not in a list of excluded
 characters.

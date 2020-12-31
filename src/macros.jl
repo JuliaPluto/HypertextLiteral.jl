@@ -40,14 +40,19 @@ end
     @htl_str -> Result
 
 Create a `Result` object with string interpolation (`\$`) that uses
-context-sensitive hypertext escaping. Escape sequences should work
-identically to Julia strings, except in cases where a slash immediately
-precedes the double quote (see `@raw_str` and Julia issue #22926).
+context-sensitive hypertext escaping. Unlike the `@htl` macro, this
+string literal does not include escaping feature [1]. To include `\$`
+within user content one must write `&#36;`. Observe that `&quot;` and
+any other HTML ampersand escape sequence can be used as appropriate.
 
-Interpolation is extended beyond regular Julia strings to handle three
-additional cases: tuples, named tuples (for attributes), and generators.
-See Julia #38734 for the feature request so that this could also work
-within the `@htl` macro syntax.
+In this syntax, interpolation is extended beyond regular Julia strings
+to handle three additional cases: tuples, named tuples (for attributes),
+and generators. See Julia #38734 for the feature request so that this
+could also work within the `@htl` macro syntax.
+
+[1] There are also a few edge cases, see `@raw_str` documentation and
+Julia #22926 for more detail. See Julia #38948 for a feature request
+that would provide a paired unicode syntax.
 """
 macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
@@ -57,28 +62,15 @@ macro htl_str(expr::String)
     args = Any[]
     start = idx = 1
     strlen = length(expr)
-    escaped = false
-    while idx <= strlen
-        c = expr[idx]
-        if c == '\\'
-            escaped = !escaped
-            idx += 1
-            continue
+    while true
+        idx = findnext(isequal('$'), expr, start)
+        if idx == nothing
+           push!(args, expr[start:strlen])
+           break
         end
-        if c != '$'
-            escaped = false
-            idx += 1
-            continue
-        end
-        finish = idx - (escaped ? 2 : 1)
-        push!(args, unescape_string(SubString(expr, start:finish)))
-        start = idx += 1
-        if escaped
-            escaped = false
-            push!(args, "\$")
-            continue
-        end
-        (nest, idx) = Meta.parse(expr, start; greedy=false)
+        push!(args, expr[start:idx-1])
+        start = idx + 1
+        (nest, tail) = Meta.parse(expr, start; greedy=false)
         if nest == nothing
             throw("missing interpolation expression")
         end
@@ -86,7 +78,6 @@ macro htl_str(expr::String)
             throw(DomainError(nest,
              "interpolations must be symbols or parenthesized"))
         end
-        start = idx
         if Meta.isexpr(nest, :(=))
             throw(DomainError(nest,
              "assignments are not permitted in an interpolation"))
@@ -96,9 +87,7 @@ macro htl_str(expr::String)
             nest = Expr(:string, nest)
         end
         push!(args, nest)
-    end
-    if start <= strlen
-        push!(args, unescape_string(SubString(expr, start:strlen)))
+        start = tail
     end
     return interpolate(args, this)
 end

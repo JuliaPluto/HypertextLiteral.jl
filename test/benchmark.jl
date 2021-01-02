@@ -14,7 +14,7 @@ make_employee() = (
   email=Faker.email(),
   cell_phone=Faker.cell_phone(),
   color= Faker.hex_color(),
-  comments= Faker.paragraphs() 
+  comments= Faker.paragraphs()
 )
 
 make_customer() = (
@@ -27,27 +27,25 @@ make_customer() = (
 
 database = [make_customer() for x in 1:13]
 
-htl_database(d) = htl"""
+htl_database(d) = @htl("""
   <html>
-    <head><title>$("Customers & Employees")</title></head>
+    <head><title>Customers &amp; Employees)</title></head>
     <body>
-    $([htl_customer(c) for c in d]...)
-    </body>
+    $((htl_customer(c) for c in d))</body>
   </html>
-"""
+""")
 
 htl_customer(c) = @htl("""
     <dl>
       <dt>Company<dd>$(c.company)
       <dt>Phrase<dd>$(c.phrase)
-      <dt>Active Since<dd>$(c.active)   
+      <dt>Active Since<dd>$(c.active)
       <dt>Employees<dd>
         <table>
           <tr><th>Last Name<th>First Name<th>Title
               <th>E-Mail<th>Office Phone<th>Cell Phone
               <th>Comments</tr>
-          $([htl_employee(e) for e in c.employees]...)
-        </table>
+          $((map(c.employees) do e; htl_employee(e); end))</table>
     </dl>
 """)
 
@@ -55,8 +53,7 @@ htl_employee(e) = @htl("""
       <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
           <td><a href='mailto:$(e.email)'>$(e.email)</a>
           <td>$(e.main_number)<td>$(e.cell_phone)
-          <td>$([htl"<span>$c</span>" for c in e.comments]...)
-""")
+          <td>$((@htl("<span>$c</span>") for c in e.comments)) """)
 
 htl_test() = begin
    io = IOBuffer()
@@ -150,11 +147,11 @@ end
 
 @tags html head body title dl dt dd table tr th td span
 
-hs_database(d) = 
+hs_database(d) =
   html(head(title("Customers & Employees")),
     body([hs_customer(c) for c in d]...))
 
-hs_customer(c)= 
+hs_customer(c)=
   dl(dt("Company"), dd(c.company),
      dt("Phrase"), dd(c.phrase),
      dt("Active Since"), dd(c.active),
@@ -168,7 +165,7 @@ hs_employee(e) = tr(td(e.last_name), td(e.first_name), td(e.title),
                     td(href="mailto:$(e.email)", e.email),
                     td(e.main_number), td(e.cell_phone),
                     td([span(c) for c in e.comments]...))
-                 
+
 hs_test() = begin
    io = IOBuffer()
    ob = hs_database(database)
@@ -204,7 +201,7 @@ cus_database(d) =
       HTML("</body></html>"))
 
 cus_customer(c) =
-   H(HTML("<dl><dt>Company<dd>"), HE(c.company), 
+   H(HTML("<dl><dt>Company<dd>"), HE(c.company),
      HTML("<dt>Phrase<dd>"), HE(c.phrase),
      HTML("<dt>Active Siince<dd>"), HE(c.active),
      HTML("""
@@ -216,13 +213,13 @@ cus_customer(c) =
      [cus_employee(e) for e in c.employees]...,
      HTML("</table></dd></dl>"))
 
-cus_employee(e) = 
-   H(HTML("<tr><td>"), HE(e.last_name), 
+cus_employee(e) =
+   H(HTML("<tr><td>"), HE(e.last_name),
          HTML("<td>"), HE(e.first_name),
          HTML("<td>"), HE(e.title),
-         HTML("<td><a href='mailto:"), HA(e.email), 
+         HTML("<td><a href='mailto:"), HA(e.email),
                     HTML("'>"), HE(e.email), HTML("</a>"),
-         HTML("<td>"), HE(e.main_number), 
+         HTML("<td>"), HE(e.main_number),
          HTML("<td>"), HE(e.cell_phone),
          HTML("<td>"),
           [H(HTML("<span>"), HE(c), HTML("</span>")) for c in e.comments]...)

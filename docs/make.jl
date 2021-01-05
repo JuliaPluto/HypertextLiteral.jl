@@ -21,6 +21,7 @@ makedocs(
         "Usage" => "index.md",
         "Extend" => "extend.md",
         "Design" => "design.md",
+        "Notation" => "notation.md",
         "Primitives" => "primitives.md",
         "Reference" => "reference.md",
     ],

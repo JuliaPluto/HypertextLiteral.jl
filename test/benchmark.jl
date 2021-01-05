@@ -27,15 +27,15 @@ make_customer() = (
 
 database = [make_customer() for x in 1:13]
 
-htl_database(d) = @htl("""
+htl_database(d) = @htl("
   <html>
     <head><title>Customers &amp; Employees)</title></head>
     <body>
-    $((htl_customer(c) for c in d))</body>
+    $((map(d) do c; htl_customer(c); end))</body>
   </html>
-""")
+")
 
-htl_customer(c) = @htl("""
+htl_customer(c) = @htl("
     <dl>
       <dt>Company<dd>$(c.company)
       <dt>Phrase<dd>$(c.phrase)
@@ -47,13 +47,14 @@ htl_customer(c) = @htl("""
               <th>Comments</tr>
           $((map(c.employees) do e; htl_employee(e); end))</table>
     </dl>
-""")
+")
 
-htl_employee(e) = @htl("""
+htl_employee(e) = @htl("
       <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
           <td><a href='mailto:$(e.email)'>$(e.email)</a>
           <td>$(e.main_number)<td>$(e.cell_phone)
-          <td>$((@htl("<span>$c</span>") for c in e.comments)) """)
+          <td>$((@htl("<span>$c</span>") for c in e.comments))
+")
 
 htl_test() = begin
    io = IOBuffer()

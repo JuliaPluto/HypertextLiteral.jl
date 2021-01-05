@@ -1,20 +1,16 @@
 ## Introduction
 
-This package provides a Julia string notation, `htl`, and equivalent
-macro, `@htl`, that construct an object that could be rendered to
-`MIME"text/html"` displays. These macros support interpolation sensible
-to the needs of HTML generation.
+This package provides a Julia macro, `@htl`, that constructs an object
+which could be rendered to `MIME"text/html"` displays. This macro
+support interpolation sensible to the needs of HTML generation.
 
     using HypertextLiteral
 
-When printed directly to the console (via `show`), the output of these
-macros reproduce a verified expression that generated them.
+When printed directly to the console (via `show`), the output of this
+macro reproduce a verified expression that generated them.
 
 ```julia
 name = "World"
-
-htl"<span>Hello $name</span>"
-#-> htl"<span>Hello $name</span>"
 
 @htl("<span>Hello $name</span>")
 #-> @htl "<span>Hello $(name)</span>"
@@ -23,9 +19,6 @@ htl"<span>Hello $name</span>"
 When displayed to `"text/html"` the evaluation is shown.
 
     name = "World"
-
-    display("text/html", htl"<span>Hello $name</span>")
-    #-> <span>Hello World</span>
 
     display("text/html", @htl("<span>Hello $name</span>"))
     #-> <span>Hello World</span>
@@ -38,15 +31,8 @@ we'll also use the following macro.
         :(display("text/html", $expr))
     end
 
-    @print htl"<span>Hello World</span>"
-    #-> <span>Hello World</span>
-
     @print @htl("<span>Hello World</span>")
     #-> <span>Hello World</span>
-
-Throughout this tutorial, we'll mostly stick with the macro form since
-it has better syntax highlighting support, however, the string notation
-form works (almost) equivalently (and is a tad shorter).
 
 ## Content Interpolation
 
@@ -171,7 +157,7 @@ these attributes, arrays and tuples produce space delimited output.
     @print @htl("<div class=$([:one, :two])/>")
     #-> <div class='one two'/>
 
-    @print htl"<div class=$(:one, :two)/>"
+    @print @htl("<div class=$((:one, :two))/>")
     #-> <div class='one two'/>
 
 To support nested key/value structures, such as the CSS `"style"`

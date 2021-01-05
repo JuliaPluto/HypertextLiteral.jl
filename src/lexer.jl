@@ -96,8 +96,8 @@ function interpolate(args, this)
                 throw("invalid binding #1 $(state)")
             end
         else
-            inputlength = length(input)
             input = normalize(input)
+            inputlength = lastindex(input)
             i = 1
             while i <= inputlength
                 ch = input[i]
@@ -121,7 +121,7 @@ function interpolate(args, this)
                         state = STATE_TAG_NAME
                         state_tag_is_open = true
                         element_start = i
-                        i -= 1
+                        i = prevind(input, i)
                     elseif ch === '?'
                         # this is an XML processing instruction, with
                         # recovery production called "bogus comment"
@@ -136,7 +136,7 @@ function interpolate(args, this)
                     @assert !state_tag_is_open
                     if is_alpha(ch)
                         state = STATE_TAG_NAME
-                        i -= 1
+                        i = prevind(input, i)
                     elseif ch === '>'
                         state = STATE_DATA
                     else
@@ -172,7 +172,7 @@ function interpolate(args, this)
                         nothing
                     elseif ch === '/' || ch === '>'
                         state = STATE_AFTER_ATTRIBUTE_NAME
-                        i -= 1
+                        i = prevind(input, i)
                     elseif ch in  '='
                         throw(DomainError(nearby(input, i-1),
                           "unexpected equals sign before attribute name"))
@@ -180,13 +180,13 @@ function interpolate(args, this)
                         state = STATE_ATTRIBUTE_NAME
                         attribute_start = i
                         attribute_end = nothing
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_ATTRIBUTE_NAME
                     if is_space(ch) || ch === '/' || ch === '>'
                         state = STATE_AFTER_ATTRIBUTE_NAME
-                        i -= 1
+                        i = prevind(input, i)
                     elseif ch === '='
                         state = STATE_BEFORE_ATTRIBUTE_VALUE
                     elseif ch in ('"', '\"', '<')
@@ -210,7 +210,7 @@ function interpolate(args, this)
                         state = STATE_ATTRIBUTE_NAME
                         attribute_start = i
                         attribute_end = nothing
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
@@ -227,7 +227,7 @@ function interpolate(args, this)
                           "missing attribute value"))
                     else
                         state = STATE_ATTRIBUTE_VALUE_UNQUOTED
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
@@ -277,7 +277,7 @@ function interpolate(args, this)
                 elseif state == STATE_MARKUP_DECLARATION_OPEN
                     if ch === '-' && input[i + 1] == '-'
                         state = STATE_COMMENT_START
-                        i += 1
+                        i = nextind(input, i)
                     elseif startswith(input[i:end], "DOCTYPE")
                         throw("DOCTYPE not supported")
                     elseif startswith(input[i:end], "[CDATA[")
@@ -295,7 +295,7 @@ function interpolate(args, this)
                           "abrupt closing of empty comment"))
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_START_DASH
@@ -306,7 +306,7 @@ function interpolate(args, this)
                           "abrupt closing of empty comment"))
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT
@@ -323,7 +323,7 @@ function interpolate(args, this)
                         nothing
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG
@@ -331,7 +331,7 @@ function interpolate(args, this)
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
@@ -339,13 +339,13 @@ function interpolate(args, this)
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
                     else
                         state = STATE_COMMENT_END
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
                     if ch == ">"
                         state = STATE_COMMENT_END
-                        i -= 1
+                        i = prevind(input, i)
                     else
                         throw(DomainError(nearby(input, i-1),
                           "nested comment"))
@@ -356,7 +356,7 @@ function interpolate(args, this)
                         state = STATE_COMMENT_END
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_END
@@ -368,7 +368,7 @@ function interpolate(args, this)
                         nothing
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_COMMENT_END_BANG
@@ -379,7 +379,7 @@ function interpolate(args, this)
                           "nested comment"))
                     else
                         state = STATE_COMMENT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_RAWTEXT_LESS_THAN_SIGN
@@ -397,10 +397,10 @@ function interpolate(args, this)
                     if is_alpha(ch)
                         state = STATE_RAWTEXT_END_TAG_NAME
                         buffer_start = i
-                        i -= 1
+                        i = prevind(input, i)
                     else
                         state = STATE_RAWTEXT
-                        i -= 1
+                        i = prevind(input, i)
                     end
 
                 elseif state == STATE_RAWTEXT_END_TAG_NAME
@@ -429,7 +429,7 @@ function interpolate(args, this)
                     @assert "unhandled state transition"
                 end
 
-                i = i + 1
+                i = nextind(input, i)
             end
             push!(parts, input)
         end

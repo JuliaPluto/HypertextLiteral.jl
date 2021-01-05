@@ -3,7 +3,8 @@
 The `HypertextLiteral` package additionally provides for an `htl`
 notation, which has the advantage of can be more succinct.
 
-    using HypertextLiteral
+    using HypertextLiteral: @htl, @htl_str
+
     macro print(expr) :(display("text/html", $expr)); end
 
 ```julia
@@ -89,6 +90,49 @@ building attributes.
 
     @print htl"<span>$(n for n in 1:3)</span>"
     #-> <span>123</span>
+
+## Nesting via Paired Unicode Delimiter
+
+This implements a prototype for use of paired delimiters to permit
+nesting of `htl` notations as described in Julia #38948. This is a
+prototype quality, _experimental_ feature.
+
+    @print htl"Hello $(htl⟪World⟫)"
+    #-> Hello World
+
+Either single or triple double quotes are still needed for the outermost
+query. However, paired unicode delimiters mark internal data. As long as
+content uses paired delimiters, there is no problem.
+
+    @print htl"Hello ⟪World⟫"
+    #-> Hello ⟪World⟫
+
+    @print htl"Hello ⟪World⟫ $(htl⟪!⟫)"
+    #-> Hello ⟪World⟫ !
+
+The dollar sign is still used to mark interpolation, if it is omitted,
+and we discover an `htl⟪...⟫` pair, then we report it as an error.
+
+    htl"Hello htl⟪World⟫"
+    #=>
+    ERROR: LoadError: "`htl⟪⟫` notation discovered outside interpolation"⋮
+    =#
+
+To use the `⟪` in an unpaired way, it could be included in HTML content
+using a character entity.
+
+    @print htl"Hello ⟪"
+    #-> ERROR: LoadError: "unmatched ⟪ delimiter"⋮
+
+    @print htl"Hello ⟫"
+    #-> ERROR: LoadError: "unmatched ⟫ delimiter"⋮
+
+    @print htl"<span>nested literals start with &#10218;</span>"
+    #-> <span>nested literals start with &#10218;</span>
+
+This feature is there to permit experimentation with heavily nested
+examples. Unfortunately, lack of syntax highlighting makes it less than
+useful.
 
 ## Quirks & Notes
 

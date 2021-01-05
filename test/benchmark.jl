@@ -1,6 +1,8 @@
 #!/usr/bin/env julia
 using Faker, HypertextLiteral, Hyperscript, BenchmarkTools
 
+using HypertextLiteral: @htl_str  # import experimental feature separately
+
 # This is going to simulate a hierarchical report that lists a set of
 # companies, and for each company, a list of employees.
 
@@ -69,7 +71,7 @@ att_database(d) = htl"""
   <html>
     <head title=$("Customers & Employees")/>
     <body>
-    $([att_customer(c) for c in d]...)
+    $(map(d) do c; att_customer(c); end)
     </body>
   </html>
 """
@@ -82,7 +84,7 @@ att_customer(c) = @htl("""
          <label>Active Since</label><input value="$(c.active)">
          <label>Employees</label>
        </form>
-          $([att_employee(e) for e in c.employees]...)
+          $((map(c.employees) do e; att_employee(e); end))
     </div>
 """)
 
@@ -94,7 +96,7 @@ att_employee(e) = @htl("""
          <label>E-Mail</label><input $(:value => e.email)>
          <label>Main</label><input $("value" => e.main_number))>
          <label>Cell</label><input $((value=e.main_number,))>
-         $([htl"<span $(value=x,)/>" for x in e.comments]...)
+         $((htl"<span $(value=x,)/>" for x in e.comments))
 """)
 
 att_test() = begin
@@ -232,12 +234,47 @@ cus_test() = begin
    return io
 end
 
+pair_result(d) = htl"""
+  <html>
+    <head><title>$("Customers & Employees")</title></head>
+    <body>
+    $(map(d) do c; htl⟪
+        <dl>
+          <dt>Company<dd>$(c.company)
+          <dt>Phrase<dd>$(c.phrase)
+          <dt>Active Since<dd>$(c.active)
+          <dt>Employees<dd>
+            <table>
+              <tr><th>Last Name<th>First Name<th>Title
+                  <th>E-Mail<th>Office Phone<th>Cell Phone
+                  <th>Comments</tr>
+               $(map(c.employees) do e; htl⟪
+                <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
+                    <td><a href='mailto:$(e.email)'>$(e.email)</a>
+                    <td>$(e.main_number)<td>$(e.cell_phone)
+                    <td>$(htl⟪<span>$c</span>⟫ for c in e.comments)
+               ⟫; end)
+            </table>
+        </dl>⟫; end)
+    </body>
+  </html>
+"""
+
+pair_test() = begin
+   io = IOBuffer()
+   ob = pair_result(database)
+   show(io, MIME("text/html"), ob)
+   return io
+end
+
+
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
 #println("interpolate: ", @benchmark reg_test())
 #println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
 println("HTL (Attributes): ", @benchmark att_test())
+println("Pair Testing: ", @benchmark pair_test())
 
 if false
     open("htl.html", "w") do f

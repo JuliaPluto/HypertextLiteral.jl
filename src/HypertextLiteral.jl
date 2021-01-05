@@ -1,14 +1,11 @@
 """
     HypertextLiteral
 
-This library provides a `@htl()` macro and a `@htl_str` non-standard
-string literal, both implementing interpolation that is aware of
-hypertext escape context. The `@htl` macro has the advantage of using
-Julia's native string parsing and has familar look and feel. Conversely,
-the `htl` literal, `@htl_str`, takes a less standard approach.
+This library provides a `@htl()` macro which implements interopolation
+that is aware of hypertext escape context.
 """
 module HypertextLiteral
-export @htl_str, @htl
+export @htl
 
 include("primitives.jl") # Wrap, Unwrap, EscapeProxy
 include("macro.jl")      # @htl macro and `Result` object

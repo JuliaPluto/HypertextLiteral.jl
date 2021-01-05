@@ -3,7 +3,7 @@
 This package additionally provides the `@htl_str` notation which has the
 advantage of being more succinct than `@htl` macro.
 
-    using HypertextLiteral
+    using HypertextLiteral: @htl_str
 
     macro print(expr) :(display("text/html", $expr)); end
 

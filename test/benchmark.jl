@@ -265,14 +265,45 @@ pair_test() = begin
    return io
 end
 
+nest_result(d) = @htl("
+  <html>
+    <head><title>Customers &amp; Employees)</title></head>
+    <body>
+    $((map(d) do c; @htl("
+    <dl>
+      <dt>Company<dd>$(c.company)
+      <dt>Phrase<dd>$(c.phrase)
+      <dt>Active Since<dd>$(c.active)
+      <dt>Employees<dd>
+        <table>
+          <tr><th>Last Name<th>First Name<th>Title
+              <th>E-Mail<th>Office Phone<th>Cell Phone
+              <th>Comments</tr>
+          $((map(c.employees) do e; @htl("
+      <tr><td>$(e.last_name)<td>$(e.first_name)<td>$(e.title)
+          <td><a href='mailto:$(e.email)'>$(e.email)</a>
+          <td>$(e.main_number)<td>$(e.cell_phone)
+          <td>$((@htl("<span>$c</span>") for c in e.comments))
+          "); end))</table>
+    </dl>"); end))</body>
+  </html>
+")
+
+nest_test() = begin
+   io = IOBuffer()
+   ob = nest_result(database)
+   show(io, MIME("text/html"), ob)
+   return io
+end
 
 #BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
 #println("interpolate: ", @benchmark reg_test())
 #println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
-println("HTL (Attributes): ", @benchmark att_test())
-println("Pair Testing: ", @benchmark pair_test())
+#println("HTL (Attributes): ", @benchmark att_test())
+#println("Pair Testing: ", @benchmark pair_test())
+#println("Nest Testing: ", @benchmark nest_test())
 
 if false
     open("htl.html", "w") do f

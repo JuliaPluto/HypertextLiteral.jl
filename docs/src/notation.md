@@ -29,10 +29,9 @@ are otherwise identical in behavior.
 
 ## Notable Differences
 
-Unlike `@htl`, `htl` strings are only occassionally unescaped; see
-`@raw_str` for more detail. In particular, so long as a double-quote
-character does not come before a slash, the slash itself need not be
-escaped.
+Unlike `@htl`, `htl` uses `@raw_str` escaping rules. In particular, so
+long as a double-quote character does not come before a slash, the slash
+itself need not be escaped.
 
     @print htl"<span>\some\path</span>"
     #-> <span>\some\path</span>

@@ -134,7 +134,7 @@ to improve the public API to let this be customized.
       Content of <style> cannot contain the end tag (`</style>`).
     =#
 
-## Quirks & Notes
+## Detection of String Literals
 
 Before v1.6, we cannot reliably detect string literals using the `@htl`
 macro, so they are errors (when we can detect them).
@@ -157,11 +157,13 @@ content can leak.
     @print @htl("$x$("<script>alert(\"Hello\")</script>")")
     #-> <script>alert("Hello")</script>
 
-This has tangible effect on the interpretation of expressions. This
-cannot be fixed.
+Julia #38501 was fixed in v1.6.
 
-    print(@htl("$(("<'", "\"&"))"))
-    #-> &lt;&apos;&quot;&amp;
+    #? VERSION >= v"1.6.0-DEV"
+    @print @htl "<tag>$("escape&me")</tag>"
+    #-> <tag>escape&amp;me</tag>
+
+## Regression Tests
 
 Escaped strings are handled by `@htl` as one might expect.
 
@@ -205,23 +207,16 @@ For more details on this see Julia #37817.
     ERROR: syntax: invalid interpolation syntax: "$["⋮
     =#
 
-Before Julia v1.6, string literals should not be used since we cannot
-reliably detect them. Here is one of those cases where we should be
-escaping, but we're not.
+Literal content can contain Unicode values.
 
-    x = ""
+   x = "Hello"
 
-    #? VERSION < v"1.6.0-DEV"
-    @print @htl("$x$("<script>alert(\"Hello\")</script>")")
-    #-> <script>alert("Hello")</script>
+   @htl("⁅$(x)⁆")
+   #-> ⁅Hello⁆
 
-Hence, for a cases where we could detect a string literal, we raise an
-error condition to discourage its use.
+Escaped content may also contain Unicode.
 
-    #? VERSION >= v"1.6.0-DEV"
-    @print @htl "<tag>$("escape&me")</tag>"
-    #-> <tag>escape&amp;me</tag>
+   x = "⁅Hello⁆"
 
-    #? VERSION < v"1.6.0-DEV"
-    @print @htl "<tag>$("escape&me")</tag>"
-    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+   @htl("<tag>$x</tag>")
+   #-> <tag>⁅Hello⁆</tag>

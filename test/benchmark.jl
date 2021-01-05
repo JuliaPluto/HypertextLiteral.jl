@@ -67,14 +67,14 @@ end
 
 # very silly test using attributes rather than elements...
 
-att_database(d) = htl"""
+att_database(d) = @htl("""
   <html>
-    <head title=$("Customers & Employees")/>
+    <head title="Customers &amp; Employees"/>
     <body>
     $(map(d) do c; att_customer(c); end)
     </body>
   </html>
-"""
+""")
 
 att_customer(c) = @htl("""
     <div>
@@ -96,7 +96,7 @@ att_employee(e) = @htl("""
          <label>E-Mail</label><input $(:value => e.email)>
          <label>Main</label><input $("value" => e.main_number))>
          <label>Cell</label><input $((value=e.main_number,))>
-         $((htl"<span $(value=x,)/>" for x in e.comments))
+         $((@htl("<span $((value=x,))/>") for x in e.comments))
 """)
 
 att_test() = begin
@@ -303,7 +303,7 @@ end
 #println("Custom HTML: ", @benchmark cus_test())
 #println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
-#println("HTL (Attributes): ", @benchmark att_test())
+println("HTL (Attributes): ", @benchmark att_test())
 #println("Pair Testing: ", @benchmark pair_test())
 #println("Nest Testing: ", @benchmark nest_test())
 

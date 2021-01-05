@@ -21,8 +21,8 @@ makedocs(
         "Usage" => "index.md",
         "Extend" => "extend.md",
         "Design" => "design.md",
-        "Primitives" => "primitives.md",
         "Notation" => "notation.md",
+        "Primitives" => "primitives.md",
         "Reference" => "reference.md",
     ],
     modules = [HypertextLiteral])

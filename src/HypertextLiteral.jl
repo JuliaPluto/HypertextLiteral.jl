@@ -5,7 +5,7 @@ This library provides a `@htl()` macro which implements interopolation
 that is aware of hypertext escape context.
 """
 module HypertextLiteral
-export @htl
+export @htl, @htl_str
 
 include("primitives.jl") # Wrap, Unwrap, EscapeProxy
 include("macro.jl")      # @htl macro and `Result` object

@@ -1,8 +1,6 @@
 #!/usr/bin/env julia
 using Faker, HypertextLiteral, Hyperscript, BenchmarkTools
 
-using HypertextLiteral: @htl_str  # import experimental feature separately
-
 # This is going to simulate a hierarchical report that lists a set of
 # companies, and for each company, a list of employees.
 

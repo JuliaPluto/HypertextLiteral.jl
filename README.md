@@ -14,10 +14,9 @@ and provides handy conversions dependent upon context.*
 > is based upon a port to Julia written by Michiel Dral with significant
 > architectural feedback by Kirill Simonov ([@xitology][@xitology]).
 
-This package provides a Julia string literal, `htl`, and macro `@htl`
-that return an object that can be rendered to `MIME"text/html"`
-displays. These macros support context-sensitive interpolation,
-sensible to the needs of HTML construction.
+This package provides the macro `@htl` which returns an object that can
+be rendered to `MIME"text/html"` displays. This macro provides
+contextual interpolation sensible to the needs of HTML construction.
 
 ```julia
 
@@ -60,7 +59,6 @@ the Julia language, including:
 * Detection of `script` and `style` tags to suppress escaping
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Extension API for customizing object display in various contexts
-* Implements both string macros `@htl_str` and regular macros `@htl`
 
 For more detail, please see the [documentation][docs-stable-url] and
 join us on [Julia's Zulip][chat-url].

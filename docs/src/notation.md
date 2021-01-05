@@ -1,4 +1,4 @@
-# The `htl` Notation (non-standard string literal macro)
+# The `htl` notation (non-standard string literal macro)
 
 The `HypertextLiteral` package additionally provides for an `htl`
 notation, which has the advantage of can be more succinct.
@@ -91,7 +91,7 @@ building attributes.
     @print htl"<span>$(n for n in 1:3)</span>"
     #-> <span>123</span>
 
-## Nesting via Paired Unicode Delimiter
+## Experimental : Nesting via Paired Unicode Delimiter
 
 This implements a prototype for use of paired delimiters to permit
 nesting of `htl` notations as described in Julia #38948. This is a

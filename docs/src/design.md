@@ -209,14 +209,27 @@ For more details on this see Julia #37817.
 
 Literal content can contain Unicode values.
 
-   x = "Hello"
+    x = "Hello"
 
-   @htl("⁅$(x)⁆")
-   #-> ⁅Hello⁆
+    @print @htl("⁅$(x)⁆")
+    #-> ⁅Hello⁆
 
 Escaped content may also contain Unicode.
 
-   x = "⁅Hello⁆"
+    x = "⁅Hello⁆"
 
-   @htl("<tag>$x</tag>")
-   #-> <tag>⁅Hello⁆</tag>
+    @print @htl("<tag>$x</tag>")
+    #-> <tag>⁅Hello⁆</tag>
+
+Ensure that dictionary style objects are serialized. See issue #7.
+
+    let
+        h = @htl("<div style=$(Dict("color" => "red"))>asdf</div>")
+        repr(MIME"text/html"(), h)
+    end
+    #-> "<div style='color: red;'>asdf</div>"
+
+Let's ensure that attribute values in a dictionary are escaped.
+
+    @print @htl("<tag escaped=$(Dict(:esc=>"'&\"<"))/>")
+    #-> <tag escaped='esc: &apos;&amp;&quot;&lt;;'/>

@@ -49,7 +49,7 @@ function attribute_values(xs)
             end
             print(io, name)
             print(io, ": ")
-            print(attribute_value(value))
+            print(io, attribute_value(value))
             prior = true
         end
         print(io, ";")

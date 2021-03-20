@@ -28,5 +28,5 @@ makedocs(
     modules = [HypertextLiteral])
 
 deploydocs(
-    repo = "github.com/clarkevans/HypertextLiteral.jl.git",
+    repo = "github.com/MechanicalRabbit/HypertextLiteral.jl.git",
 )

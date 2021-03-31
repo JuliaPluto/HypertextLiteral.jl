@@ -79,9 +79,9 @@ join us on [Julia's Zulip][chat-url].
 [support-img]: https://img.shields.io/github/issues/MechanicalRabbit/HypertextLiteral.jl.svg
 [support-url]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/issues
 [docs-dev-img]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/workflows/docs-dev/badge.svg
-[docs-dev-url]: https://mechanicalrabbit.github.com/HypertextLiteral.jl/dev/
+[docs-dev-url]: https://mechanicalrabbit.github.io/HypertextLiteral.jl/dev/
 [docs-stable-img]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/workflows/docs-stable/badge.svg
-[docs-stable-url]: https://mechanicalrabbit.github.com/HypertextLiteral.jl/stable/
+[docs-stable-url]: https://mechanicalrabbit.github.io/HypertextLiteral.jl/stable/
 [nightly-img]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/workflows/nightly-ci/badge.svg
 [nightly-url]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/actions?query=workflow%3Anightly-ci
 [release-img]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/workflows/release-ci/badge.svg

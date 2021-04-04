@@ -274,7 +274,7 @@ A symbol or string inside a tag are treated as empty attributes.
     @print @htl("<tag $(:att)/>")
     #-> <tag att=''/>
 
-    #? VERSION < v"1.6.0-DEV"
+    #? VERSION >= v"1.6.0-DEV"
     @print @htl("<tag $("att")/>")
     #-> <tag att=''/>
 

@@ -259,9 +259,9 @@ A `Pair` inside a tag is treated as an attribute.
 We don't handle comments within a script tag.
 
     @print @htl("<script><!-- comment --></script>")
-    #-> ERROR: LoadError: "script data escape is not implemented"⋮
+    #-> ERROR: LoadError: "script escape or comment is not implemented"⋮
 
 We do handle values within comments. Comments don't stop processing.
 
-    @print @htl("""<!-- $("Hello World") --><tag att=$(:value)/>""")
-    #-> <!-- Hello World --><tag att='value'/>
+    @print @htl("<!-- $(:hello) --><tag>$(:world)</tag>")
+    #-> <!-- hello --><tag>world</tag>

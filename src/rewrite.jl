@@ -53,10 +53,10 @@ function rewrite_inside_tag(expr)::Vector{Expr}
 end
 
 function rewrite_attribute(expr)::Expr
-    if Meta.isexpr(expr, :(=), 2)
+    if expr isa QuoteNode && expr.value isa Symbol
+        (name, value) = (expr, "")
+    elseif Meta.isexpr(expr, :(=), 2)
         (name, value) = expr.args
-    elseif expr isa QuoteNode && expr.value isa Symbol
-        (name, value) = (expr.value, "")
     elseif Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
         (name, value) = (expr.args[1], "")
     elseif Meta.isexpr(expr, :call, 3) && expr.args[1] == :(=>)
@@ -64,14 +64,10 @@ function rewrite_attribute(expr)::Expr
     else
         return :(inside_tag($(esc(expr))))
     end
-    if name isa QuoteNode
-        if name.value isa Symbol
-            name = name.value
-        else
-            return :(inside_tag($(esc(expr))))
-        end
+    if name isa QuoteNode && name.value isa Symbol
+        name = name.value
     end
-    if name isa Expr
+    if name isa Expr || name isa QuoteNode
         return :(inside_tag($(esc(expr))))
     end
     attribute = normalize_attribute_name(name)

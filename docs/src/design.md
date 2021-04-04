@@ -123,14 +123,23 @@ content up-to the end tag is not escaped using ampersands.
     @print @htl("""<script>var book = "$book"</script>""")
     #-> <script>var book = "Strunk & White"</script>
 
-We throw an error if the end tag is accidently included. It is possible
-to improve the public API to let this be customized.
+Script tags are not permitted to contain HTML comments.
+g
+    bad = "content with a <!-- comment -->"
 
-    bad = "</style>"
+    @htl("""<script>$bad</script>""")
+    #=>
+    ERROR: DomainError with "content with a <!-- comment -->":
+      Content of <script> should not contain a comment block (`<!--`).
+    =#
+
+Tags using rawtext are not permitted to include their end tag.
+
+    bad = "content with end-tag: </style>"
 
     @htl("""<style>$bad</style>""")
     #=>
-    ERROR: DomainError with "</style>":
+    ERROR: DomainError with "content with end-tag: </style>":
       Content of <style> cannot contain the end tag (`</style>`).
     =#
 
@@ -141,6 +150,10 @@ macro, so they are errors (when we can detect them).
 
     #? VERSION < v"1.6.0-DEV"
     @print @htl "Look, Ma, $("<i>automatic escaping</i>")!"
+    #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
+   g
+    #? VERSION < v"1.6.0-DEV"
+    @print @htl "$("even if they are the only content")"
     #-> ERROR: LoadError: "interpolated string literals are not supported"⋮
 
 However, you can fix by wrapping a value in a `string` function.
@@ -256,20 +269,19 @@ A `Pair` inside a tag is treated as an attribute.
     @print @htl("<tag $(:att => :value)/>")
     #-> <tag att='value'/>
 
-A string or symbol inside a tag are treated as empty string attributes.
+A symbol or string inside a tag are treated as empty attributes.
 
-    @print @htl("<tag $(String(:one)) $(:two)/>")
-    #-> <tag one='' two=''/>
+    @print @htl("<tag $(:att)/>")
+    #-> <tag att=''/>
+
+    #? VERSION < v"1.6.0-DEV"
+    @print @htl("<tag $("att")/>")
+    #-> <tag att=''/>
 
 A `Dict` inside a tag is treated as an attribute.
 
     @print @htl("<tag $(Dict(:att => :value))/>")
     #-> <tag att='value'/>
-
-We don't handle comments within a script tag.
-
-    @print @htl("<script><!-- comment --></script>")
-    #-> ERROR: LoadError: "script escape or comment is not implemented"⋮
 
 We do handle values within comments. Comments don't stop processing.
 
@@ -301,8 +313,98 @@ runtime dispatch also works, let's do a few things once indirect.
     @print @htl("<tag $(defer(:att => hello))/>")
     #-> <tag att='Hello'/>
 
+    @print @htl("<tag $(defer((att=hello,)))/>")
+    #-> <tag att='Hello'/>
+
     @print @htl("<tag $(:att => defer(hello))/>")
     #-> <tag att='Hello'/>
 
     @print @htl("<tag $(defer(:att) => hello)/>")
     #-> <tag att='Hello'/>
+
+## Lexer Testing
+
+There are several HTML syntax errors that we can detect as part of our
+parser. For example, you shouldn't put comments within a script tag.
+
+    @htl("<script><!-- comment --></script>")
+    #-> ERROR: LoadError: "script escape or comment is not implemented"⋮
+
+Our lexer currently doesn't bother with processor instructions or
+doctype declarations. You could prepend these before your content.
+
+    @htl("<?xml version='1.0'?>")
+    #=>
+    ERROR: LoadError: DomainError with <?xml ver…:
+    unexpected question mark instead of tag name⋮
+    =#
+
+    @htl("<!DOCTYPE html>")
+    #-> ERROR: LoadError: "DOCTYPE not supported"⋮
+
+    @htl("<![CDATA[No <b>CDATA</b> either.]]>")
+    #-> ERROR: LoadError: "CDATA not supported"⋮
+
+Comments need to be well formed.
+
+    @htl("<!-> ")
+    #=>
+    ERROR: LoadError: DomainError with !-> :
+    incorrectly opened comment⋮
+    =#
+
+    @htl("<!--> ")
+    #=>
+    ERROR: LoadError: DomainError with -> :
+    abrupt closing of empty comment⋮
+    =#
+
+Comments can contain nested tagged content.
+
+    @print @htl("<!-- <comment!> -->")
+    #-> <!-- <comment!> -->
+
+    @print @htl("<!-- <! not a nested comment !> -->")
+    #-> <!-- <! not a nested comment !> -->
+
+Comments cannot contain a nested comment.
+TODO: fixme
+
+    @print @htl("<!-- <!-- nested --> -->")
+    #-> <!-- <!-- nested --> -->
+
+Escaping should happen even within a comment.
+
+    content = "<!-- a&b -->"
+
+    @print @htl("<!-- $content -->")
+    #-> <!-- &lt;!-- a&amp;b --> -->
+
+It's a lexing error to have an attribute lacking a name.
+
+    @print @htl("<tag =value/>")
+    #=>
+    ERROR: LoadError: DomainError with  =value/>:
+    unexpected equals sign before attribute name⋮
+    =#
+
+It's a lexing error to have an attribute lacking a value.
+
+    @print @htl("<tag att=>")
+    #=>
+    ERROR: LoadError: DomainError with =>:
+    missing attribute value⋮
+    =#
+
+Attribute names and values can be spaced out.
+
+    @print @htl("<tag att = value />")
+    #-> <tag att = value />
+
+Of course, we could have pure content lacking interpolation, this also
+goes though the lexer.
+
+    @print @htl("<div>Hello<b>World</b>!</div>")
+    #-> <div>Hello<b>World</b>!</div>
+
+That's it.

@@ -7,7 +7,7 @@ and provides handy conversions dependent upon context.*
 
 **Documentation** | **Build Status** | **Process**
 :---: | :---: | :---:
-[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] | [![Actions Status][release-img]][release-url] [![Actions Status][nightly-img]][nightly-url] | [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
+[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] | [![Release Build][release-img]][release-url] [![Nightly Build][nightly-img]][nightly-url] [![Code Coverage][codecov-img]][codecov-url] | [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
@@ -90,3 +90,5 @@ join us on [Julia's Zulip][chat-url].
 [chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral.2Ejl
 [license-img]: https://img.shields.io/badge/license-ISC-brightgreen.svg
 [license-url]: https://raw.githubusercontent.com/MechanicalRabbit/HypertextLiteral.jl/master/LICENSE.md
+[codecov-img]: https://codecov.io/gh/MechanicalRabbit/HypertextLiteral.jl/branch/master/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/MechanicalRabbit/HypertextLiteral.jl

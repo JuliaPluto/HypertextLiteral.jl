@@ -19,7 +19,6 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
-      - uses: julia-actions/julia-buildpkg@master
-      - name: Execute Tests for README
-        run: julia --color=yes --check-bounds=yes --project -e 'using Pkg; Pkg.test(coverage=true)'
-        shell: bash
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/julia-processcoverage@v1

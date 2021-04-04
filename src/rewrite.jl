@@ -35,6 +35,7 @@ function normalize_attribute_name(name::AbstractString)
     return name
 end
 
+
 """
     rewrite_inside_tag(expr)
 
@@ -43,39 +44,40 @@ expression tree at macro expansion time.
 """
 function rewrite_inside_tag(expr)::Vector{Expr}
     if Meta.isexpr(expr, :tuple)
-        args = expr.args
-    elseif Meta.isexpr(expr, :call) && expr.args[1] == :Dict
-        args = expr.args[2:end]
-    elseif Meta.isexpr(expr, :call) && expr.args[1] == :(=>)
-        args = [expr]
-    elseif expr isa QuoteNode && expr.value isa Symbol
-        args = expr.value
-    elseif Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
-        args = [expr.args[1]]
-    else
-        return [:(inside_tag($(esc(expr))))]
+        return [rewrite_attribute(pair) for pair in expr.args]
     end
-    parts = []
-    for pair in args
-        if pair isa Symbol || pair isa AbstractString
-            (name, value) = (pair, "")
-        elseif Meta.isexpr(pair, :(=), 2)
-            (name, value) = pair.args
-        elseif Meta.isexpr(pair, :call, 3) && pair.args[1] == :(=>)
-            (_, name, value) = pair.args
-            if name isa AbstractString
-                nothing
-            elseif name isa QuoteNode && name.value isa Symbol
-                name = name.value
-            else
-                return [:(inside_tag($(esc(expr))))]
-            end
+    if Meta.isexpr(expr, :call) && expr.args[1] == :Dict
+        return [rewrite_attribute(pair) for pair in expr.args[2:end]]
+    end
+    if Meta.isexpr(expr, :call) && expr.args[1] == :(=>)
+        return [rewrite_attribute(expr)]
+    end
+    if expr isa QuoteNode && expr.value isa Symbol
+        return [rewrite_attribute(expr.value)]
+    end
+    if Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
+        return [rewrite_attribute(expr.args[1])]
+    end
+    return [:(inside_tag($(esc(expr))))]
+end
+
+function rewrite_attribute(pair)::Expr
+    if pair isa Symbol || pair isa AbstractString
+        (name, value) = (pair, "")
+    elseif Meta.isexpr(pair, :(=), 2)
+        (name, value) = pair.args
+    elseif Meta.isexpr(pair, :call, 3) && pair.args[1] == :(=>)
+        (_, name, value) = pair.args
+        if name isa AbstractString
+            nothing
+        elseif name isa QuoteNode && name.value isa Symbol
+            name = name.value
         else
-            # unexpected, use dynamic method
-            return [:(inside_tag($(esc(expr))))]
+            return :(inside_tag($(esc(pair))))
         end
-        attribute = normalize_attribute_name(name)
-        push!(parts, :(attribute_pair($attribute, $(esc(value)))))
+    else
+        return :(inside_tag($(esc(pair))))
     end
-    return parts
+    attribute = normalize_attribute_name(name)
+    return :(attribute_pair($attribute, $(esc(value))))
 end

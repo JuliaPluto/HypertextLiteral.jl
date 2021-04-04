@@ -256,6 +256,11 @@ A `Pair` inside a tag is treated as an attribute.
     @print @htl("<tag $(:att => :value)/>")
     #-> <tag att='value'/>
 
+A string or symbol inside a tag are treated as empty string attributes.
+
+    @print @htl("<tag $(String(:one)) $(:two)/>")
+    #-> <tag one='' two=''/>
+
 A `Dict` inside a tag is treated as an attribute.
 
     @print @htl("<tag $(Dict(:att => :value))/>")

@@ -387,7 +387,7 @@ function interpolate(args, this)
                         state = STATE_RAWTEXT_END_TAG_OPEN
                     elseif ch === '!' && element_tag == :script
                         # RAWTEXT differs from SCRIPT here
-                        throw("script data escape is not implemented")
+                        throw("script escape or comment is not implemented")
                     else
                         state = STATE_RAWTEXT
                         # do not "reconsume", even though spec says so

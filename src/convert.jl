@@ -133,12 +133,18 @@ Convert Julian object into a serialization of attribute pairs,
 `showable` via `MIME"text/html"`. The default implementation of this
 delegates value construction of each pair to `attribute_pair()`.
 """
+
 function inside_tag(value::Pair)
     name = normalize_attribute_name(value.first)
     return attribute_pair(name, value.second)
 end
 
-function inside_tag(xs)
+function inside_tag(value::Union{AbstractString, Symbol})
+    name = normalize_attribute_name(value)
+    return attribute_pair(name, "")
+end
+
+function inside_tag(xs::AbstractDict)
     Reprint() do io::IO
         for (key, value) in xs
             name = normalize_attribute_name(key)

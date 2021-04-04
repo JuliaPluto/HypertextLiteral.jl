@@ -256,6 +256,11 @@ A `Pair` inside a tag is treated as an attribute.
     @print @htl("<tag $(:att => :value)/>")
     #-> <tag att='value'/>
 
+A `Dict` inside a tag is treated as an attribute.
+
+    @print @htl("<tag $(Dict(:att => :value))/>")
+    #-> <tag att='value'/>
+
 We don't handle comments within a script tag.
 
     @print @htl("<script><!-- comment --></script>")
@@ -265,3 +270,27 @@ We do handle values within comments. Comments don't stop processing.
 
     @print @htl("<!-- $(:hello) --><tag>$(:world)</tag>")
     #-> <!-- hello --><tag>world</tag>
+
+When we normalize attribute names, we strip leading underscores.
+
+    @print @htl("<tag $(:__att => :value)/>")
+    #-> <tag att='value'/>
+
+## Dynamic Expansion
+
+The macro attempts to expand attributes inside a tag. To ensure the
+runtime dispatch also works, let's do a few things once indirect.
+
+    hello = "Hello"
+    defer(x) = x
+
+Let's test that deferred attribute values work.
+
+    @print @htl("<tag $(defer(:att => hello))/>")
+    #-> <tag att='Hello'/>
+
+    @print @htl("<tag $(:att => defer(hello))/>")
+    #-> <tag att='Hello'/>
+
+    @print @htl("<tag $(defer(:att) => hello)/>")
+    #-> <tag att='Hello'/>

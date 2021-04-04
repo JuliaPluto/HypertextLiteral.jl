@@ -121,7 +121,7 @@ using a character entity.
 
 If this feature gains support we might keep this notation.
 
-## Quirks & Notes
+## Regression Tests & Notes
 
 Due to `@raw_str` escaping, string literal forms are a bit quirky. Use
 the triple double-quoted form if your content has a double quote. Avoid
@@ -140,4 +140,12 @@ with keeping this an error for consistency with the macro form.
     #=>
     ERROR: LoadError: DomainError with [1, 2, 3]:
     interpolations must be symbols or parenthesized⋮
+    =#
+
+Let's also not permit top-level assignments.
+
+    htl"$(k=value)"
+    #=>
+    ERROR: LoadError: DomainError with k = value:
+    assignments are not permitted in an interpolation⋮
     =#

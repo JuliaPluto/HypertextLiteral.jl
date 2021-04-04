@@ -12,9 +12,6 @@ macro htl(expr)
         return interpolate([expr], this)
     end
     args = expr.args
-    if length(args) == 0
-        return interpolate([], this)
-    end
     for part in expr.args
         if Meta.isexpr(part, :(=))
             throw(DomainError(part,

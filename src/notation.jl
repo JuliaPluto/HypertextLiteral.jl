@@ -38,9 +38,7 @@ macro htl_str(expr::String)
         push!(args, expr[start:prevind(expr, idx)])
         start = nextind(expr, idx)
         (nest, tail) = Meta.parse(expr, start; greedy=false)
-        if nest == nothing
-            throw("missing interpolation expression")
-        end
+        @assert nest != nothing
         if !(expr[start] == '(' || nest isa Symbol)
             throw(DomainError(nest,
              "interpolations must be symbols or parenthesized"))

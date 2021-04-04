@@ -1,5 +1,5 @@
 """
-    normalize_attribute_name(name)::String
+    normalize_attribute_name(name)
 
 For `String` names, this simply verifies that they pass the attribute
 name production, but are otherwise untouched.
@@ -11,7 +11,7 @@ we strip leading underscores.
 function normalize_attribute_name(name::Symbol)
     name = String(name)
     if '_' in name
-       if name[1] == '_'
+       while length(name) > 0 && name[1] == '_'
            name = name[2:end]
        end
        name = replace(name, "_" => "-")
@@ -19,7 +19,7 @@ function normalize_attribute_name(name::Symbol)
     return normalize_attribute_name(name)
 end
 
-function normalize_attribute_name(name::String)
+function normalize_attribute_name(name::AbstractString)
     # Attribute names are unquoted and do not have & escaping;
     # the &, % and \ characters don't seem to be prevented by the
     # specification, but they likely signal a programming error.
@@ -41,30 +41,33 @@ end
 Attempt to speed up serialization of inside_tag by exploring the
 expression tree at macro expansion time.
 """
-function rewrite_inside_tag(expr)::Vector{Union{String, Expr}}
+function rewrite_inside_tag(expr)::Vector{Expr}
     if Meta.isexpr(expr, :tuple)
         args = expr.args
     elseif Meta.isexpr(expr, :call) && expr.args[1] == :Dict
         args = expr.args[2:end]
     elseif Meta.isexpr(expr, :call) && expr.args[1] == :(=>)
         args = [expr]
+    elseif expr isa QuoteNode && expr.value isa Symbol
+        args = expr.value
+    elseif Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
+        args = [expr.args[1]]
     else
         return [:(inside_tag($(esc(expr))))]
     end
     parts = []
     for pair in args
-        if pair isa Symbol || pair isa String
-            (name, value) = (pair, true)
+        if pair isa Symbol || pair isa AbstractString
+            (name, value) = (pair, "")
         elseif Meta.isexpr(pair, :(=), 2)
             (name, value) = pair.args
         elseif Meta.isexpr(pair, :call, 3) && pair.args[1] == :(=>)
             (_, name, value) = pair.args
-            if name isa String
+            if name isa AbstractString
                 nothing
-            elseif name isa QuoteNode
+            elseif name isa QuoteNode && name.value isa Symbol
                 name = name.value
             else
-                # unexpected, use dynamic method
                 return [:(inside_tag($(esc(expr))))]
             end
         else

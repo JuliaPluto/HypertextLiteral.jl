@@ -5,9 +5,7 @@
 Julia string interpolation, only that it tracks hypertext escaping needs
 and provides handy conversions dependent upon context.*
 
-**Documentation** | **Build Status** | **Process**
-:---: | :---: | :---:
-[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] | [![Release Build][release-img]][release-url] [![Nightly Build][nightly-img]][nightly-url] [![Code Coverage][codecov-img]][codecov-url] | [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
+[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] [![Release Build][release-img]][release-url] [![Nightly Build][nightly-img]][nightly-url] [![Code Coverage][codecov-img]][codecov-url] [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work

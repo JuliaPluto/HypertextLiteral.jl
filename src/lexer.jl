@@ -49,7 +49,7 @@ function interpolate(args, this)
     for j in 1:length(args)
         input = args[j]
         if !isa(input, String)
-            if state == STATE_DATA
+            if state == STATE_DATA || state == STATE_COMMENT
                 push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
                 element = QuoteNode(element_tag)
@@ -92,8 +92,8 @@ function interpolate(args, this)
                     end
                 end
                 append!(parts, rewrite_inside_tag(input))
-            elseif state == STATE_COMMENT || true
-                throw("invalid binding #1 $(state)")
+            else
+                throw("unexpected binding #1 $(state)")
             end
         else
             input = normalize(input)

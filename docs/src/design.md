@@ -233,3 +233,35 @@ Let's ensure that attribute values in a dictionary are escaped.
 
     @print @htl("<tag escaped=$(Dict(:esc=>"'&\"<"))/>")
     #-> <tag escaped='esc: &apos;&amp;&quot;&lt;;'/>
+
+Let's ensure that attribute values in a dictionary are escaped.
+
+    @print @htl("<tag escaped=$(Dict(:esc=>"'&\"<"))/>")
+    #-> <tag escaped='esc: &apos;&amp;&quot;&lt;;'/>
+
+Nothing within an attribute value within a quoted value or within
+element content is treated as an empty string.
+
+    @print @htl("<tag attribute='$(nothing)'>$(nothing)</tag>")
+    #-> <tag attribute=''></tag>
+
+Nothing as an attribute value omits the attribute just like `false`.
+Nothing inside a tag is omitted as well.
+
+    @print @htl("<tag omit=$(nothing) $(nothing)/>")
+    #-> <tag/>
+
+A `Pair` inside a tag is treated as an attribute.
+
+    @print @htl("<tag $(:att => :value)/>")
+    #-> <tag att='value'/>
+
+We don't handle comments within a script tag.
+
+    @print @htl("<script><!-- comment --></script>")
+    #-> ERROR: LoadError: "script data escape is not implemented"⋮
+
+We do handle values within comments. Comments don't stop processing.
+
+    @print @htl("""<!-- $("Hello World") --><tag att=$(:value)/>""")
+    #-> <!-- Hello World --><tag att='value'/>

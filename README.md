@@ -85,7 +85,7 @@ join us on [Julia's Zulip][chat-url].
 [release-img]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/workflows/release-ci/badge.svg
 [release-url]: https://github.com/MechanicalRabbit/HypertextLiteral.jl/actions?query=workflow%3Arelease-ci
 [chat-img]: https://img.shields.io/badge/chat-julia--zulip-blue
-[chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral.2Ejl
+[chat-url]: https://julialang.zulipchat.com/#narrow/stream/267585-HypertextLiteral
 [license-img]: https://img.shields.io/badge/license-ISC-brightgreen.svg
 [license-url]: https://raw.githubusercontent.com/MechanicalRabbit/HypertextLiteral.jl/master/LICENSE.md
 [codecov-img]: https://codecov.io/gh/MechanicalRabbit/HypertextLiteral.jl/branch/master/graph/badge.svg

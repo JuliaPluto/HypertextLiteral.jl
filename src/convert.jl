@@ -150,6 +150,8 @@ end
 inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
+inside_tag(::Nothing) = no_content
+
 """
     rawtext(context, value)
 

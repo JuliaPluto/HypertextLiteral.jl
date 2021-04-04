@@ -49,34 +49,30 @@ function rewrite_inside_tag(expr)::Vector{Expr}
     if Meta.isexpr(expr, :call) && expr.args[1] == :Dict
         return [rewrite_attribute(pair) for pair in expr.args[2:end]]
     end
-    if Meta.isexpr(expr, :call) && expr.args[1] == :(=>)
-        return [rewrite_attribute(expr)]
-    end
-    if expr isa QuoteNode && expr.value isa Symbol
-        return [rewrite_attribute(expr.value)]
-    end
-    if Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
-        return [rewrite_attribute(expr.args[1])]
-    end
-    return [:(inside_tag($(esc(expr))))]
+    return [rewrite_attribute(expr)]
 end
 
-function rewrite_attribute(pair)::Expr
-    if pair isa Symbol || pair isa AbstractString
-        (name, value) = (pair, "")
-    elseif Meta.isexpr(pair, :(=), 2)
-        (name, value) = pair.args
-    elseif Meta.isexpr(pair, :call, 3) && pair.args[1] == :(=>)
-        (_, name, value) = pair.args
-        if name isa AbstractString
-            nothing
-        elseif name isa QuoteNode && name.value isa Symbol
+function rewrite_attribute(expr)::Expr
+    if Meta.isexpr(expr, :(=), 2)
+        (name, value) = expr.args
+    elseif expr isa QuoteNode && expr.value isa Symbol
+        (name, value) = (expr.value, "")
+    elseif Meta.isexpr(expr, :string, 1) && typeof(expr.args[1]) == String
+        (name, value) = (expr.args[1], "")
+    elseif Meta.isexpr(expr, :call, 3) && expr.args[1] == :(=>)
+        (_, name, value) = expr.args
+    else
+        return :(inside_tag($(esc(expr))))
+    end
+    if name isa QuoteNode
+        if name.value isa Symbol
             name = name.value
         else
-            return :(inside_tag($(esc(pair))))
+            return :(inside_tag($(esc(expr))))
         end
-    else
-        return :(inside_tag($(esc(pair))))
+    end
+    if name isa Expr
+        return :(inside_tag($(esc(expr))))
     end
     attribute = normalize_attribute_name(name)
     return :(attribute_pair($attribute, $(esc(value))))

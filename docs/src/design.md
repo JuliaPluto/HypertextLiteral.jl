@@ -281,15 +281,22 @@ When we normalize attribute names, we strip leading underscores.
     @print @htl("<tag $(:__att => :value)/>")
     #-> <tag att='value'/>
 
-## Dynamic Expansion
+We don't expand into attributes things that don't look like attributes.
+
+    @print @htl("<tag $(3)/>")
+    #-> ERROR: MethodError: no method matching inside_tag(::Int64)⋮
+
+Inside a tag, tuples can have many kinds of pairs.
+
+    a1 = "a1"
+    @print @htl("<tag $((a1,:a2,:a3=3,a4=4))/>")
+    #-> <tag a1='' a2='' a3='3' a4='4'/>
 
 The macro attempts to expand attributes inside a tag. To ensure the
 runtime dispatch also works, let's do a few things once indirect.
 
     hello = "Hello"
     defer(x) = x
-
-Let's test that deferred attribute values work.
 
     @print @htl("<tag $(defer(:att => hello))/>")
     #-> <tag att='Hello'/>

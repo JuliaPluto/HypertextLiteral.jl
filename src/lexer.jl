@@ -80,11 +80,12 @@ function interpolate(args, this)
                 push!(parts, :(attribute_value($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
-                @assert parts[end] isa String
-                if parts[end][end] == ' '
-                   parts[end] = parts[end][1:length(parts[end])-1]
+                if parts[end] isa String
+                    if parts[end][end] == ' '
+                       parts[end] = parts[end][1:length(parts[end])-1]
+                    end
                 end
-                # move the space to after the element pairs
+                # ensure a space between this and next attribute
                 if j < length(args)
                     next = args[j+1]
                     if next isa String && !occursin(r"^[\s+\/>]", next)
@@ -93,7 +94,7 @@ function interpolate(args, this)
                 end
                 append!(parts, rewrite_inside_tag(input))
             else
-                throw("unexpected binding #1 $(state)")
+                throw("unexpected binding $(state)")
             end
         else
             input = normalize(input)
@@ -327,7 +328,7 @@ function interpolate(args, this)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG
-                    if ch == "-"
+                    if ch == '-'
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
                     else
                         state = STATE_COMMENT
@@ -335,7 +336,7 @@ function interpolate(args, this)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH
-                    if ch == "-"
+                    if ch == '-'
                         state = STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
                     else
                         state = STATE_COMMENT_END
@@ -343,7 +344,7 @@ function interpolate(args, this)
                     end
 
                 elseif state == STATE_COMMENT_LESS_THAN_SIGN_BANG_DASH_DASH
-                    if ch == ">"
+                    if ch == '>'
                         state = STATE_COMMENT_END
                         i = prevind(input, i)
                     else

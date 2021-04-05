@@ -359,6 +359,24 @@ Comments need to be well formed.
     abrupt closing of empty comment⋮
     =#
 
+    @htl("<!---> ")
+    #=>
+    ERROR: LoadError: DomainError with -> :
+    abrupt closing of empty comment⋮
+    =#
+
+The comment lexer has many complicated states, these are permitted
+
+    @print @htl("<!----> $(:a) <!-- << $(:b) >> --> <!--- $(:c) -->")
+    #-> <!----> a <!-- << b >> --> <!--- c -->
+
+There are some places where we don't expect substitution to happen.
+
+    @print @htl("<!--<$(:x)")
+    #=>
+    ERROR: LoadError: "unexpected binding STATE_COMMENT_LESS_THAN_SIGN"⋮
+    =#
+
 Comments can contain nested tagged content.
 
     @print @htl("<!-- <comment!> -->")
@@ -368,10 +386,12 @@ Comments can contain nested tagged content.
     #-> <!-- <! not a nested comment !> -->
 
 Comments cannot contain a nested comment.
-TODO: fixme
 
     @print @htl("<!-- <!-- nested --> -->")
-    #-> <!-- <!-- nested --> -->
+    #=>
+    ERROR: LoadError: DomainError with - nested …:
+    nested comment⋮
+    =#
 
 Escaping should happen even within a comment.
 
@@ -396,10 +416,31 @@ It's a lexing error to have an attribute lacking a value.
     missing attribute value⋮
     =#
 
+Tags can be ended using SGML ending.
+
+    @print @htl("<tag></>")
+    #-> <tag></>
+
+We add an extra space to ensure adjacent values parse properly.
+
+    @print @htl("<tag $((:one))two=''/>")
+    #-> <tag one='' two=''/>
+
+    @print @htl("<tag $((:one))$((:two))/>")
+    #-> <tag one='' two=''/>
+
 Attribute names and values can be spaced out.
 
-    @print @htl("<tag att = value />")
-    #-> <tag att = value />
+    @print @htl("<tag one two = value />")
+    #-> <tag one two = value />
+
+Invalid attribute names are reported.
+
+    @print @htl("<tag at<ribute='val'/>")
+    #=>
+    ERROR: LoadError: DomainError with t<ribute=…
+    unexpected character in attribute name⋮
+    =#
 
 Of course, we could have pure content lacking interpolation, this also
 goes though the lexer.

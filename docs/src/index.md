@@ -2,12 +2,12 @@
 
 This package provides a Julia macro, `@htl`, that constructs an object
 which could be rendered to `MIME"text/html"` displays. This macro
-support interpolation sensible to the needs of HTML generation.
+supports interpolation sensible to the needs of HTML generation.
 
     using HypertextLiteral
 
 When printed directly to the console (via `show`), the output of this
-macro reproduce a verified expression that generated them.
+macro reproduces the expression that generated them.
 
 ```julia
 name = "World"

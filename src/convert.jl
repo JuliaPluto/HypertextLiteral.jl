@@ -177,3 +177,7 @@ function rawtext(context::Symbol, value::AbstractString)
     end
     return Bypass(value)
 end
+
+rawtext(c::Symbol, n::Number) = rawtext(c, string(n))
+rawtext(c::Symbol, s::Symbol) = rawtext(c, string(s))
+rawtext(c::Symbol, x::Nothing) = rawtext(c, "")

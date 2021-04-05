@@ -78,7 +78,8 @@ function interpolate(args, this)
                 push!(parts, :(attribute_value($(esc(input)))))
             elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                 push!(parts, :(attribute_value($(esc(input)))))
-            elseif state == STATE_BEFORE_ATTRIBUTE_NAME
+            elseif state == STATE_BEFORE_ATTRIBUTE_NAME ||
+                   state == STATE_AFTER_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs
                 if parts[end] isa String
                     if parts[end][end] == ' '

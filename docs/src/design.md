@@ -143,6 +143,11 @@ Tags using rawtext are not permitted to include their end tag.
       Content of <style> cannot contain the end tag (`</style>`).
     =#
 
+Rawtext may include not only strings, but numbers, and such.
+
+    @print @htl("""<style> $(3) $(true) $(nothing) $(:sym) </style>""")
+    #-> <style> 3 true  sym </style>
+
 ## Detection of String Literals
 
 Before v1.6, we cannot reliably detect string literals using the `@htl`
@@ -298,6 +303,11 @@ We don't expand into attributes things that don't look like attributes.
     @print @htl("<tag $(3)/>")
     #-> ERROR: MethodError: no method matching inside_tag(::Int64)⋮
 
+One can add additional attributes following a bare name.
+
+    @print @htl("<tag bing $(:att)/>")
+    #-> <tag bing att=''/>
+
 Inside a tag, tuples can have many kinds of pairs.
 
     a1 = "a1"
@@ -345,61 +355,6 @@ doctype declarations. You could prepend these before your content.
     @htl("<![CDATA[No <b>CDATA</b> either.]]>")
     #-> ERROR: LoadError: "CDATA not supported"⋮
 
-Comments need to be well formed.
-
-    @htl("<!-> ")
-    #=>
-    ERROR: LoadError: DomainError with !-> :
-    incorrectly opened comment⋮
-    =#
-
-    @htl("<!--> ")
-    #=>
-    ERROR: LoadError: DomainError with -> :
-    abrupt closing of empty comment⋮
-    =#
-
-    @htl("<!---> ")
-    #=>
-    ERROR: LoadError: DomainError with -> :
-    abrupt closing of empty comment⋮
-    =#
-
-The comment lexer has many complicated states, these are permitted
-
-    @print @htl("<!----> $(:a) <!-- << $(:b) >> --> <!--- $(:c) -->")
-    #-> <!----> a <!-- << b >> --> <!--- c -->
-
-There are some places where we don't expect substitution to happen.
-
-    @print @htl("<!--<$(:x)")
-    #=>
-    ERROR: LoadError: "unexpected binding STATE_COMMENT_LESS_THAN_SIGN"⋮
-    =#
-
-Comments can contain nested tagged content.
-
-    @print @htl("<!-- <comment!> -->")
-    #-> <!-- <comment!> -->
-
-    @print @htl("<!-- <! not a nested comment !> -->")
-    #-> <!-- <! not a nested comment !> -->
-
-Comments cannot contain a nested comment.
-
-    @print @htl("<!-- <!-- nested --> -->")
-    #=>
-    ERROR: LoadError: DomainError with - nested …:
-    nested comment⋮
-    =#
-
-Escaping should happen even within a comment.
-
-    content = "<!-- a&b -->"
-
-    @print @htl("<!-- $content -->")
-    #-> <!-- &lt;!-- a&amp;b --> -->
-
 It's a lexing error to have an attribute lacking a name.
 
     @print @htl("<tag =value/>")
@@ -441,6 +396,90 @@ Invalid attribute names are reported.
     ERROR: LoadError: DomainError with t<ribute=…
     unexpected character in attribute name⋮
     =#
+
+Rawtext has a few interesting lexical cases.
+
+    @print @htl("""<style> </s </style/""")
+    #=>
+    ERROR: LoadError: DomainError with e/:
+    unexpected solidus in tag⋮
+    =#
+
+    @print @htl("""<style></style <""")
+    #=>
+    ERROR: LoadError: DomainError with  <:
+    unexpected character in attribute name⋮
+    =#
+
+Comments can contain interpolated values.
+
+    content = "<!-- a&b -->"
+
+    @print @htl("<!-- $content -->")
+    #-> <!-- &lt;!-- a&amp;b --> -->
+
+Empty comments are permitted.
+
+    @print @htl("<!---->")
+    #-> <!---->
+
+Comments need to be well formed.
+
+    @htl("<!-> ")
+    #=>
+    ERROR: LoadError: DomainError with !-> :
+    incorrectly opened comment⋮
+    =#
+
+    @htl("<!--> ")
+    #=>
+    ERROR: LoadError: DomainError with -> :
+    abrupt closing of empty comment⋮
+    =#
+
+    @htl("<!---> ")
+    #=>
+    ERROR: LoadError: DomainError with -> :
+    abrupt closing of empty comment⋮
+    =#
+
+Comments cannot contain a nested comment.
+
+    @print @htl("<!-- <!-- nested --> -->")
+    #=>
+    ERROR: LoadError: DomainError with - nested …:
+    nested comment⋮
+    =#
+
+Comments can contain content that is similar to a comment block, but
+the recognition of these valid states is rather involved.
+
+    @print @htl("<!-- <!-->")
+    #-> <!-- <!-->
+
+    @print @htl("<!--<x-->")
+    #-> <!--<x-->
+
+    @print @htl("<!--<!x!>-->")
+    #-> <!--<!x!>-->
+
+    @print @htl("<!--<!-x-->")
+    #-> <!--<!-x-->
+
+    @print @htl("<!---x-->")
+    #-> <!---x-->
+
+    @print @htl("<!--<<x-->")
+    #-> <!--<<x-->
+
+Even though actual content may be permitted in these odd spots, we don't
+generally permit interpolation.
+
+    @print @htl("<!--<$(:x)")
+    #=>
+    ERROR: LoadError: "unexpected binding STATE_COMMENT_LESS_THAN_SIGN"⋮
+    =#
+
 
 Of course, we could have pure content lacking interpolation, this also
 goes though the lexer.

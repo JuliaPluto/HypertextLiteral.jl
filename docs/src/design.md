@@ -475,17 +475,8 @@ the recognition of these valid states is rather involved.
     @print @htl("<!--<<x-->")
     #-> <!--<<x-->
 
-    @print @htl("<!-- - --! --- -->")
-    #-> <!-- - --! --- -->
-
-    @print @htl("<!-- - --! --- -->")
-    #-> <!-- - --! --- -->
-
-    @print @htl("<!-- - --! --- -->")
-    #-> <!-- - --! --- -->
-
-    @print @htl("<!-- - --! --- -->")
-    #-> <!-- - --! --- -->
+    @print @htl("<!-- - --! --- --!- -->")
+    #-> <!-- - --! --- --!- -->
 
 Not so sure about this lexical production... perhaps it's a
 transcription error from the specification?

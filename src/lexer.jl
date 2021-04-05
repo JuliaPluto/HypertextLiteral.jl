@@ -428,7 +428,7 @@ function interpolate(args, this)
                     end
 
                 else
-                    @assert "unhandled state transition"
+                    throw("unhandled state transition")
                 end
 
                 i = nextind(input, i)

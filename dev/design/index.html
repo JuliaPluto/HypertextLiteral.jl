@@ -137,12 +137,25 @@ incorrectly opened comment⋮
 #=&gt;
 ERROR: LoadError: DomainError with -&gt; :
 abrupt closing of empty comment⋮
+=#
+
+@htl(&quot;&lt;!---&gt; &quot;)
+#=&gt;
+ERROR: LoadError: DomainError with -&gt; :
+abrupt closing of empty comment⋮
+=#</code></pre><p>The comment lexer has many complicated states, these are permitted</p><pre><code class="language-julia">@print @htl(&quot;&lt;!----&gt; $(:a) &lt;!-- &lt;&lt; $(:b) &gt;&gt; --&gt; &lt;!--- $(:c) --&gt;&quot;)
+#-&gt; &lt;!----&gt; a &lt;!-- &lt;&lt; b &gt;&gt; --&gt; &lt;!--- c --&gt;</code></pre><p>There are some places where we don&#39;t expect substitution to happen.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!--&lt;$(:x)&quot;)
+#=&gt;
+ERROR: LoadError: &quot;unexpected binding STATE_COMMENT_LESS_THAN_SIGN&quot;⋮
 =#</code></pre><p>Comments can contain nested tagged content.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- &lt;comment!&gt; --&gt;&quot;)
 #-&gt; &lt;!-- &lt;comment!&gt; --&gt;
 
 @print @htl(&quot;&lt;!-- &lt;! not a nested comment !&gt; --&gt;&quot;)
-#-&gt; &lt;!-- &lt;! not a nested comment !&gt; --&gt;</code></pre><p>Comments cannot contain a nested comment. TODO: fixme</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- &lt;!-- nested --&gt; --&gt;&quot;)
-#-&gt; &lt;!-- &lt;!-- nested --&gt; --&gt;</code></pre><p>Escaping should happen even within a comment.</p><pre><code class="language-julia">content = &quot;&lt;!-- a&amp;b --&gt;&quot;
+#-&gt; &lt;!-- &lt;! not a nested comment !&gt; --&gt;</code></pre><p>Comments cannot contain a nested comment.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- &lt;!-- nested --&gt; --&gt;&quot;)
+#=&gt;
+ERROR: LoadError: DomainError with - nested …:
+nested comment⋮
+=#</code></pre><p>Escaping should happen even within a comment.</p><pre><code class="language-julia">content = &quot;&lt;!-- a&amp;b --&gt;&quot;
 
 @print @htl(&quot;&lt;!-- $content --&gt;&quot;)
 #-&gt; &lt;!-- &amp;lt;!-- a&amp;amp;b --&gt; --&gt;</code></pre><p>It&#39;s a lexing error to have an attribute lacking a name.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag =value/&gt;&quot;)
@@ -153,6 +166,15 @@ unexpected equals sign before attribute name⋮
 #=&gt;
 ERROR: LoadError: DomainError with =&gt;:
 missing attribute value⋮
-=#</code></pre><p>Attribute names and values can be spaced out.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag att = value /&gt;&quot;)
-#-&gt; &lt;tag att = value /&gt;</code></pre><p>Of course, we could have pure content lacking interpolation, this also goes though the lexer.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;&quot;)
-#-&gt; &lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;</code></pre><p>That&#39;s it.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../extend/">« Extend</a><a class="docs-footer-nextpage" href="../notation/">Notation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 4 April 2021 23:56">Sunday 4 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre><p>Tags can be ended using SGML ending.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag&gt;&lt;/&gt;&quot;)
+#-&gt; &lt;tag&gt;&lt;/&gt;</code></pre><p>We add an extra space to ensure adjacent values parse properly.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $((:one))two=&#39;&#39;/&gt;&quot;)
+#-&gt; &lt;tag one=&#39;&#39; two=&#39;&#39;/&gt;
+
+@print @htl(&quot;&lt;tag $((:one))$((:two))/&gt;&quot;)
+#-&gt; &lt;tag one=&#39;&#39; two=&#39;&#39;/&gt;</code></pre><p>Attribute names and values can be spaced out.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag one two = value /&gt;&quot;)
+#-&gt; &lt;tag one two = value /&gt;</code></pre><p>Invalid attribute names are reported.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag at&lt;ribute=&#39;val&#39;/&gt;&quot;)
+#=&gt;
+ERROR: LoadError: DomainError with t&lt;ribute=…
+unexpected character in attribute name⋮
+=#</code></pre><p>Of course, we could have pure content lacking interpolation, this also goes though the lexer.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;&quot;)
+#-&gt; &lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;</code></pre><p>That&#39;s it.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../extend/">« Extend</a><a class="docs-footer-nextpage" href="../notation/">Notation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 5 April 2021 03:32">Monday 5 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

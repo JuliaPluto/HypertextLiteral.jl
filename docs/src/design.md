@@ -124,7 +124,7 @@ content up-to the end tag is not escaped using ampersands.
     #-> <script>var book = "Strunk & White"</script>
 
 Script tags are not permitted to contain HTML comments.
-g
+
     bad = "content with a <!-- comment -->"
 
     @htl("""<script>$bad</script>""")
@@ -399,13 +399,16 @@ Invalid attribute names are reported.
 
 Rawtext has a few interesting lexical cases.
 
-    @print @htl("""<style> </s </style/""")
+    @print @htl("""<style> </s </> </style>""")
+    #-> <style> </s </> </style>
+
+    @print @htl("<style> </s </style/")
     #=>
     ERROR: LoadError: DomainError with e/:
     unexpected solidus in tag⋮
     =#
 
-    @print @htl("""<style></style <""")
+    @print @htl("<style></style <")
     #=>
     ERROR: LoadError: DomainError with  <:
     unexpected character in attribute name⋮
@@ -472,6 +475,27 @@ the recognition of these valid states is rather involved.
     @print @htl("<!--<<x-->")
     #-> <!--<<x-->
 
+    @print @htl("<!-- - --! --- -->")
+    #-> <!-- - --! --- -->
+
+    @print @htl("<!-- - --! --- -->")
+    #-> <!-- - --! --- -->
+
+    @print @htl("<!-- - --! --- -->")
+    #-> <!-- - --! --- -->
+
+    @print @htl("<!-- - --! --- -->")
+    #-> <!-- - --! --- -->
+
+Not so sure about this lexical production... perhaps it's a
+transcription error from the specification?
+
+    @print @htl("<!----!>")
+    #=>
+    ERROR: LoadError: DomainError with !>:
+    nested comment⋮
+    =#
+
 Even though actual content may be permitted in these odd spots, we don't
 generally permit interpolation.
 
@@ -479,7 +503,6 @@ generally permit interpolation.
     #=>
     ERROR: LoadError: "unexpected binding STATE_COMMENT_LESS_THAN_SIGN"⋮
     =#
-
 
 Of course, we could have pure content lacking interpolation, this also
 goes though the lexer.

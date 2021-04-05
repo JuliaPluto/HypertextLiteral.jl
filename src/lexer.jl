@@ -436,18 +436,6 @@ function interpolate(args, this)
             push!(parts, input)
         end
     end
-    # collect adjacent strings
-    idx = 2
-    partsize = length(parts)
-    while idx <= partsize
-        if parts[idx] isa String && parts[idx-1] isa String
-            parts[idx-1] = parts[idx-1] * parts[idx]
-            deleteat!(parts, idx)
-            partsize -= 1
-            continue
-        end
-        idx += 1
-    end
     parts = Expr[(x isa String ? :(Bypass($x)) : x) for x in parts]
     return Expr(:call, :Result, QuoteNode(this), parts...)
 end

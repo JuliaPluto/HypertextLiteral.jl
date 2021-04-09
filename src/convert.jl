@@ -23,6 +23,7 @@ attribute_value(x::AbstractString) = x
 attribute_value(x::Number) = x
 attribute_value(x::Symbol) = x
 attribute_value(x::Nothing) = ""
+attribute_value(x::Missing) = ""
 attribute_value(x::Bool) =
   throw("Boolean used within a quoted attribute.")
 
@@ -78,6 +79,7 @@ content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x
 content(x::Nothing) = ""
+content(x::Missing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
@@ -157,6 +159,7 @@ inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
 inside_tag(::Nothing) = no_content
+inside_tag(::Missing) = no_content
 
 """
     rawtext(context, value)
@@ -181,3 +184,4 @@ end
 rawtext(c::Symbol, n::Number) = rawtext(c, string(n))
 rawtext(c::Symbol, s::Symbol) = rawtext(c, string(s))
 rawtext(c::Symbol, x::Nothing) = rawtext(c, "")
+rawtext(c::Symbol, x::Missing) = rawtext(c, "")

@@ -143,16 +143,10 @@ Tags using rawtext are not permitted to include their end tag.
       Content of <style> cannot contain the end tag (`</style>`).
     =#
 
-We treat `missing` the same as `nothing`, making it equivalent to the
-empty string when it is printed.
-
-    @print @htl("<tag $(missing) att=$(missing)>$(missing)</tag>")
-    #-> <tag att=''></tag>
-
 Rawtext may include not only strings, but numbers, and such.
 
-    @print @htl("<style> $(3) $(true) $(:sym) $(nothing) $(missing)</style>")
-    #-> <style> 3 true sym  </style>
+    @print @htl("<style> $(3) $(true) $(:sym) $(nothing)</style>")
+    #-> <style> 3 true sym </style>
 
 ## Detection of String Literals
 

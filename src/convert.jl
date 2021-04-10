@@ -13,8 +13,11 @@ are a few overrides that we provide.
   they are CSS style elements, with a colon between key and value,
   each pair delimited by a semi-colon.
 
-* The `Bool` object, which has special treatment for bare inside_tag,
-  is an error when used within a quoted attribute.
+* `Bool` objects, which have special treatment for bare inside_tag,
+  are an error when used within a quoted attribute.
+
+* The `nothing` singleton within a quoted attribute value becomes an
+  empty string; as an unquoted value, the given attribute is omitted.
 
 If an object is wrapped with `HTML` then it is included in the quoted
 attribute value as-is, without inspection or escaping.
@@ -23,7 +26,6 @@ attribute_value(x::AbstractString) = x
 attribute_value(x::Number) = x
 attribute_value(x::Symbol) = x
 attribute_value(x::Nothing) = ""
-attribute_value(x::Missing) = ""
 attribute_value(x::Bool) =
   throw("Boolean used within a quoted attribute.")
 
@@ -79,7 +81,6 @@ content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x
 content(x::Nothing) = ""
-content(x::Missing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
@@ -159,7 +160,6 @@ inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
 inside_tag(::Nothing) = no_content
-inside_tag(::Missing) = no_content
 
 """
     rawtext(context, value)
@@ -184,4 +184,3 @@ end
 rawtext(c::Symbol, n::Number) = rawtext(c, string(n))
 rawtext(c::Symbol, s::Symbol) = rawtext(c, string(s))
 rawtext(c::Symbol, x::Nothing) = rawtext(c, "")
-rawtext(c::Symbol, x::Missing) = rawtext(c, "")

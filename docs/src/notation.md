@@ -81,46 +81,6 @@ building attributes.
 Beyond these differences, this could just be a matter of preference; or
 which form of syntax highlighting works best.
 
-## Nesting via Paired Unicode Delimiter
-
-We include an _experimental_ prototype for use of paired delimiters to
-permit nesting of `htl` notations as described in Julia #38948.
-
-    @print htl"Hello $(htl⟪World⟫)"
-    #-> Hello World
-
-Either single or triple double quotes are still needed for the outermost
-query. As long as content uses paired delimiters, there is no problem
-including them verbatim.
-
-    @print htl"Hello ⟪World⟫"
-    #-> Hello ⟪World⟫
-
-    @print htl"Hello ⟪World⟫ $(htl⟪!⟫)"
-    #-> Hello ⟪World⟫ !
-
-The dollar sign is still used to mark interpolation, if it is omitted,
-and we discover an `htl⟪...⟫` pair, then we report it as an error.
-
-    htl"Hello htl⟪World⟫"
-    #=>
-    ERROR: LoadError: "`htl⟪⟫` notation discovered outside interpolation"⋮
-    =#
-
-To use the `⟪` in an unpaired way, it could be included in HTML content
-using a character entity.
-
-    @print htl"Hello ⟪"
-    #-> ERROR: LoadError: "unmatched ⟪ delimiter"⋮
-
-    @print htl"Hello ⟫"
-    #-> ERROR: LoadError: "unmatched ⟫ delimiter"⋮
-
-    @print htl"<span>nested literals start with &#10218;</span>"
-    #-> <span>nested literals start with &#10218;</span>
-
-If this feature gains support we might keep this notation.
-
 ## Regression Tests & Notes
 
 Due to `@raw_str` escaping, string literal forms are a bit quirky. Use

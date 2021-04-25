@@ -116,22 +116,12 @@ Observe that `map()` is currently the most performant way to loop.
     @print @htl "$(map(1:3) do x; x; end)"
     #-> 123
 
-The `script` and `style` tags use a "raw text" encoding where all
-content up-to the end tag is not escaped using ampersands.
+The the `style` tag uses a "raw text" encoding where all content up-to
+the end tag is not escaped using ampersands.
 
     book = "Strunk & White"
-    @print @htl("""<script>var book = "$book"</script>""")
-    #-> <script>var book = "Strunk & White"</script>
-
-Script tags are not permitted to contain HTML comments.
-
-    bad = "content with a <!-- comment -->"
-
-    @htl("""<script>$bad</script>""")
-    #=>
-    ERROR: DomainError with "content with a <!-- comment -->":
-      Content of <script> should not contain a comment block (`<!--`).
-    =#
+    @print @htl("""<style>var book = "$book"</style>""")
+    #-> <style>var book = "Strunk & White"</style>
 
 Tags using rawtext are not permitted to include their end tag.
 

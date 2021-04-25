@@ -39,6 +39,34 @@ print_script(io::IO, ::Missing) =
 print_script(io::IO, value::Union{Bool, Symbol}) =
     print(io, value)
 
+function print_script(io::IO, value::Union{NamedTuple, AbstractDict})
+    print(io, '{')
+    first = true
+    for (k,v) in pairs(value)
+        if !first
+            print(io, ", ")
+        end
+        print_script(io, k)
+        print(io, ": ")
+        print_script(io, v)
+        first = false
+    end
+    print(io, '}')
+end
+
+function print_script(io::IO, value::Union{Tuple, AbstractVector})
+    print(io, '[')
+    first = true
+    for item in value
+        if !first
+            print(io, ", ")
+        end
+        print_script(io, item)
+        first = false
+    end
+    print(io, ']')
+end
+
 function print_script(io::IO, value::Union{Integer, AbstractFloat})
     if isfinite(value) || isnan(value)
         print(io, value)

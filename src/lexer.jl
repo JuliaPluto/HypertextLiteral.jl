@@ -52,8 +52,12 @@ function interpolate(args, this)
             if state == STATE_DATA || state == STATE_COMMENT
                 push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
-                element = QuoteNode(element_tag)
-                push!(parts, :(rawtext($element, $(esc(input)))))
+                if :script === element_tag
+                    push!(parts, :(script($(esc(input)))))
+                else
+                    element = QuoteNode(element_tag)
+                    push!(parts, :(rawtext($element, $(esc(input)))))
+                end
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
                 # rewrite previous string to remove ` attname=`

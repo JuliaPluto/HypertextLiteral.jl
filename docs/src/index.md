@@ -197,3 +197,13 @@ These expansions work within quoted attributes.
 
     @print @htl("<div style='font-size: 25px; $(:padding_left => "2em")'/>")
     #-> <div style='font-size: 25px; padding-left: 2em;'/>
+
+## Script Interpolation
+
+Within a `<script>` tag, Julia values are serialized to their equivalent
+Javascript. String values are p
+
+    sval = "Say \"Hello\"!";
+
+    @print @htl("<script>var x = $sval; alert(x); </script>")
+    #-> <script>var x = "Say \"Hello\"!"; alert(x); </script>

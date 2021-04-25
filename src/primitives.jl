@@ -51,7 +51,7 @@ end
 Base.print(ep::EscapeProxy, h::Reprint) = h.content(ep)
 Base.print(ep::EscapeProxy, w::Render) =
     show(ep.io, MIME"text/html"(), w.content)
-Base.print(ep::EscapeProxy, x::Bypass) = print(ep.io, x.content)
+Base.print(ep::EscapeProxy, x::Bypass) = print(ep.io, x)
 
 function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
     written = 0

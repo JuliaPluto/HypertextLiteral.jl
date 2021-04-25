@@ -174,10 +174,6 @@ function rawtext(context::Symbol, value::AbstractString)
         throw(DomainError(repr(value), "  Content of <$context> cannot " *
             "contain the end tag (`</$context>`)."))
     end
-    if context == :script && occursin("<!--", value)
-        throw(DomainError(repr(value), "  Content of <$context> should " *
-            "not contain a comment block (`<!--`)."))
-    end
     return Bypass(value)
 end
 

@@ -13,5 +13,6 @@ include("notation.jl")   # @htl_str non-standard string literal
 include("convert.jl")    # runtime conversion of objects
 include("lexer.jl")      # interpolate string to macro expression
 include("rewrite.jl")    # macro optimizations called by interpolate
+include("script.jl")     # handling of script and style tags
 
 end

@@ -54,7 +54,6 @@ the Julia language, including:
 * Serialization of `Pair` and `Tuple` objects as attribute pairs
 * Conversion of `snake_case` => `camel-case` for attribute names
 * Support for CSS style formatting via `Pair`, `Tuple` and `Dict`
-* Detection of `script` and `style` tags to suppress escaping
 * Translation of Julia values to Javascript within `script` tag
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Extension API for customizing object display in various contexts

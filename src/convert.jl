@@ -164,19 +164,17 @@ inside_tag(::Nothing) = no_content
 """
     rawtext(context, value)
 
-Wrap a string value that occurs with RAWTEXT, SCRIPT and other element
-context so that it is `showable("text/html")`. The default
-implementation ensures that the given value doesn't contain substrings
-illegal for the given context.
+Wrap a `value` that occurs within a RAWTEXT tag, such as `<xmp>`.
+The only constraint is that the corresponding end tag cannot occur.
 """
 function rawtext(context::Symbol, value::AbstractString)
     if occursin("</$context>", lowercase(value))
         throw(DomainError(repr(value), "  Content of <$context> cannot " *
             "contain the end tag (`</$context>`)."))
     end
-    return Bypass(value)
+    return value
 end
 
-rawtext(c::Symbol, n::Number) = rawtext(c, string(n))
-rawtext(c::Symbol, s::Symbol) = rawtext(c, string(s))
-rawtext(c::Symbol, x::Nothing) = rawtext(c, "")
+rawtext(c::Symbol, n::Number) = string(n)
+rawtext(c::Symbol, s::Symbol) = string(s)
+rawtext(c::Symbol, x::Nothing) = ""

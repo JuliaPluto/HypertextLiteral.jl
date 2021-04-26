@@ -53,10 +53,12 @@ function interpolate(args, this)
                 push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
                 if :script === element_tag
-                    push!(parts, :(script($(esc(input)))))
+                    push!(parts, :(Script($(esc(input)))))
+                elseif :style === element_tag
+                    push!(parts, :(Style($(esc(input)))))
                 else
                     element = QuoteNode(element_tag)
-                    push!(parts, :(rawtext($element, $(esc(input)))))
+                    push!(parts, :(Bypass(rawtext($element, $(esc(input))))))
                 end
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED

@@ -3,6 +3,7 @@
 
 ## v0.7.0
 
-- Support Javascript serialization within `<script>` tag.
+- Support `"text/javascript"` serialization within `<script>` tag.
+- Support `"text/css"` serialization within `<style>` tag.
 - Remove experimental support for nested non-standard string literals.
 

@@ -116,20 +116,22 @@ Observe that `map()` is currently the most performant way to loop.
     @print @htl "$(map(1:3) do x; x; end)"
     #-> 123
 
-The the `style` tag uses a "raw text" encoding where all content up-to
-the end tag is not escaped using ampersands.
+The `xmp`, `iframe`, `noembed`, `noframes`, and `noscript` tags use "raw
+text" encoding where all content up-to the end tag is not escaped using
+ampersands.
 
     book = "Strunk & White"
-    @print @htl("""<style>var book = "$book"</style>""")
-    #-> <style>var book = "Strunk & White"</style>
+
+    @print @htl("""<xmp>$book</xmp>""")
+    #-> <xmp>Strunk & White</xmp>
 
 Tags using rawtext are not permitted to include their end tag.
 
     bad = "content with end-tag: </style>"
 
-    @htl("""<style>$bad</style>""")
+    @print @htl("""<style>$bad</style>""")
     #=>
-    ERROR: DomainError with "content with end-tag: </style>":
+    <style>ERROR: DomainError with "content with end-tag: </style>":
       Content of <style> cannot contain the end tag (`</style>`).
     =#
 
@@ -321,6 +323,30 @@ runtime dispatch also works, let's do a few things once indirect.
 
     @print @htl("<tag $(defer(:att) => hello)/>")
     #-> <tag att='Hello'/>
+
+Within a `<script>` tag, we want to ensure that numbers are
+properly converted.
+
+    v = (-Inf, Inf, NaN, 6.02214e23)
+
+    @print @htl("<script>var x = $v</script>")
+    #-> <script>var x = [-Infinity, Infinity, NaN, 6.02214e23]</script>
+
+Besides dictionary objects, we support named tuples.
+
+    v = (min=1, max=8)
+
+    @print @htl("<script>var x = $v</script>")
+    #-> <script>var x = {min: 1, max: 8}</script>
+
+Within a `<script>` tag, comment start (`<!--`) must also be escaped.
+Moreover, capital `<Script>` and permutations are included. We only scan
+the first character after the left-than character.
+
+    v = "<!-- <Script> <! 3<4 </ <s !>"
+
+    @print @htl("<script>var x = $v</script>")
+    #-> <script>var x = "<\!-- <\Script> <\! 3<4 <\/ <\s !>"</script>
 
 ## Lexer Testing
 

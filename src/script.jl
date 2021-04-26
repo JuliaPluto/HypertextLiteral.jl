@@ -16,11 +16,11 @@ some baseline functionality for built-in data types.
 
     - `nothing` becomes `undefined`
     - `missing` becomes `null`
-    - `Symbol` becomes an unquoted name; no escaping
     - `Bool` values are printed directly, as `true` or `false`
-    - `AbstractString` becomes a double-quoted string
+    - `AbstractString` and `Symbol` become a double-quoted string
     - `AbstractVector` and `Tuple` become an array
-    - `Dict` and `NamedTuple` become a Javascript object.
+    - `Dict` and `NamedTuple` become a Javascript object, where
+       the keys are converted to string values.
 
 Numbers are simply printed, with a special case for Javascript's
 `Infinity` object; note that `NaN` is handled transparently.
@@ -31,8 +31,10 @@ print_script(io::IO, ::Nothing) =
     print(io, "undefined")
 print_script(io::IO, ::Missing) =
     print(io, "null")
-print_script(io::IO, value::Union{Bool, Symbol}) =
+print_script(io::IO, value::Bool) =
     print(io, value)
+print_script(io::IO, value::Symbol) =
+    print_script(io, string(value))
 
 function print_script(io::IO, value::Union{NamedTuple, AbstractDict})
     print(io, '{')
@@ -41,7 +43,7 @@ function print_script(io::IO, value::Union{NamedTuple, AbstractDict})
         if !first
             print(io, ", ")
         end
-        print_script(io, k)
+        print_script(io, string(k))
         print(io, ": ")
         print_script(io, v)
         first = false

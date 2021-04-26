@@ -337,7 +337,7 @@ Besides dictionary objects, we support named tuples.
     v = (min=1, max=8)
 
     @print @htl("<script>var x = $v</script>")
-    #-> <script>var x = {min: 1, max: 8}</script>
+    #-> <script>var x = {"min": 1, "max": 8}</script>
 
 Within a `<script>` tag, comment start (`<!--`) must also be escaped.
 Moreover, capital `<Script>` and permutations are included. We only scan

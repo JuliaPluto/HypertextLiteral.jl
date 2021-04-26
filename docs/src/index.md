@@ -218,16 +218,15 @@ boolean, and floating point values are handled. As special cases,
     #-> <script>var x = [true, 1, 1.0, undefined, null]</script>
 
 Julia named tuples and dictionaries are serialized as a Javascript
-object. Symbols are represented as Javascript names, so they can be used
-as object keys or variable references.
+object. Symbols are converted to string values.
 
     v = Dict(:min=>1, :max=>8)
 
     @print @htl("<script>var x = $v</script>")
-    #-> <script>var x = {max: 8, min: 1}</script>
+    #-> <script>var x = {"max": 8, "min": 1}</script>
 
-Within a `<script>` tag, comment start (`<!--`) and script open and
-close tags must be escaped.
+Within a `<script>` tag, comment start, script open, and close tags
+are properly escaped.
 
     v = "<script>nested</script>"
 

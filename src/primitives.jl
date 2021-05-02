@@ -53,6 +53,20 @@ Base.print(ep::EscapeProxy, w::Render) =
     show(ep.io, MIME"text/html"(), w.content)
 Base.print(ep::EscapeProxy, x::Bypass) = print(ep.io, x)
 
+function Base.write(ep::EscapeProxy, octet::UInt8)
+    if octet == Int('&')
+        write(ep.io, "&amp;")
+    elseif octet == Int('<')
+        write(ep.io, "&lt;")
+    elseif octet == Int('"')
+        write(ep.io, "&quot;")
+    elseif octet == Int('\'')
+        write(ep.io, "&apos;")
+    else
+        write(ep.io, octet)
+    end
+end
+
 function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
     written = 0
     last = cursor = input

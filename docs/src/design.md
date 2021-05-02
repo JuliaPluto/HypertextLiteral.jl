@@ -14,9 +14,10 @@ This package is implemented according to several design criteria.
   false), input is treated as-is and not otherwise modified.
 
 * Provide reasonable interpretation for `Dict`, `Vector` and other
-  objects as element content, attributes, and attribute values; to
-  ensure the library is predictable, these interpretations should
-  not depend upon namespace, element name, or the attribute name.
+  objects as element content, attributes, and attribute values
+
+* Provide direct support for `script` and `style` rawtext elements,
+  which have their own interpolation needs.
 
 * Since the `style` and `class` attributes are so important in HTML
   construction, universal interpretations of Julia constructs

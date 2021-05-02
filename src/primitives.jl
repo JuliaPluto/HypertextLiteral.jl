@@ -1,5 +1,5 @@
 """
-    Reprint(fn) -- apply the lambda function when printed
+    Reprint(fn) - apply the lambda function when printed
 """
 mutable struct Reprint
     content::Function

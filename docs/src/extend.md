@@ -159,7 +159,52 @@ an example.
 
     @print @htl("<div $style>Hello</div>")
     #-> <div class='one two' style='background-color: #92a8d1;'>Hello</div>
+    struct Custom data::String end
+
+    function Base.show(io::IO, mime::MIME"text/javascript", c::Custom)
+        print(io, c)
+    end
 
 There is a small ecosystem of methods to implement the expansion of
 `Dict`, `Pair`, `NamedTuple`, `Vector`, `Tuple` and `Base.Generator` in
 multiple contexts. They could be reused or just ignored.
+
+## Script Context
+
+Within the `script` tag, content is not `"text/html"`, instead, it is
+treated as `"text/javascript"`. Custom objects which are `showable` as
+`"text/javascript"` can be printed without any escaping in this context.
+
+    struct Log
+        data
+    end
+
+    function Base.show(io::IO, mime::MIME"text/javascript", c::Log)
+        print(io, "console.log(", c.data, ")")
+    end
+
+    @print @htl("""<script>$(Log("undefined"))</script>""")
+    #-> <script>console.log(undefined)</script>
+
+Alternatively, one could implement `print_script` to provide a
+representation for this context.
+
+    import HypertextLiteral: print_script
+
+    function print_script(io::IO, c::Log)
+        print(io, "console.log(")
+        print_script(io, c.data)
+        print(io, ")")
+    end
+
+    @print @htl("""<script>$(Log(nothing))</script>""")
+    #-> <script>console.log(undefined)</script>
+
+This content must not only be valid Javascript, but also escaped so that
+`<script>`, `</script>`, and `<!--` literal values do not appear. When
+using `print_script` this work is performed automatically.
+
+    content = """<script>alert("hello")</script>"""
+
+    @print @htl("<script>$(Log(content))</script>")
+    #-> <script>console.log("<\script>alert(\"hello\")<\/script>")</script>

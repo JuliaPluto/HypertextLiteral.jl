@@ -232,3 +232,22 @@ are properly escaped.
 
     @print @htl("<script>var x = $v</script>")
     #-> <script>var x = "<\script>nested<\/script>"</script>
+
+Sometimes you already have content that is valid Javascript. This can be
+printed directly, without escaping using a wrapper similar to `HTML`:
+
+    using HypertextLiteral: JavaScript
+
+    expr = """console.log("Hello World")"""
+
+    @print @htl("<script>$(JavaScript(expr))</script>")
+    #-> <script>console.log("Hello World")</script>
+
+The `JavaScript` wrapper indicates the content should be printed within
+a `"text/javascript"` context. Even so, it does help catch content which
+is not propertly escaped for use within a `<script>` tag.
+
+    expr = """<script>console.log("Hello World")</script>"""
+
+    @print @htl("<script>$(JavaScript(expr))</script>")
+    #-> ERROR: "JavaScript content is not propertly escaped"⋮

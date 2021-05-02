@@ -1,12 +1,43 @@
 """
-    Script(data) - object printed as text/javascript
+    Script(data) - print `data` unescaped within a `<script>` tag
 """
 struct Script
     content
 end
 
 Base.print(ep::EscapeProxy, x::Script) =
-    print_script(ep.io, x.content)
+    print_script_lower(ep.io, x.content)
+
+"""
+    print_script_lower(io, value)
+
+Provides a hook to override `print_script` for custom Javascript
+runtimes, such as `Pluto.jl`, to provide their own value marshalling.
+"""
+print_script_lower(io::IO, value) =
+   print_script(io, value)
+
+
+INVALID_SCRIPT_CONTENT = r"(<!--)|(<script>)|(</script)"i
+
+"""
+    JavaScript(js) - shows `js` as `"text/javascript"`
+"""
+struct JavaScript
+    content
+
+    JavaScript(s::AbstractString) =
+        if nothing == match(INVALID_SCRIPT_CONTENT, s)
+            new(s)
+        else
+            throw("JavaScript content is not propertly escaped")
+        end
+
+     JavaScript(content) = new(content)
+end
+
+Base.show(io::IO, ::MIME"text/javascript", js::JavaScript) =
+    print(io, js.content)
 
 """
     print_script(io, value)
@@ -16,14 +47,16 @@ some baseline functionality for built-in data types.
 
     - `nothing` becomes `undefined`
     - `missing` becomes `null`
-    - `Bool` values are printed directly, as `true` or `false`
+    - `Bool` values are printed as `true` or `false`
     - `AbstractString` and `Symbol` become a double-quoted string
     - `AbstractVector` and `Tuple` become an array
-    - `Dict` and `NamedTuple` become a Javascript object, where
-       the keys are converted to string values.
+    - `Dict` and `NamedTuple` become a Javascript object, with
+       keys converted to string values
+    - `AbstractFloat` and `Integer` are printed directly, where
+      `NaN` remains `NaN` but `Inf` is printed as `Infinity`
 
-Numbers are simply printed, with a special case for Javascript's
-`Infinity` object; note that `NaN` is handled transparently.
+The fallback behavior of `print_script` is to show the object as
+`"text/javascript"`.
 """
 print_script(io::IO, value) =
     show(io, MIME"text/javascript"(), value)

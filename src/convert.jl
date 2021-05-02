@@ -68,15 +68,36 @@ attribute_value(items::Tuple{Pair, Vararg{Pair}}) = attribute_values(items)
     content(x)
 
 This method may be implemented to specify a printed representation
-suitable for `text/html` output. As a special case, if the result is
-wrapped with `HTML`, then it is passed along as-is. Otherwise, the
-`print` representation of the resulting value is escaped. By default
-`AbstractString`, `Number` and `Symbol` values are printed and escaped.
-The elements of `Tuple` and `AbstractArray` are concatinated and then
-escaped. If a method is not implemented for a given object, then we
-attempt to `show` it via `MIME"text/html"`.
+suitable for `text/html` output. `AbstractString`, `Symbol` and `Number`
+(including `Bool`) types are printed, with proper escaping; `nothing` is
+simply omitted from the output.
+
+A default implementation first looks to see if `typeof(x)` has
+implemented a way to show themselves as `text/html`, if so, this is
+used. Otherwise, the result is printed within a `<span>` tag, using a
+`class` that includes the module and type name. Hence, `missing` is
+serialized as: `<span class="Base-Missing">missing</span>`.
 """
-content(x) = Render(x)
+@generated function content(x)
+     if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
+         return :(Render(x))
+     else
+         mod = replace(string(parentmodule(x)), "." => "-")
+         cls = mod * "-" * split(string(x), "{")[1]
+         span = """<span class="$cls">"""
+         return :(reprint(Bypass($span), x, Bypass("</span>")))
+     end
+end
+
+function reprint(xs...)
+    # generated functions cannot contain a closure
+    Reprint() do io::IO
+        for x in xs
+            print(io, x)
+        end
+    end
+end
+
 content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x

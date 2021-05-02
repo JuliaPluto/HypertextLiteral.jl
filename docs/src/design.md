@@ -14,7 +14,7 @@ This package is implemented according to several design criteria.
   false), input is treated as-is and not otherwise modified.
 
 * Provide reasonable interpretation for `Dict`, `Vector` and other
-  objects as element content, attributes, and attribute values
+  objects as element content, attributes, and attribute value
 
 * Provide direct support for `script` and `style` rawtext elements,
   which have their own interpolation needs.
@@ -26,9 +26,6 @@ This package is implemented according to several design criteria.
 * There should be a discoverable and well documented extension API that
   permits custom data types to provide their own serialization
   strategies based upon syntactical context.
-
-* By default, use of unknown objects is an error. However, it should
-  be trivial to permit their usage via Julia method implementation.
 
 * As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
@@ -64,6 +61,12 @@ the `"text/html"` results.
 
     print(@htl("<span>$x</span>"))
     #-> <span>Hello World</span>
+
+We wrap `missing` and other data types using a `<span>` tag as they are
+printed. This permits customized CSS to control their presentation.
+
+    @print @htl("""<tag>$(missing)</tag>""")
+    #-> <tag><span class="Base-Missing">missing</span></tag>
 
 So that the scope of objects serialized in this manner is clear, we
 don't permit adjacent unquoted values.

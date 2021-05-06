@@ -253,11 +253,11 @@ Let's ensure that attribute values in a dictionary are escaped.
     @print @htl("<tag escaped=$(Dict(:esc=>"'&\"<"))/>")
     #-> <tag escaped='esc: &apos;&amp;&quot;&lt;;'/>
 
-Nothing within an attribute value within a quoted value or within
-element content is treated as an empty string.
+Nothing within a quoted attribute value, `nothing` is treated as an
+empty string. Within element content, it is printed using a `<span>`.
 
     @print @htl("<tag attribute='$(nothing)'>$(nothing)</tag>")
-    #-> <tag attribute=''></tag>
+    #-> <tag attribute=''><span class="Core-Nothing">nothing</span></tag>
 
 Nothing as an attribute value omits the attribute just like `false`.
 Nothing inside a tag is omitted as well.

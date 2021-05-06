@@ -16,9 +16,6 @@ are a few overrides that we provide.
 * `Bool` objects, which have special treatment for bare inside_tag,
   are an error when used within a quoted attribute.
 
-* The `nothing` singleton within a quoted attribute value becomes an
-  empty string; as an unquoted value, the given attribute is omitted.
-
 If an object is wrapped with `HTML` then it is included in the quoted
 attribute value as-is, without inspection or escaping.
 """
@@ -69,8 +66,7 @@ attribute_value(items::Tuple{Pair, Vararg{Pair}}) = attribute_values(items)
 
 This method may be implemented to specify a printed representation
 suitable for `text/html` output. `AbstractString`, `Symbol` and `Number`
-(including `Bool`) types are printed, with proper escaping; `nothing` is
-simply omitted from the output.
+(including `Bool`) types are printed, with proper escaping.
 
 A default implementation first looks to see if `typeof(x)` has
 implemented a way to show themselves as `text/html`, if so, this is
@@ -82,8 +78,11 @@ serialized as: `<span class="Base-Missing">missing</span>`.
      if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
          return :(Render(x))
      else
-         mod = replace(string(parentmodule(x)), "." => "-")
-         cls = mod * "-" * split(string(x), "{")[1]
+         mod = parentmodule(x)
+         cls = split(string(x), "{")[1]
+         if mod == Core || mod == Base || pathof(mod) !== nothing
+             cls = join(fullname(mod), "-") * "-" * cls
+         end
          span = """<span class="$cls">"""
          return :(reprint(Bypass($span), x, Bypass("</span>")))
      end
@@ -101,7 +100,6 @@ end
 content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x
-content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
@@ -198,4 +196,3 @@ end
 
 rawtext(c::Symbol, n::Number) = string(n)
 rawtext(c::Symbol, s::Symbol) = string(s)
-rawtext(c::Symbol, x::Nothing) = ""

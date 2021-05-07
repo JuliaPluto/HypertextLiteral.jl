@@ -3,7 +3,7 @@
 This package additionally provides the `@htl_str` notation which has the
 advantage of being more succinct than `@htl` macro.
 
-    using HypertextLiteral: @htl_str
+    using HypertextLiteral: @htl, @htl_str
 
     macro print(expr) :(display("text/html", $expr)); end
 
@@ -26,6 +26,63 @@ Strings prefixed by `htl` are processed by `@htl_str`.
 
 Other than a handful of exceptions, `htl"<tag/>"` and `@htl("<tag/>")`
 are otherwise identical in behavior.
+
+## Dynamic Templates
+
+The `@htl_str` macro can be used to dynamically construct templates in
+combination with `eval`. Suppose you have a schema that is provided
+dynamically. Let's make a test database with exactly one row.
+
+    T = NamedTuple{(:idx, Symbol("A <Value>")), Tuple{Int64, String}};
+
+    database = [T((1, "A&B"))];
+
+    display(database)
+    #=>
+    1-element Vector{NamedTuple{(:idx, Symbol("A <Value>")), …}:
+     (idx = 1, A <Value> = "A&B")
+    =#
+
+We could construct a table header from this schema.
+
+    fields = T.parameters[1]
+    #-> (:idx, Symbol("A <Value>"))
+
+    head = @htl("<tr>$([@htl("<th>$x") for x in fields])")
+
+    @print head
+    #-> <tr><th>idx<th>A &lt;Value>
+
+Then, we need to compute a template for each row.
+
+    row_template = "<tr>$(join(["<td>\$(row[$(repr(x))])" for x in fields]))"
+
+    print(row_template)
+    #-> <tr><td>$(row[:idx])<td>$(row[Symbol("A <Value>")])
+
+Using `eval` with `@htl_str` we could construct our template function.
+
+    eval(:(tablerow(row) = @htl_str $row_template))
+
+    @print tablerow(database[1])
+    #-> <tr><td>1<td>A&amp;B
+
+A template for the entire table could be constructed.
+
+    table_template = "<table>$head\$([tablerow(row) for row in data])</table>"
+
+    print(table_template)
+    #-> <table><tr><th>idx…$([tablerow(row) for row in data])</table>
+
+    eval(:(print_table(data) = @htl_str $table_template))
+
+Then, finally, this could be used.
+
+    @print print_table(database)
+    #-> <table><tr><th>idx<th>A &lt;Value><tr><td>1<td>A&amp;B</table>
+
+Of course, one should be careful about using `eval` to ensure that the
+template itself is well sanitized.
 
 ## Notable Differences
 

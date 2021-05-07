@@ -50,7 +50,7 @@ If the type of a value is not `showable` as `"text/html"`, a function is
 generated that prints the value, escapes the output, placed inside a
 `<span>` tag using the type's name as the `class` attribute.
 
-    struct Custom data::String end;
+    struct Custom data::String; end
 
     Base.print(io::IO, c::Custom) = print(io, c.data)
 

@@ -58,9 +58,10 @@ the Julia language, including:
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Extension API for customizing object display in various contexts
 
-When `AbstractString` or `Numeric` values are interpolated as content,
-their escaped values are printed to the output. By default, other values
-are printed with a `<span>` wrapper, with its `class` being the type.
+When `AbstractString`, `Integer` or `AbsractFloat` values are
+interpolated as content, their escaped values are printed to the output.
+By default, other values are printed with a `<span>` wrapper, with its
+`class` reflecting the module and type names.
 
 ```julia
     display("text/html", @htl("<div>$missing</div>")

@@ -58,6 +58,25 @@ the Julia language, including:
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Extension API for customizing object display in various contexts
 
+When `AbstractString` or `Numeric` values are interpolated as content,
+their escaped values are printed to the output. By default, other values
+are printed with a `<span>` wrapper, with its `class` being the type.
+
+```julia
+    display("text/html", @htl("<div>$missing</div>")
+    #-> <div><span class="Base-Missing">missing</span></div>
+```
+
+By default, this will show up as `missing` in the browser display.
+However, a style can be used to change this display.
+
+```html
+<style>
+span.Base-Missing {visibility: collapse;}
+span.Base-Missing::before {content: "N/A"; visibility: visible;}
+</style>
+```
+
 For more detail, please see the [documentation][docs-stable-url] and
 join us on [Julia's Zulip][chat-url].
 

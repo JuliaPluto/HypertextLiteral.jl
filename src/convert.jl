@@ -79,7 +79,7 @@ serialized as: `<span class="Base-Missing">missing</span>`.
          return :(Render(x))
      else
          mod = parentmodule(x)
-         cls = split(string(x), "{")[1]
+         cls = string(nameof(x))
          if mod == Core || mod == Base || pathof(mod) !== nothing
              cls = join(fullname(mod), "-") * "-" * cls
          end

@@ -97,10 +97,9 @@ function reprint(xs...)
     end
 end
 
-content(x::AbstractString) = x
-content(x::Number) = x
-content(x::Symbol) = x
+content(x::Union{AbstractString, Symbol}) = x
 content(x::Nothing) = ""
+content(x::Union{AbstractFloat, Bool, Integer}) = x
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})

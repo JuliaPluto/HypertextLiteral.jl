@@ -32,22 +32,30 @@ directly as a Hyperscript node.
     @print div(@htl("<span>...</span>"))
     #-> <div><span>...</span></div>
 
-Generally, any custom component can be enhanced to work directly with
-this and similar libraries by implementing `show` for `"text/html"`.
-In this case, properly escaping content is important.
+Any datatype can be enhanced to work directly with this and similar
+libraries by implementing `show` for `"text/html"`. In this case,
+properly escaping content is important.
 
-    struct Custom data::String end
+    struct Showable data::String end
 
-    function Base.show(io::IO, mime::MIME"text/html", c::Custom)
+    function Base.show(io::IO, mime::MIME"text/html", c::Showable)
         value = replace(replace(c.data, "&"=>"&amp;"), "<"=>"&lt;")
-        print(io, "<custom>$(value)</custom>")
+        print(io, "<showable>$(value)</showable>")
     end
 
-    @print @htl("<span>$(Custom("a&b"))</span>")
-    #-> <span><custom>a&amp;b</custom></span>
+    @print @htl("<span>$(Showable("a&b"))</span>")
+    #-> <span><showable>a&amp;b</showable></span>
 
-Conservatively, many more characters should be escaped, including both
-single (`'`) and double (`"`) quotes.
+If the type of a value is not `showable` as `"text/html"`, a function is
+generated that prints the value, escapes the output, placed inside a
+`<span>` tag using the type's name as the `class` attribute.
+
+    struct Custom data::String end;
+
+    Base.print(io::IO, c::Custom) = print(io, c.data)
+
+    @print @htl("<div>$(Custom("a&b"))</div>")
+    #-> <div><span class="Custom">a&amp;b</span></div>
 
 ## Content Extensions
 

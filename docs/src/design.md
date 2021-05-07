@@ -131,18 +131,18 @@ ampersands.
 
 Tags using rawtext are not permitted to include their end tag.
 
-    bad = "content with end-tag: </style>"
+    bad = "content with end-tag: </xmp>"
 
-    @print @htl("""<style>$bad</style>""")
+    @print @htl("""<xmp>$bad</xmp>""")
     #=>
-    <style>ERROR: DomainError with "content with end-tag: </style>":
-      Content of <style> cannot contain the end tag (`</style>`).
+    ERROR: DomainError with "content with end-tag: </xmp>":
+      Content of <xmp> cannot contain the end tag (`</xmp>`).
     =#
 
-Rawtext may include not only strings, but numbers, and such.
+Rawtext tags can also contain numeric and symbol values.
 
-    @print @htl("<style> $(3) $(true) $(:sym) $(nothing)</style>")
-    #-> <style> 3 true sym </style>
+    @print @htl("<xmp> $(3) $(true) $(:sym) </xmp>")
+    #-> <xmp> 3 true sym </xmp>
 
 ## Detection of String Literals
 
@@ -253,11 +253,11 @@ Let's ensure that attribute values in a dictionary are escaped.
     @print @htl("<tag escaped=$(Dict(:esc=>"'&\"<"))/>")
     #-> <tag escaped='esc: &apos;&amp;&quot;&lt;;'/>
 
-Nothing within a quoted attribute value, `nothing` is treated as an
-empty string. Within element content, it is printed using a `<span>`.
+Within a quoted attribute or element content, `nothing` is printed the
+same as the empty string.
 
-    @print @htl("<tag attribute='$(nothing)'>$(nothing)</tag>")
-    #-> <tag attribute=''><span class="Core-Nothing">nothing</span></tag>
+    @print @htl("<tag attribute='$nothing'>$nothing</tag>")
+    #-> <tag attribute=''></tag>
 
 Nothing as an attribute value omits the attribute just like `false`.
 Nothing inside a tag is omitted as well.

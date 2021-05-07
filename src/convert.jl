@@ -100,6 +100,7 @@ end
 content(x::AbstractString) = x
 content(x::Number) = x
 content(x::Symbol) = x
+content(x::Nothing) = ""
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})

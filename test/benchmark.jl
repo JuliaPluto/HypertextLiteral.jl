@@ -265,14 +265,13 @@ nest_test() = begin
    return io
 end
 
-#BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
-#println("interpolate: ", @benchmark reg_test())
-#println("Custom HTML: ", @benchmark cus_test())
-#println("Hyperscript: ", @benchmark hs_test())
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
+println("interpolate: ", @benchmark reg_test())
+println("Custom HTML: ", @benchmark cus_test())
+println("Hyperscript: ", @benchmark hs_test())
 println("HypertextLiteral: ", @benchmark htl_test())
 println("HTL (Attributes): ", @benchmark att_test())
-#println("Pair Testing: ", @benchmark pair_test())
-#println("Nest Testing: ", @benchmark nest_test())
+println("Nest Testing: ", @benchmark nest_test())
 
 if false
     open("htl.html", "w") do f

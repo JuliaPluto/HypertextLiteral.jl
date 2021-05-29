@@ -54,10 +54,10 @@ if isempty(ARGS)
         HypertextLiteral,
         :DocTestSetup,
         quote
-            using HypertextLiteral: 
+            using HypertextLiteral:
                 @htl, @htl_str
                 Reprint, Render, Bypass, EscapeProxy,
-                attribute_value, content, attribute_pair, 
+                attribute_value, content, attribute_pair,
                 inside_tag, rawtext
             using Dates
         end)

@@ -8,8 +8,11 @@ since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
     this = Expr(:macrocall, Symbol("@htl"), nothing, expr)
-    if !Meta.isexpr(expr, :string)
+    if typeof(expr) == String
         return interpolate([expr], this)
+    end
+    if !Meta.isexpr(expr, :string)
+        throw(DomainError(expr, "a string literal is required"))
     end
     args = expr.args
     for part in expr.args

@@ -521,4 +521,14 @@ goes though the lexer.
     @print @htl("<div>Hello<b>World</b>!</div>")
     #-> <div>Hello<b>World</b>!</div>
 
+However, this macro requires a string literal.
+
+    f() = "<div>Hello<b>World</b>!</div>"
+
+    @print @htl(f())
+    #=>
+    ERROR: LoadError: DomainError with f():
+    a string literal is required⋮
+    =#
+
 That's it.

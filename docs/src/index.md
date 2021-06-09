@@ -257,4 +257,5 @@ is not propertly escaped for use within a `<script>` tag.
     expr = """<script>console.log("Hello World")</script>"""
 
     @print @htl("<script>$(JavaScript(expr))</script>")
-    #-> ERROR: "JavaScript content is not propertly escaped"⋮
+    #-> …ERROR: "Content within a script tag must not contain `</script>`"⋮
+…

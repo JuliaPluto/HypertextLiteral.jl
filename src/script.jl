@@ -1,12 +1,38 @@
 """
-    Script(data) - print `data` unescaped within a `<script>` tag
+    ScriptProxy(io)
+
+This is a transparent proxy that ensures neither `<!--` nor `</script>`
+occur in the output stream.
+
+# Examples
+```julia-repl
+julia> gp = ScriptProxy(stdout);
+julia> print(gp, "valid");
+valid
+julia> print(gp, "</script>")
+<tag/>
+```
+"""
+mutable struct ScriptProxy{T<:IO} <: IO where {T}
+    io::T
+    index::Int
+
+    ScriptProxy(io::T) where T = new{T}(io::T, 0)
+end
+
+
+"""
+    Script(data)
+
+This object prints `data` unescaped within a `<script>` tag, wrapped in
+a `ScriptProxy` that guards against invalid script content.
 """
 struct Script
     content
 end
 
 Base.print(ep::EscapeProxy, x::Script) =
-    print_script_lower(ep.io, x.content)
+    print_script_lower(ScriptProxy(ep.io), x.content)
 
 """
     print_script_lower(io, value)
@@ -18,22 +44,11 @@ print_script_lower(io::IO, value) =
    print_script(io, value)
 
 
-INVALID_SCRIPT_CONTENT = r"(<!--)|(<script>)|(</script)"i
-
 """
     JavaScript(js) - shows `js` as `"text/javascript"`
 """
 struct JavaScript
     content
-
-    JavaScript(s::AbstractString) =
-        if nothing == match(INVALID_SCRIPT_CONTENT, s)
-            new(s)
-        else
-            throw("JavaScript content is not propertly escaped")
-        end
-
-     JavaScript(content) = new(content)
 end
 
 Base.show(io::IO, ::MIME"text/javascript", js::JavaScript) =
@@ -56,7 +71,8 @@ some baseline functionality for built-in data types.
       `NaN` remains `NaN` but `Inf` is printed as `Infinity`
 
 The fallback behavior of `print_script` is to show the object as
-`"text/javascript"`.
+`"text/javascript"`. The `Javascript` wrapper will take any string
+and let it be printed in this way.
 """
 print_script(io::IO, value) =
     show(io, MIME"text/javascript"(), value)
@@ -142,4 +158,65 @@ function print_script(io::IO, value::AbstractString)
     end
     print(io, SubString(value, last, final))
     print(io, "\"")
+end
+
+function Base.write(sp::ScriptProxy, octet::UInt8)
+    if 0 == sp.index
+        if octet == Int('<')
+            sp.index = 1
+        end
+        write(sp.io, octet)
+        return
+    end
+    if 1 == sp.index
+        sp.index = octet == Int('!') ? 12 :
+                   octet == Int('/') ? 2 : 0
+    elseif 2 == sp.index
+        sp.index = (octet == Int('S') || octet == Int('s')) ? 3 : 0
+    elseif 3 == sp.index
+        sp.index = (octet == Int('C') || octet == Int('c')) ? 4 : 0
+    elseif 4 == sp.index
+        sp.index = (octet == Int('R') || octet == Int('r')) ? 5 : 0
+    elseif 5 == sp.index
+        sp.index = (octet == Int('I') || octet == Int('i')) ? 6 : 0
+    elseif 6 == sp.index
+        sp.index = (octet == Int('P') || octet == Int('p')) ? 7 : 0
+    elseif 7 == sp.index
+        sp.index = (octet == Int('T') || octet == Int('t')) ? 8 : 0
+    elseif 8 == sp.index
+        sp.index = 0
+        if octet == Int('>')
+            throw("Content within a script tag must not contain `</script>`")
+        end
+    elseif 12 == sp.index
+        sp.index = octet == Int('-') ? 13 : 0
+    elseif 13 == sp.index
+        sp.index = 0
+        if octet == Int('-')
+            throw("Content within a script tag must not contain `<!--`")
+        end
+    end
+    write(sp.io, octet)
+end
+
+function Base.unsafe_write(sp::ScriptProxy, input::Ptr{UInt8}, nbytes::UInt)
+    written = 0
+    last = cursor = input
+    final = input + nbytes
+    while cursor < final
+        ch = unsafe_load(cursor)
+        if ch == Int('<') || sp.index != 0
+            written += unsafe_write(sp.io, last, cursor - last)
+            write(sp, ch)
+            written += 1
+            cursor += 1
+            last = cursor
+            continue
+        end
+        cursor += 1
+    end
+    if last < final
+        written += unsafe_write(sp.io, last, final - last)
+    end
+    return written
 end

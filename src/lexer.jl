@@ -57,8 +57,8 @@ function interpolate(args, this)
                 elseif :style === element_tag
                     push!(parts, :(Style($(esc(input)))))
                 else
-                    element = QuoteNode(element_tag)
-                    push!(parts, :(Bypass(rawtext($element, $(esc(input))))))
+                    throw(DomainError(element_tag,
+                      "Only script and style rawtext tags are supported."))
                 end
             elseif state == STATE_BEFORE_ATTRIBUTE_VALUE
                 state = STATE_ATTRIBUTE_VALUE_UNQUOTED
@@ -80,10 +80,15 @@ function interpolate(args, this)
             elseif state == STATE_ATTRIBUTE_VALUE_UNQUOTED
                 throw(DomainError(input, "Unquoted attribute " *
                   "interpolation is limited to a single component"))
-            elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED
-                push!(parts, :(attribute_value($(esc(input)))))
-            elseif state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                push!(parts, :(attribute_value($(esc(input)))))
+            elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED ||
+                   state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
+                @assert parts[end] isa String
+                name = parts[end][attribute_start:attribute_end]
+                if match(r"^on"i, name) !== nothing
+                    push!(parts, :(script_attribute_value($(esc(input)))))
+                else
+                    push!(parts, :(attribute_value($(esc(input)))))
+                end
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME ||
                    state == STATE_AFTER_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs

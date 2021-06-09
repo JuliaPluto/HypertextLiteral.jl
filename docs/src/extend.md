@@ -50,12 +50,12 @@ If the type of a value is not `showable` as `"text/html"`, a function is
 generated that prints the value, escapes the output, placed inside a
 `<span>` tag using the type's name as the `class` attribute.
 
-    struct Custom data::String; end
+    struct NotShowable data::String; end
 
-    Base.print(io::IO, c::Custom) = print(io, c.data)
+    Base.print(io::IO, c::NotShowable) = print(io, c.data)
 
-    @print @htl("<div>$(Custom("a&b"))</div>")
-    #-> <div><span class="Custom">a&amp;b</span></div>
+    @print @htl("<div>$(NotShowable("a&b"))</div>")
+    #-> <div><span class="NotShowable">a&amp;b</span></div>
 
 ## Content Extensions
 
@@ -110,37 +110,36 @@ This is essentially what `@htl` macro produces.
 
 ## Attribute Value Context
 
-Unlike `content` which has a `show` `"text/html"` fallback, there is no
-such protocol for attribute values, which have different escaping needs
-(single or double quote, respectively). Hence, integrating
-`Hyperscript`'s CSS `Unit` object, such as `2em`, isn't automatic. By
-default, a `MethodError` is raised.
+Unlike `content` which has a `show` `"text/html"` fallback, there is not
+a suitable mime type for attribute values. By default, we use the
+`print` method of the object in this context.
 
     typeof(2em)
     #-> Hyperscript.Unit{:em, Int64}
 
     @print @htl("<div style=$((border=2em,))>...</div>")
-    #-> …ERROR: MethodError: no method matching attribute_value(…Unit{:em,⋮
-
-Letting objects of an unknown type work with `@htl` macros follows
-Julia's sensibilities, you implement `attribute_value` for that type.
-
-    HypertextLiteral.attribute_value(x::Hyperscript.Unit) = x
-
-    @print @htl("<div style=$((border=2em,))>...</div>")
     #-> <div style='border: 2em;'>...</div>
 
-This works as follows. When `obj` is encountered in an attribute
-context, `attribute_value(obj)` is called. Then, `print()` is called on
-the result to create a character stream. This stream is then escaped and
-included into the results. Let's do this with a `Custom` object.
+However, this isn't always desirable. Often in Julia the default print
+representation of an object is what you could use to reconstruct the
+object on the REPL.
 
     struct Custom data::String end
 
+    print(Custom("A&B"))
+    #-> …Custom("A&B")
+
+However, this is less than desireable in your HTML output.
+
+    @print @htl("<tag att=$(Custom("A&B"))/>")
+    #-> <tag att='…Custom(&quot;A&amp;B&quot;)'/>
+
+This can be addressed by overriding `attribute_value`.
+
     HypertextLiteral.attribute_value(x::Custom) = x.data
 
-    @print @htl("<tag attribute=$(Custom("'A&B'"))/>")
-    #-> <tag attribute='&apos;A&amp;B&apos;'/>
+    @print @htl("<tag att=$(Custom("A&B"))/>")
+    #-> <tag att='A&amp;B'/>
 
 Like `content` above, `Bypass` and `Reprint` work identically.
 

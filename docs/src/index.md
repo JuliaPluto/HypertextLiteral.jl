@@ -161,13 +161,6 @@ attribute is kept, with value being an empty string (`''`).
     @print @htl("<button checked=$(true) disabled=$(false)>")
     #-> <button checked=''>
 
-Since boolean values are given special treatment, they become an error
-within quoted attribute values. At this time, this behavior is universal
-and does not depend upon the exact attribute used.
-
-    @print @htl("<button disabled='$(false)'>")
-    #-> ERROR: "Boolean used within a quoted attribute."⋮
-
 In HTML, many attributes specify values with space-delimited tokens,
 such as the Cascading Style Sheet (CSS) `"class"` attribute. To support
 these attributes, arrays and tuples produce space delimited output.

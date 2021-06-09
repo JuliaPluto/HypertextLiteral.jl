@@ -1,10 +1,8 @@
 """
-    attribute_value(x)
+    print_value(io, value)
 
-This method may be implemented to specify a printed representation
-suitable for use within a quoted attribute value. By default, the print
-representation of an object is used, and then propertly escaped. There
-are a few overrides that we provide.
+This is the default translation of interpolated values within rawtext
+tags, such as `<style>` and attribute values.
 
 * The elements of a `Tuple` or `AbstractArray` object are printed,
   with a space between each item.
@@ -13,53 +11,66 @@ are a few overrides that we provide.
   they are CSS style elements, with a colon between key and value,
   each pair delimited by a semi-colon.
 
-* `Bool` objects, which have special treatment for bare inside_tag,
-  are an error when used within a quoted attribute.
+* The `Nothing` object is treated as an empty string.
 
-If an object is wrapped with `HTML` then it is included in the quoted
-attribute value as-is, without inspection or escaping.
+Otherwise, this method simply uses the standard `print` representation
+for the given object.
 """
-attribute_value(x::AbstractString) = x
+print_value(io::IO, value) =
+    print(io, value)
+print_value(io::IO, ::Nothing) =
+    nothing
+
+function print_value(io::IO, xs::Union{Tuple, AbstractArray, Base.Generator})
+    prior = false
+    for x in xs
+        if prior
+            print(io, " ")
+        end
+        print_value(io, x)
+        prior = true
+    end
+end
+
+function print_pairs(io, xs)
+    prior = false
+    for (key, value) in xs
+        name = normalize_attribute_name(key)
+        if prior
+            print(io, "; ")
+        end
+        print(io, name)
+        print(io, ": ")
+        print_value(io, value)
+        prior = true
+    end
+    print(io, ";")
+end
+
+print_value(io::IO, pair::Pair) = print_pairs(io, (pair,))
+print_value(io::IO, items::Dict) = print_pairs(io, items)
+print_value(io::IO, items::NamedTuple) = print_pairs(io, pairs(items))
+print_value(io::IO, items::Tuple{Pair, Vararg{Pair}}) = print_pairs(io, items)
+
+
+"""
+    attribute_value(x)
+
+This method may be implemented to specify a printed representation
+suitable for use within a quoted attribute value.
+"""
+attribute_value(x::String) = x
 attribute_value(x::Number) = x
 attribute_value(x::Symbol) = x
-attribute_value(x::Nothing) = ""
-attribute_value(x::Bool) =
-  throw("Boolean used within a quoted attribute.")
 
-function attribute_value(xs::Union{Tuple, AbstractArray, Base.Generator})
-    Reprint() do io::IO
-        prior = false
-        for x in xs
-            if prior
-                print(io, " ")
-            end
-            print(io, attribute_value(x))
-            prior = true
-        end
-    end
+mutable struct AttributeValue
+    content::Any
 end
 
-function attribute_values(xs)
-    Reprint() do io::IO
-        prior = false
-        for (key, value) in xs
-            name = normalize_attribute_name(key)
-            if prior
-                print(io, "; ")
-            end
-            print(io, name)
-            print(io, ": ")
-            print(io, attribute_value(value))
-            prior = true
-        end
-        print(io, ";")
-    end
-end
+Base.print(ep::EscapeProxy, x::AttributeValue) =
+    print_value(ep, x.content)
 
-attribute_value(pair::Pair) = attribute_values((pair,))
-attribute_value(items::Dict) = attribute_values(items)
-attribute_value(items::NamedTuple) = attribute_values(pairs(items))
-attribute_value(items::Tuple{Pair, Vararg{Pair}}) = attribute_values(items)
+attribute_value(x) = AttributeValue(x)
 
 """
     content(x)
@@ -179,20 +190,3 @@ inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
 inside_tag(::Nothing) = no_content
-
-"""
-    rawtext(context, value)
-
-Wrap a `value` that occurs within a RAWTEXT tag, such as `<xmp>`.
-The only constraint is that the corresponding end tag cannot occur.
-"""
-function rawtext(context::Symbol, value::AbstractString)
-    if occursin("</$context>", lowercase(value))
-        throw(DomainError(repr(value), "  Content of <$context> cannot " *
-            "contain the end tag (`</$context>`)."))
-    end
-    return value
-end
-
-rawtext(c::Symbol, n::Number) = string(n)
-rawtext(c::Symbol, s::Symbol) = string(s)

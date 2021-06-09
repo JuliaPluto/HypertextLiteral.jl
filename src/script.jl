@@ -10,7 +10,7 @@ julia> gp = ScriptProxy(stdout);
 julia> print(gp, "valid");
 valid
 julia> print(gp, "</script>")
-<tag/>
+</scriptERROR: "Content within a script tag must not contain `</script>`"
 ```
 """
 mutable struct ScriptProxy{T<:IO} <: IO where {T}
@@ -19,7 +19,6 @@ mutable struct ScriptProxy{T<:IO} <: IO where {T}
 
     ScriptProxy(io::T) where T = new{T}(io::T, 0)
 end
-
 
 """
     Script(data)
@@ -34,15 +33,25 @@ end
 Base.print(ep::EscapeProxy, x::Script) =
     print_script_lower(ScriptProxy(ep.io), x.content)
 
-"""
-    print_script_lower(io, value)
+""" 
+    ScriptAttributeValue(data)
 
-Provides a hook to override `print_script` for custom Javascript
-runtimes, such as `Pluto.jl`, to provide their own value marshalling.
+This object renders Javascript `data` escaped within an attribute.
 """
-print_script_lower(io::IO, value) =
-   print_script(io, value)
+mutable struct ScriptAttributeValue
+    content::Any
+end
 
+Base.print(ep::EscapeProxy, x::ScriptAttributeValue) =
+    print_script_lower(ep, x.content)
+
+"""
+    script_attribute_value(x)
+
+This method may be implemented to specify a printed representation
+suitable for use within a quoted attribute value starting with `on`.
+"""
+script_attribute_value(x) = ScriptAttributeValue(x)
 
 """
     JavaScript(js) - shows `js` as `"text/javascript"`
@@ -53,6 +62,15 @@ end
 
 Base.show(io::IO, ::MIME"text/javascript", js::JavaScript) =
     print(io, js.content)
+
+"""
+    print_script_lower(io, value)
+
+Provides a hook to override `print_script` for custom Javascript
+runtimes, such as `Pluto.jl`, to provide their own value marshalling.
+"""
+print_script_lower(io::IO, value) =
+   print_script(io, value)
 
 """
     print_script(io, value)

@@ -120,29 +120,27 @@ Observe that `map()` is currently the most performant way to loop.
     @print @htl "$(map(1:3) do x; x; end)"
     #-> 123
 
-The `xmp`, `iframe`, `noembed`, `noframes`, and `noscript` tags use "raw
-text" encoding where all content up-to the end tag is not escaped using
-ampersands.
+Interpolation within the `xmp`, `iframe`, `noembed`, `noframes`, and
+`noscript` tags are not supported.
 
-    book = "Strunk & White"
-
-    @print @htl("""<xmp>$book</xmp>""")
-    #-> <xmp>Strunk & White</xmp>
-
-Tags using rawtext are not permitted to include their end tag.
-
-    bad = "content with end-tag: </xmp>"
-
-    @print @htl("""<xmp>$bad</xmp>""")
+    @print @htl("""<xmp>$var</xmp>""")
     #=>
-    ERROR: DomainError with "content with end-tag: </xmp>":
-      Content of <xmp> cannot contain the end tag (`</xmp>`).
+    ERROR: LoadError: DomainError with xmp:
+    Only script and style rawtext tags are supported.⋮
     =#
 
-Rawtext tags can also contain numeric and symbol values.
+The script and style tag are not permitted to include their end tag.
 
-    @print @htl("<xmp> $(3) $(true) $(:sym) </xmp>")
-    #-> <xmp> 3 true sym </xmp>
+    bad = "</style>"
+
+    @print @htl("""<style>$bad</style>""")
+    #-> …ERROR: "Content within a style tag must not contain `</style>`"⋮
+
+Interpolation within a `style` tag is converted like attribute values,
+only that amperstand escaping is not used.
+
+    @print @htl("<style> $(3) $(true) $(:sym) </style>")
+    #-> <style> 3 true sym </style>
 
 ## Detection of String Literals
 

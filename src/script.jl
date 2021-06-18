@@ -10,7 +10,7 @@ julia> gp = ScriptProxy(stdout);
 julia> print(gp, "valid");
 valid
 julia> print(gp, "</script>")
-</scriptERROR: "Content within a script tag must not contain `</script>`"
+ERROR: "Content within a script tag must not contain `</script>`"
 ```
 """
 mutable struct ScriptProxy{T<:IO} <: IO where {T}
@@ -178,63 +178,61 @@ function print_script(io::IO, value::AbstractString)
     print(io, "\"")
 end
 
+function scan_for_script(index::Int, octet::UInt8)::Int
+    if 1 == index
+        return octet == Int('!') ? 12 : octet == Int('/') ? 2 : 0
+    elseif 2 == index
+        return (octet == Int('S') || octet == Int('s')) ? 3 : 0
+    elseif 3 == index
+        return (octet == Int('C') || octet == Int('c')) ? 4 : 0
+    elseif 4 == index
+        return (octet == Int('R') || octet == Int('r')) ? 5 : 0
+    elseif 5 == index
+        return (octet == Int('I') || octet == Int('i')) ? 6 : 0
+    elseif 6 == index
+        return (octet == Int('P') || octet == Int('p')) ? 7 : 0
+    elseif 7 == index
+        return (octet == Int('T') || octet == Int('t')) ? 8 : 0
+    elseif 8 == index
+        if octet == Int('>')
+            throw("Content within a script tag must not contain `</script>`")
+        end
+    elseif 12 == index
+        return octet == Int('-') ? 13 : 0
+    elseif 13 == index
+        if octet == Int('-')
+            throw("Content within a script tag must not contain `<!--`")
+        end
+    else
+        @assert false # unreachable?!
+    end
+    return 0
+end
+
 function Base.write(sp::ScriptProxy, octet::UInt8)
     if 0 == sp.index
         if octet == Int('<')
             sp.index = 1
         end
-        write(sp.io, octet)
-        return
+        return write(sp.io, octet)
     end
-    if 1 == sp.index
-        sp.index = octet == Int('!') ? 12 :
-                   octet == Int('/') ? 2 : 0
-    elseif 2 == sp.index
-        sp.index = (octet == Int('S') || octet == Int('s')) ? 3 : 0
-    elseif 3 == sp.index
-        sp.index = (octet == Int('C') || octet == Int('c')) ? 4 : 0
-    elseif 4 == sp.index
-        sp.index = (octet == Int('R') || octet == Int('r')) ? 5 : 0
-    elseif 5 == sp.index
-        sp.index = (octet == Int('I') || octet == Int('i')) ? 6 : 0
-    elseif 6 == sp.index
-        sp.index = (octet == Int('P') || octet == Int('p')) ? 7 : 0
-    elseif 7 == sp.index
-        sp.index = (octet == Int('T') || octet == Int('t')) ? 8 : 0
-    elseif 8 == sp.index
-        sp.index = 0
-        if octet == Int('>')
-            throw("Content within a script tag must not contain `</script>`")
-        end
-    elseif 12 == sp.index
-        sp.index = octet == Int('-') ? 13 : 0
-    elseif 13 == sp.index
-        sp.index = 0
-        if octet == Int('-')
-            throw("Content within a script tag must not contain `<!--`")
-        end
-    end
-    write(sp.io, octet)
+    sp.index = scan_for_script(sp.index, octet)
+    return write(sp.io, octet)
 end
 
 function Base.unsafe_write(sp::ScriptProxy, input::Ptr{UInt8}, nbytes::UInt)
-    written = 0
-    last = cursor = input
+    cursor = input
+    index = sp.index
     final = input + nbytes
     while cursor < final
-        ch = unsafe_load(cursor)
-        if ch == Int('<') || sp.index != 0
-            written += unsafe_write(sp.io, last, cursor - last)
-            write(sp, ch)
-            written += 1
-            cursor += 1
-            last = cursor
-            continue
+        octet = unsafe_load(cursor)
+        if octet == Int('<')
+            index = 1
+        elseif 0 != index
+            index = scan_for_script(index, octet)
         end
         cursor += 1
     end
-    if last < final
-        written += unsafe_write(sp.io, last, final - last)
-    end
-    return written
+    sp.index = index
+    return unsafe_write(sp.io, input, nbytes)
 end

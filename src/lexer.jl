@@ -6,7 +6,7 @@ normalize(s) = replace(replace(s, "\r\n" => "\n"), "\r" => "\n")
 nearby(x,i) = i+10>length(x) ? x[i:end] : x[i:i+8] * "…"
 
 """
-    interpolate(args, this)::Expr
+    interpolate(args)::Expr
 
 Take an interweaved set of Julia expressions and strings, tokenize the
 strings according to the HTML specification [1], wrapping the
@@ -24,7 +24,7 @@ ending tag is in substituted content.
 
 [1] https://html.spec.whatwg.org/multipage/parsing.html#tokenization
 """
-function interpolate(args, this)
+function interpolate(args)
     state = STATE_DATA
     parts = Union{String,Expr}[]
     attribute_start = attribute_end = 0
@@ -448,5 +448,5 @@ function interpolate(args, this)
         end
     end
     parts = Expr[(x isa String ? :(Bypass($x)) : x) for x in parts]
-    return Expr(:call, :Result, QuoteNode(this), parts...)
+    return Expr(:call, :Result, parts...)
 end

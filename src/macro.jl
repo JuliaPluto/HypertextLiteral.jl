@@ -7,9 +7,8 @@ string literals, e.g. `\$("Strunk & White")`, are treated as errors
 since they cannot be reliably detected (see Julia issue #38501).
 """
 macro htl(expr)
-    this = Expr(:macrocall, Symbol("@htl"), nothing, expr)
     if typeof(expr) == String
-        return interpolate([expr], this)
+        return interpolate([expr])
     end
     if !Meta.isexpr(expr, :string)
         throw(DomainError(expr, "a string literal is required"))
@@ -33,7 +32,7 @@ macro htl(expr)
             end
         end
     end
-    return interpolate(expr.args, this)
+    return interpolate(expr.args)
 end
 
 """
@@ -57,7 +56,6 @@ macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
     # it by `$` to find interpolated parts and delegating the hard work
     # to `Meta.parse`, treating everything else as a literal string.
-    this = Expr(:macrocall, Symbol("@htl_str"), nothing, expr)
     args = Any[]
     start = idx = 1
     strlen = lastindex(expr)
@@ -87,24 +85,25 @@ macro htl_str(expr::String)
         push!(args, nest)
         start = tail
     end
-    return interpolate(args, this)
+    return interpolate(args)
 end
 
 """
-    Result(expr, unwrap)
+    Result(unwrap)
 
-Address display modalities by showing the macro expression that
-generated the results when shown on the REPL. However, when used with
-`print()` show the results. This object is also showable to any IO
-stream via `"text/html"`.
+When used with `print()` show the results. This object is showable to
+any IO stream via `"text/html"`.
 """
 struct Result
     content::Function
-    expr::Expr
+
+    Result(fn::Function) = new(fn)
 end
 
-function Result(expr::Expr, xs...)
-    Result(expr) do io::IO
+Result(ob) = Result(io::IO -> print(io, ob))
+
+function Result(xs...)
+    Result() do io::IO
         for x in xs
             print(io, x)
         end
@@ -113,7 +112,6 @@ end
 
 Base.show(io::IO, m::MIME"text/html", h::Result) = h.content(EscapeProxy(io))
 Base.print(io::IO, h::Result) = h.content(EscapeProxy(io))
-Base.show(io::IO, h::Result) = print(io, h.expr)
-# avoid a show() dispatch for nested results
+Base.show(io::IO, h::Result) = h.content(EscapeProxy(io))
 Base.print(io::EscapeProxy, h::Result) = h.content(io)
 content(h::Result) = h

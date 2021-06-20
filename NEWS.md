@@ -1,14 +1,16 @@
 # Release Notes
 
-Planned for v0.8.0
+## v0.8.0
 
+- Restructructed documentation to improve navigation
 - Specialize interpolation within Javascript valued attributes
+- Ensure that `@htl` is passed a string literal (Fixed #11)
 - Provide better CSS serialization within `<style>` tag
 
 ## v0.7.0
 
 - Adding `<span>` as wrapper for default content interpolation
-- Support `"text/javascript"` serialization within `<script>` tag
+- Support `"text/javascript"` serialization within `<script>` tag (#10)
 - Support `"text/css"` serialization within `<style>` tag
 - Remove experimental support for nested non-standard string literals
 - Documented how `@htl_str` can be used for dynamic templates

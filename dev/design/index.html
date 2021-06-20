@@ -1,129 +1,20 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Design · HypertextLiteral.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">HypertextLiteral.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Usage</a></li><li><a class="tocitem" href="../extend/">Extend</a></li><li class="is-active"><a class="tocitem" href>Design</a><ul class="internal"><li><a class="tocitem" href="#Specific-Design-Decisions"><span>Specific Design Decisions</span></a></li><li><a class="tocitem" href="#Detection-of-String-Literals"><span>Detection of String Literals</span></a></li><li><a class="tocitem" href="#Regression-Tests"><span>Regression Tests</span></a></li><li><a class="tocitem" href="#Lexer-Testing"><span>Lexer Testing</span></a></li></ul></li><li><a class="tocitem" href="../notation/">Notation</a></li><li><a class="tocitem" href="../primitives/">Primitives</a></li><li><a class="tocitem" href="../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Design</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Design</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/HypertextLiteral.jl/blob/master/docs/src/design.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Design"><a class="docs-heading-anchor" href="#Design">Design</a><a id="Design-1"></a><a class="docs-heading-anchor-permalink" href="#Design" title="Permalink"></a></h1><p>This package is implemented according to several design criteria.</p><ul><li><p>Operation of interpolated expressions (<code>$</code>) should (mostly) mirror what they would do with regular Julia strings, updated with hypertext escaping sensibilities including proper escaping.</p></li><li><p>Speed of construction is critically important. This library is intended to be used deep within systems that generate extensive number of very large reports, interactively or in batch.</p></li><li><p>With exception of boolean attributes (which must be removed to be false), input is treated as-is and not otherwise modified.</p></li><li><p>Provide reasonable interpretation for <code>Dict</code>, <code>Vector</code> and other objects as element content, attributes, and attribute value</p></li><li><p>Provide direct support for <code>script</code> and <code>style</code> rawtext elements, which have their own interpolation needs.</p></li><li><p>Since the <code>style</code> and <code>class</code> attributes are so important in HTML construction, universal interpretations of Julia constructs should make sense to aid these CSS attributes.</p></li><li><p>There should be a discoverable and well documented extension API that permits custom data types to provide their own serialization strategies based upon syntactical context.</p></li><li><p>As much processing (e.g. hypertext lexical analysis) should be done during macro expansion to reduce runtime and to report errors early. We&#39;ll be slightly slower on interactive use to be fast in batch.</p></li><li><p>Full coverage of HTML syntax or reporting syntax or semantic errors within the HTML content is not a goal.</p></li></ul><p>To discuss the design in more depth, let&#39;s restart our environment.</p><pre><code class="language-julia">using HypertextLiteral
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Design Rationale · HypertextLiteral.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">HypertextLiteral.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Overview</a></li><li><a class="tocitem" href="../content/">Element Content</a></li><li><a class="tocitem" href="../attribute/">Attributes &amp; Style</a></li><li><a class="tocitem" href="../script/">Script Interpolation</a></li><li class="is-active"><a class="tocitem" href>Design Rationale</a><ul class="internal"><li><a class="tocitem" href="#Specific-Design-Decisions"><span>Specific Design Decisions</span></a></li><li><a class="tocitem" href="#Lexer-Tests"><span>Lexer Tests</span></a></li></ul></li><li><a class="tocitem" href="../notation/">The <code>htl</code> Notation</a></li><li><a class="tocitem" href="../primitives/">Escaping Primitives</a></li><li><a class="tocitem" href="../reference/">Package Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Design Rationale</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Design Rationale</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/HypertextLiteral.jl/blob/master/docs/src/design.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Design-Rationale"><a class="docs-heading-anchor" href="#Design-Rationale">Design Rationale</a><a id="Design-Rationale-1"></a><a class="docs-heading-anchor-permalink" href="#Design-Rationale" title="Permalink"></a></h1><p>This package is implemented according to several design criteria.</p><ul><li><p>Operation of interpolated expressions (<code>$</code>) should (mostly) mirror what they would do with regular Julia strings, updated with hypertext escaping sensibilities including proper escaping.</p></li><li><p>Speed of construction is critically important. This library is intended to be used deep within systems that generate extensive number of very large reports, interactively or in batch.</p></li><li><p>With exception of boolean attributes (which must be removed to be false), templates are treated as-is and not otherwise modified.</p></li><li><p>Within a <code>&lt;script&gt;</code> tag and attributes starting with <code>on</code>, support translation of Julia objects to Javascript.</p></li><li><p>Since the <code>style</code> and <code>class</code> attributes are so important in HTML construction, interpretations of Julia constructs should support these CSS attributes.</p></li><li><p>There should be a discoverable and well documented extension API that permits custom data types to provide their own serialization strategies based upon syntactical context.</p></li><li><p>As much processing (e.g. hypertext lexical analysis) should be done during macro expansion to reduce runtime and to report errors early. We&#39;ll be slightly slower on interactive use to be fast in batch.</p></li><li><p>Full coverage of HTML syntax or reporting syntax or semantic errors within the HTML content is not a goal.</p></li></ul><h2 id="Specific-Design-Decisions"><a class="docs-heading-anchor" href="#Specific-Design-Decisions">Specific Design Decisions</a><a id="Specific-Design-Decisions-1"></a><a class="docs-heading-anchor-permalink" href="#Specific-Design-Decisions" title="Permalink"></a></h2><p>Besides implementing <code>show</code>, we also provide serialization when printing to <code>&quot;text/html&quot;</code> mime types.</p><pre><code class="language-julia">using HypertextLiteral
 
-macro print(expr)
-    :(display(&quot;text/html&quot;, $expr))
-end</code></pre><h2 id="Specific-Design-Decisions"><a class="docs-heading-anchor" href="#Specific-Design-Decisions">Specific Design Decisions</a><a id="Specific-Design-Decisions-1"></a><a class="docs-heading-anchor-permalink" href="#Specific-Design-Decisions" title="Permalink"></a></h2><p>Objects created by <code>@htl</code> are lazily constructed. What do we show on the REPL? We decided to parrot back the macro expression.</p><pre><code class="language-julia">x = &quot;Hello World&quot;
-&quot;Hello World&quot;
+print(@htl &quot;&lt;span&gt;Hello World&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;
 
-@htl(&quot;&lt;span&gt;$x&lt;/span&gt;&quot;)
-#-&gt; @htl &quot;&lt;span&gt;$(x)&lt;/span&gt;&quot;</code></pre><p>You could use the <code>print</code> command to evaluate the expression, showing the <code>&quot;text/html&quot;</code> results.</p><pre><code class="language-julia">x = &quot;Hello World&quot;
-&quot;Hello World&quot;
+display(&quot;text/html&quot;, @htl &quot;&lt;span&gt;Hello World&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>We wrap <code>missing</code> and other data types using a <code>&lt;span&gt;</code> tag as they are printed. This permits customized CSS to control their presentation.</p><pre><code class="language-julia">print(@htl &quot;&lt;tag&gt;$(missing)&lt;/tag&gt;&quot;)
+#-&gt; &lt;tag&gt;&lt;span class=&quot;Base-Missing&quot;&gt;missing&lt;/span&gt;&lt;/tag&gt;</code></pre><p>Julia&#39;s regular interpolation stringifies everything. Instead, we treat a <code>Vector</code> as a sequence to be concatenated. Within attributes, vectors are space separated.</p><pre><code class="language-julia">print(@htl &quot;$([x for x in 1:3])&quot;)
+#-&gt; 123
 
-print(@htl(&quot;&lt;span&gt;$x&lt;/span&gt;&quot;))
-#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><p>We wrap <code>missing</code> and other data types using a <code>&lt;span&gt;</code> tag as they are printed. This permits customized CSS to control their presentation.</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;&lt;tag&gt;$(missing)&lt;/tag&gt;&quot;&quot;&quot;)
-#-&gt; &lt;tag&gt;&lt;span class=&quot;Base-Missing&quot;&gt;missing&lt;/span&gt;&lt;/tag&gt;</code></pre><p>So that the scope of objects serialized in this manner is clear, we don&#39;t permit adjacent unquoted values.</p><pre><code class="language-julia">@htl(&quot;&lt;tag bare=$(true)$(:invalid)&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with :invalid:
-Unquoted attribute interpolation is limited to a single component⋮
-=#</code></pre><p>While assignment operator is permitted in Julia string interpolation, we exclude it to guard it against accidently forgetting a comma.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div $((data_value=42,))/&gt;&quot;)
-#-&gt; &lt;div data-value=&#39;42&#39;/&gt;
+print(@htl &quot;&lt;tag att=$([x for x in 1:3])/&gt;&quot;)
+#-&gt; &lt;tag att=&#39;1 2 3&#39;/&gt;</code></pre><p>We treat <code>nothing</code> as being empty. This is true for both element content and attribute values.</p><pre><code class="language-julia">print(@htl &quot;&lt;span&gt;$(nothing)&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;&lt;/span&gt;
 
-@htl(&quot;&lt;div $((data_value=42))/&gt;&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with data_value = 42:
-assignments are not permitted in an interpolation⋮
-=#
-
-@htl(&quot;&lt;div $(data_value=42)/&gt;&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with data_value = 42:
-assignments are not permitted in an interpolation⋮
-=#</code></pre><p>Symbols and Numeric values are properly escaped. While it is perhaps faster to assume all <code>Symbol</code> and <code>Number</code> objects could never contain invalid characters, we don&#39;t make this assumption.</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;&lt;tag att=$(Symbol(&quot;&#39;&amp;&quot;))&gt;$(Symbol(&quot;&lt;&amp;&quot;))&lt;/tag&gt;&quot;&quot;&quot;)
-#-&gt; &lt;tag att=&#39;&amp;apos;&amp;amp;&#39;&gt;&amp;lt;&amp;amp;&lt;/tag&gt;</code></pre><p>Julia&#39;s regular interpolation stringifies everything. We don&#39;t do that we treat a <code>Vector</code> as a sequence to be concatenated. Moreover, we let the interpretation be customized though an extensive API.</p><pre><code class="language-julia">@print @htl &quot;$([x for x in 1:3])&quot;
-#-&gt; 123</code></pre><p>Since Julia&#39;s regular string interpolation works with the splat operator, we implement this as well, by concatenating results.</p><pre><code class="language-julia">@print @htl &quot;$([x for x in 1:3]...)&quot;
-#-&gt; 123</code></pre><p>Observe that <code>map()</code> is currently the most performant way to loop.</p><pre><code class="language-julia">@print @htl &quot;$(map(1:3) do x; x; end)&quot;
-#-&gt; 123</code></pre><p>Interpolation within the <code>xmp</code>, <code>iframe</code>, <code>noembed</code>, <code>noframes</code>, and <code>noscript</code> tags are not supported.</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;&lt;xmp&gt;$var&lt;/xmp&gt;&quot;&quot;&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with xmp:
-Only script and style rawtext tags are supported.⋮
-=#</code></pre><p>The script and style tag are not permitted to include their end tag.</p><pre><code class="language-julia">bad = &quot;&lt;/style&gt;&quot;
-
-@print @htl(&quot;&quot;&quot;&lt;style&gt;$bad&lt;/style&gt;&quot;&quot;&quot;)
-#-&gt; …ERROR: &quot;Content within a style tag must not contain `&lt;/style&gt;`&quot;⋮</code></pre><p>Interpolation within a <code>style</code> tag is converted like attribute values, only that amperstand escaping is not used.</p><pre><code class="language-julia">@print @htl(&quot;&lt;style&gt; $(3) $(true) $(:sym) &lt;/style&gt;&quot;)
-#-&gt; &lt;style&gt; 3 true sym &lt;/style&gt;</code></pre><h2 id="Detection-of-String-Literals"><a class="docs-heading-anchor" href="#Detection-of-String-Literals">Detection of String Literals</a><a id="Detection-of-String-Literals-1"></a><a class="docs-heading-anchor-permalink" href="#Detection-of-String-Literals" title="Permalink"></a></h2><p>Before v1.6, we cannot reliably detect string literals using the <code>@htl</code> macro, so they are errors (when we can detect them).</p><pre><code class="language-julia">#? VERSION &lt; v&quot;1.6.0-DEV&quot;
-@print @htl &quot;Look, Ma, $(&quot;&lt;i&gt;automatic escaping&lt;/i&gt;&quot;)!&quot;
-#-&gt; ERROR: LoadError: &quot;interpolated string literals are not supported&quot;⋮</code></pre><p>g     #? VERSION &lt; v&quot;1.6.0-DEV&quot;     @print @htl &quot;even if they are the only content&quot;     #-&gt; ERROR: LoadError: &quot;interpolated string literals are not supported&quot;⋮</p><p>However, you can fix by wrapping a value in a <code>string</code> function.</p><pre><code class="language-julia">@print @htl &quot;Look, Ma, $(string(&quot;&lt;i&gt;automatic escaping&lt;/i&gt;&quot;))!&quot;
-#-&gt; Look, Ma, &amp;lt;i&gt;automatic escaping&amp;lt;/i&gt;!</code></pre><p>In particular, there are edge cases where unescaped string literal content can leak.</p><pre><code class="language-julia">x = &quot;&quot;
-
-#? VERSION &lt; v&quot;1.6.0-DEV&quot;
-@print @htl(&quot;$x$(&quot;&lt;script&gt;alert(\&quot;Hello\&quot;)&lt;/script&gt;&quot;)&quot;)
-#-&gt; &lt;script&gt;alert(&quot;Hello&quot;)&lt;/script&gt;</code></pre><p>Julia #38501 was fixed in v1.6.</p><pre><code class="language-julia">#? VERSION &gt;= v&quot;1.6.0-DEV&quot;
-@print @htl &quot;&lt;tag&gt;$(&quot;escape&amp;me&quot;)&lt;/tag&gt;&quot;
-#-&gt; &lt;tag&gt;escape&amp;amp;me&lt;/tag&gt;</code></pre><h2 id="Regression-Tests"><a class="docs-heading-anchor" href="#Regression-Tests">Regression Tests</a><a id="Regression-Tests-1"></a><a class="docs-heading-anchor-permalink" href="#Regression-Tests" title="Permalink"></a></h2><p>Escaped strings are handled by <code>@htl</code> as one might expect.</p><pre><code class="language-julia">@print @htl(&quot;\&quot;\t\\&quot;)
-#-&gt; &quot;	\
-
-@print @htl(&quot;(\\\&quot;)&quot;)
-#-&gt; (\&quot;)</code></pre><p>Attribute names should be non-empty and not in a list of excluded characters.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(&quot;&quot; =&gt; &quot;value&quot;)/&gt;&quot;)
-#-&gt; ERROR: LoadError: &quot;Attribute name must not be empty.&quot;⋮
-
-@print @htl(&quot;&lt;tag $(&quot;&amp;att&quot; =&gt; &quot;value&quot;)/&gt;&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with &amp;att:
-Invalid character (&#39;&amp;&#39;) found within an attribute name.⋮
-=#</code></pre><p>Unquoted interpolation adjacent to a raw string is also an error.</p><pre><code class="language-julia">@htl(&quot;&lt;tag bare=literal$(:invalid)&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with :invalid:
-Unquoted attribute interpolation is limited to a single component⋮
-=#
-
-@htl(&quot;&lt;tag bare=$(invalid)literal&quot;)
-#=&gt;
-ERROR: LoadError: DomainError with bare=literal:
-Unquoted attribute interpolation is limited to a single component⋮
-=#</code></pre><p>String interpolation is limited to symbols or parenthesized expressions. For more details on this see Julia #37817.</p><pre><code class="language-julia">@htl(&quot;$[1,2,3]&quot;)
-#=&gt;
-ERROR: syntax: invalid interpolation syntax: &quot;$[&quot;⋮
-=#</code></pre><p>Literal content can contain Unicode values.</p><pre><code class="language-julia">x = &quot;Hello&quot;
-
-@print @htl(&quot;⁅$(x)⁆&quot;)
-#-&gt; ⁅Hello⁆</code></pre><p>Escaped content may also contain Unicode.</p><pre><code class="language-julia">x = &quot;⁅Hello⁆&quot;
-
-@print @htl(&quot;&lt;tag&gt;$x&lt;/tag&gt;&quot;)
-#-&gt; &lt;tag&gt;⁅Hello⁆&lt;/tag&gt;</code></pre><p>Ensure that dictionary style objects are serialized. See issue #7.</p><pre><code class="language-julia">let
-    h = @htl(&quot;&lt;div style=$(Dict(&quot;color&quot; =&gt; &quot;red&quot;))&gt;asdf&lt;/div&gt;&quot;)
-    repr(MIME&quot;text/html&quot;(), h)
-end
-#-&gt; &quot;&lt;div style=&#39;color: red;&#39;&gt;asdf&lt;/div&gt;&quot;</code></pre><p>Let&#39;s ensure that attribute values in a dictionary are escaped.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag escaped=$(Dict(:esc=&gt;&quot;&#39;&amp;\&quot;&lt;&quot;))/&gt;&quot;)
-#-&gt; &lt;tag escaped=&#39;esc: &amp;apos;&amp;amp;&amp;quot;&amp;lt;;&#39;/&gt;</code></pre><p>Let&#39;s ensure that attribute values in a dictionary are escaped.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag escaped=$(Dict(:esc=&gt;&quot;&#39;&amp;\&quot;&lt;&quot;))/&gt;&quot;)
-#-&gt; &lt;tag escaped=&#39;esc: &amp;apos;&amp;amp;&amp;quot;&amp;lt;;&#39;/&gt;</code></pre><p>Within a quoted attribute or element content, <code>nothing</code> is printed the same as the empty string.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag attribute=&#39;$nothing&#39;&gt;$nothing&lt;/tag&gt;&quot;)
-#-&gt; &lt;tag attribute=&#39;&#39;&gt;&lt;/tag&gt;</code></pre><p>Nothing as an attribute value omits the attribute just like <code>false</code>. Nothing inside a tag is omitted as well.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag omit=$(nothing) $(nothing)/&gt;&quot;)
-#-&gt; &lt;tag/&gt;</code></pre><p>A <code>Pair</code> inside a tag is treated as an attribute.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(:att =&gt; :value)/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;value&#39;/&gt;</code></pre><p>A symbol or string inside a tag are treated as empty attributes.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(:att)/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;&#39;/&gt;
-
-#? VERSION &gt;= v&quot;1.6.0-DEV&quot;
-@print @htl(&quot;&lt;tag $(&quot;att&quot;)/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;&#39;/&gt;</code></pre><p>A <code>Dict</code> inside a tag is treated as an attribute.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(Dict(:att =&gt; :value))/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;value&#39;/&gt;</code></pre><p>We do handle values within comments. Comments don&#39;t stop processing.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- $(:hello) --&gt;&lt;tag&gt;$(:world)&lt;/tag&gt;&quot;)
-#-&gt; &lt;!-- hello --&gt;&lt;tag&gt;world&lt;/tag&gt;</code></pre><p>When we normalize attribute names, we strip leading underscores.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(:__att =&gt; :value)/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;value&#39;/&gt;</code></pre><p>We don&#39;t expand into attributes things that don&#39;t look like attributes.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $(3)/&gt;&quot;)
-#-&gt; ERROR: MethodError: no method matching inside_tag(::Int64)⋮</code></pre><p>One can add additional attributes following a bare name.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag bing $(:att)/&gt;&quot;)
-#-&gt; &lt;tag bing att=&#39;&#39;/&gt;</code></pre><p>Inside a tag, tuples can have many kinds of pairs.</p><pre><code class="language-julia">a1 = &quot;a1&quot;
-@print @htl(&quot;&lt;tag $((a1,:a2,:a3=3,a4=4))/&gt;&quot;)
-#-&gt; &lt;tag a1=&#39;&#39; a2=&#39;&#39; a3=&#39;3&#39; a4=&#39;4&#39;/&gt;</code></pre><p>The macro attempts to expand attributes inside a tag. To ensure the runtime dispatch also works, let&#39;s do a few things once indirect.</p><pre><code class="language-julia">hello = &quot;Hello&quot;
-defer(x) = x
-
-@print @htl(&quot;&lt;tag $(defer(:att =&gt; hello))/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;Hello&#39;/&gt;
-
-@print @htl(&quot;&lt;tag $(defer((att=hello,)))/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;Hello&#39;/&gt;
-
-@print @htl(&quot;&lt;tag $(:att =&gt; defer(hello))/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;Hello&#39;/&gt;
-
-@print @htl(&quot;&lt;tag $(defer(:att) =&gt; hello)/&gt;&quot;)
-#-&gt; &lt;tag att=&#39;Hello&#39;/&gt;</code></pre><p>Within a <code>&lt;script&gt;</code> tag, we want to ensure that numbers are properly converted.</p><pre><code class="language-julia">v = (-Inf, Inf, NaN, 6.02214e23)
-
-@print @htl(&quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;)
-#-&gt; &lt;script&gt;var x = [-Infinity, Infinity, NaN, 6.02214e23]&lt;/script&gt;</code></pre><p>Besides dictionary objects, we support named tuples.</p><pre><code class="language-julia">v = (min=1, max=8)
-
-@print @htl(&quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;)
-#-&gt; &lt;script&gt;var x = {&quot;min&quot;: 1, &quot;max&quot;: 8}&lt;/script&gt;</code></pre><p>Within a <code>&lt;script&gt;</code> tag, comment start (<code>&lt;!--</code>) must also be escaped. Moreover, capital <code>&lt;Script&gt;</code> and permutations are included. We only scan the first character after the left-than character.</p><pre><code class="language-julia">v = &quot;&lt;!-- &lt;Script&gt; &lt;! 3&lt;4 &lt;/ &lt;s !&gt;&quot;
-
-@print @htl(&quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;)
-#-&gt; &lt;script&gt;var x = &quot;&lt;\!-- &lt;\Script&gt; &lt;\! 3&lt;4 &lt;\/ &lt;\s !&gt;&quot;&lt;/script&gt;</code></pre><h2 id="Lexer-Testing"><a class="docs-heading-anchor" href="#Lexer-Testing">Lexer Testing</a><a id="Lexer-Testing-1"></a><a class="docs-heading-anchor-permalink" href="#Lexer-Testing" title="Permalink"></a></h2><p>There are several HTML syntax errors that we can detect as part of our parser. For example, you shouldn&#39;t put comments within a script tag.</p><pre><code class="language-julia">@htl(&quot;&lt;script&gt;&lt;!-- comment --&gt;&lt;/script&gt;&quot;)
+print(@htl &quot;&lt;tag att=&#39;$(nothing)&#39;/&gt;&quot;)
+#-&gt; &lt;tag att=&#39;&#39;/&gt;</code></pre><h2 id="Lexer-Tests"><a class="docs-heading-anchor" href="#Lexer-Tests">Lexer Tests</a><a id="Lexer-Tests-1"></a><a class="docs-heading-anchor-permalink" href="#Lexer-Tests" title="Permalink"></a></h2><p>There are several HTML syntax errors that we can detect as part of our parser. For example, you shouldn&#39;t put comments within a script tag.</p><pre><code class="language-julia">@htl(&quot;&lt;script&gt;&lt;!-- comment --&gt;&lt;/script&gt;&quot;)
 #-&gt; ERROR: LoadError: &quot;script escape or comment is not implemented&quot;⋮</code></pre><p>Our lexer currently doesn&#39;t bother with processor instructions or doctype declarations. You could prepend these before your content.</p><pre><code class="language-julia">@htl(&quot;&lt;?xml version=&#39;1.0&#39;?&gt;&quot;)
 #=&gt;
 ERROR: LoadError: DomainError with &lt;?xml ver…:
@@ -134,92 +25,92 @@ unexpected question mark instead of tag name⋮
 #-&gt; ERROR: LoadError: &quot;DOCTYPE not supported&quot;⋮
 
 @htl(&quot;&lt;![CDATA[No &lt;b&gt;CDATA&lt;/b&gt; either.]]&gt;&quot;)
-#-&gt; ERROR: LoadError: &quot;CDATA not supported&quot;⋮</code></pre><p>It&#39;s a lexing error to have an attribute lacking a name.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag =value/&gt;&quot;)
+#-&gt; ERROR: LoadError: &quot;CDATA not supported&quot;⋮</code></pre><p>It&#39;s a lexing error to have an attribute lacking a name.</p><pre><code class="language-julia">@htl &quot;&lt;tag =value/&gt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with  =value/&gt;:
 unexpected equals sign before attribute name⋮
-=#</code></pre><p>It&#39;s a lexing error to have an attribute lacking a value.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag att=&gt;&quot;)
+=#</code></pre><p>It&#39;s a lexing error to have an attribute lacking a value.</p><pre><code class="language-julia">@htl &quot;&lt;tag att=&gt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with =&gt;:
 missing attribute value⋮
-=#</code></pre><p>Tags can be ended using SGML ending.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag&gt;&lt;/&gt;&quot;)
-#-&gt; &lt;tag&gt;&lt;/&gt;</code></pre><p>We add an extra space to ensure adjacent values parse properly.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag $((:one))two=&#39;&#39;/&gt;&quot;)
+=#</code></pre><p>Tags can be ended using SGML ending.</p><pre><code class="language-julia">@htl &quot;&lt;tag&gt;&lt;/&gt;&quot;
+#-&gt; &lt;tag&gt;&lt;/&gt;</code></pre><p>We add an extra space to ensure adjacent values parse properly.</p><pre><code class="language-julia">@htl &quot;&lt;tag $((:one))two=&#39;&#39;/&gt;&quot;
 #-&gt; &lt;tag one=&#39;&#39; two=&#39;&#39;/&gt;
 
-@print @htl(&quot;&lt;tag $((:one))$((:two))/&gt;&quot;)
-#-&gt; &lt;tag one=&#39;&#39; two=&#39;&#39;/&gt;</code></pre><p>Attribute names and values can be spaced out.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag one two = value /&gt;&quot;)
-#-&gt; &lt;tag one two = value /&gt;</code></pre><p>Invalid attribute names are reported.</p><pre><code class="language-julia">@print @htl(&quot;&lt;tag at&lt;ribute=&#39;val&#39;/&gt;&quot;)
+@htl &quot;&lt;tag $((:one))$((:two))/&gt;&quot;
+#-&gt; &lt;tag one=&#39;&#39; two=&#39;&#39;/&gt;</code></pre><p>Attribute names and values can be spaced out.</p><pre><code class="language-julia">@htl &quot;&lt;tag one two = value /&gt;&quot;
+#-&gt; &lt;tag one two = value /&gt;</code></pre><p>Invalid attribute names are reported.</p><pre><code class="language-julia">@htl &quot;&lt;tag at&lt;ribute=&#39;val&#39;/&gt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with t&lt;ribute=…
 unexpected character in attribute name⋮
-=#</code></pre><p>Rawtext has a few interesting lexical cases.</p><pre><code class="language-julia">@print @htl(&quot;&quot;&quot;&lt;style&gt; &lt;/s &lt;/&gt; &lt;/style&gt;&quot;&quot;&quot;)
+=#</code></pre><p>Rawtext has a few interesting lexical cases.</p><pre><code class="language-julia">@htl &quot;&quot;&quot;&lt;style&gt; &lt;/s &lt;/&gt; &lt;/style&gt;&quot;&quot;&quot;
 #-&gt; &lt;style&gt; &lt;/s &lt;/&gt; &lt;/style&gt;
 
-@print @htl(&quot;&lt;style&gt; &lt;/s &lt;/style/&quot;)
+@htl &quot;&lt;style&gt; &lt;/s &lt;/style/&quot;
 #=&gt;
 ERROR: LoadError: DomainError with e/:
 unexpected solidus in tag⋮
 =#
 
-@print @htl(&quot;&lt;style&gt;&lt;/style &lt;&quot;)
+@htl &quot;&lt;style&gt;&lt;/style &lt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with  &lt;:
 unexpected character in attribute name⋮
 =#</code></pre><p>Comments can contain interpolated values.</p><pre><code class="language-julia">content = &quot;&lt;!-- a&amp;b --&gt;&quot;
 
-@print @htl(&quot;&lt;!-- $content --&gt;&quot;)
-#-&gt; &lt;!-- &amp;lt;!-- a&amp;amp;b --&gt; --&gt;</code></pre><p>Empty comments are permitted.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!----&gt;&quot;)
-#-&gt; &lt;!----&gt;</code></pre><p>Comments need to be well formed.</p><pre><code class="language-julia">@htl(&quot;&lt;!-&gt; &quot;)
+@htl &quot;&lt;!-- $content --&gt;&quot;
+#-&gt; &lt;!-- &amp;lt;!-- a&amp;amp;b --&gt; --&gt;</code></pre><p>Empty comments are permitted.</p><pre><code class="language-julia">@htl &quot;&lt;!----&gt;&quot;
+#-&gt; &lt;!----&gt;</code></pre><p>Comments need to be well formed.</p><pre><code class="language-julia">@htl &quot;&lt;!-&gt; &quot;
 #=&gt;
 ERROR: LoadError: DomainError with !-&gt; :
 incorrectly opened comment⋮
 =#
 
-@htl(&quot;&lt;!--&gt; &quot;)
+@htl &quot;&lt;!--&gt; &quot;
 #=&gt;
 ERROR: LoadError: DomainError with -&gt; :
 abrupt closing of empty comment⋮
 =#
 
-@htl(&quot;&lt;!---&gt; &quot;)
+@htl &quot;&lt;!---&gt; &quot;
 #=&gt;
 ERROR: LoadError: DomainError with -&gt; :
 abrupt closing of empty comment⋮
-=#</code></pre><p>Comments cannot contain a nested comment.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- &lt;!-- nested --&gt; --&gt;&quot;)
+=#</code></pre><p>Comments cannot contain a nested comment.</p><pre><code class="language-julia">@htl &quot;&lt;!-- &lt;!-- nested --&gt; --&gt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with - nested …:
 nested comment⋮
-=#</code></pre><p>Comments can contain content that is similar to a comment block, but the recognition of these valid states is rather involved.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!-- &lt;!--&gt;&quot;)
+=#</code></pre><p>Comments can contain content that is similar to a comment block, but the recognition of these valid states is rather involved.</p><pre><code class="language-julia">@htl &quot;&lt;!-- &lt;!--&gt;&quot;
 #-&gt; &lt;!-- &lt;!--&gt;
 
-@print @htl(&quot;&lt;!--&lt;x--&gt;&quot;)
+@htl &quot;&lt;!--&lt;x--&gt;&quot;
 #-&gt; &lt;!--&lt;x--&gt;
 
-@print @htl(&quot;&lt;!--&lt;!x!&gt;--&gt;&quot;)
+@htl &quot;&lt;!--&lt;!x!&gt;--&gt;&quot;
 #-&gt; &lt;!--&lt;!x!&gt;--&gt;
 
-@print @htl(&quot;&lt;!--&lt;!-x--&gt;&quot;)
+@htl &quot;&lt;!--&lt;!-x--&gt;&quot;
 #-&gt; &lt;!--&lt;!-x--&gt;
 
-@print @htl(&quot;&lt;!---x--&gt;&quot;)
+@htl &quot;&lt;!---x--&gt;&quot;
 #-&gt; &lt;!---x--&gt;
 
-@print @htl(&quot;&lt;!--&lt;&lt;x--&gt;&quot;)
+@htl &quot;&lt;!--&lt;&lt;x--&gt;&quot;
 #-&gt; &lt;!--&lt;&lt;x--&gt;
 
-@print @htl(&quot;&lt;!-- - --! --- --!- --&gt;&quot;)
-#-&gt; &lt;!-- - --! --- --!- --&gt;</code></pre><p>Not so sure about this lexical production... perhaps it&#39;s a transcription error from the specification?</p><pre><code class="language-julia">@print @htl(&quot;&lt;!----!&gt;&quot;)
+@htl &quot;&lt;!-- - --! --- --!- --&gt;&quot;
+#-&gt; &lt;!-- - --! --- --!- --&gt;</code></pre><p>Not so sure about this lexical production... perhaps it&#39;s a transcription error from the specification?</p><pre><code class="language-julia">@htl &quot;&lt;!----!&gt;&quot;
 #=&gt;
 ERROR: LoadError: DomainError with !&gt;:
 nested comment⋮
-=#</code></pre><p>Even though actual content may be permitted in these odd spots, we don&#39;t generally permit interpolation.</p><pre><code class="language-julia">@print @htl(&quot;&lt;!--&lt;$(:x)&quot;)
+=#</code></pre><p>Even though actual content may be permitted in these odd spots, we don&#39;t generally permit interpolation.</p><pre><code class="language-julia">@htl &quot;&lt;!--&lt;$(:x)&quot;
 #=&gt;
 ERROR: LoadError: &quot;unexpected binding STATE_COMMENT_LESS_THAN_SIGN&quot;⋮
-=#</code></pre><p>Of course, we could have pure content lacking interpolation, this also goes though the lexer.</p><pre><code class="language-julia">@print @htl(&quot;&lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;&quot;)
+=#</code></pre><p>Of course, we could have pure content lacking interpolation, this also goes though the lexer.</p><pre><code class="language-julia">@htl &quot;&lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;&quot;
 #-&gt; &lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;</code></pre><p>However, this macro requires a string literal.</p><pre><code class="language-julia">f() = &quot;&lt;div&gt;Hello&lt;b&gt;World&lt;/b&gt;!&lt;/div&gt;&quot;
 
-@print @htl(f())
+@htl f()
 #=&gt;
 ERROR: LoadError: DomainError with f():
 a string literal is required⋮
-=#</code></pre><p>That&#39;s it.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../extend/">« Extend</a><a class="docs-footer-nextpage" href="../notation/">Notation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 19 June 2021 04:22">Saturday 19 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../script/">« Script Interpolation</a><a class="docs-footer-nextpage" href="../notation/">The <code>htl</code> Notation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 20 June 2021 17:36">Sunday 20 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

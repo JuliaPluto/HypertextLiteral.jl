@@ -1,4 +1,4 @@
-# Utility Classes
+# Escaping Primitives
 
 This is a regression test for components upon which HTL is constructed,
 the design centers around `EscapeProxy` which escapes content printed to

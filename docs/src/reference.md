@@ -1,4 +1,4 @@
-# Reference
+# Package Reference
 
 ```@autodocs
 Modules = [HypertextLiteral]

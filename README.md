@@ -29,12 +29,12 @@ contextual interpolation sensible to the needs of HTML construction.
       <tr><td>$(book.name) ($(book.year))<td>$(join(book.authors, " & "))
     """)
 
-    render_table(books) = @htl("""
+    render_table(list) = @htl("""
       <table><caption><h3>Selected Books</h3></caption>
       <thead><tr><th>Book<th>Authors<tbody>
-      $((render_row(b) for b in books))</tbody></table>""")
+      $((render_row(b) for b in list))</tbody></table>""")
 
-    display("text/html", render_table(books))
+    render_table(books)
     #=>
     <table><caption><h3>Selected Books</h3></caption>
     <thead><tr><th>Book<th>Authors<tbody>
@@ -46,8 +46,8 @@ contextual interpolation sensible to the needs of HTML construction.
 
 ```
 
-This library implements many features for working with HTML data within
-the Julia language, including:
+This library implements many features for working with HTML and
+JavaScript data within the Julia language, including:
 
 * Performant escaping of interpolated values
 * Handles boolean valued attributes, such as `disabled`, `checked`
@@ -57,26 +57,6 @@ the Julia language, including:
 * Translation of Julia values to Javascript within `script` tag
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`
 * Extension API for customizing object display in various contexts
-
-When `AbstractString`, `Integer` or `AbsractFloat` values are
-interpolated as content, their escaped values are printed to the output.
-By default, other values are printed with a `<span>` wrapper, with its
-`class` reflecting the module and type names.
-
-```julia
-    display("text/html", @htl("<div>$missing</div>")
-    #-> <div><span class="Base-Missing">missing</span></div>
-```
-
-By default, this will show up as `missing` in the browser display.
-However, a style can be used to change this display.
-
-```html
-<style>
-span.Base-Missing {visibility: collapse;}
-span.Base-Missing::before {content: "N/A"; visibility: visible;}
-</style>
-```
 
 For more detail, please see the [documentation][docs-stable-url] and
 join us on [Julia's Zulip][chat-url].

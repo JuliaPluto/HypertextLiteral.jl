@@ -1,27 +1,18 @@
-# The `htl` notation (non-standard string literal macro)
+# The `htl` Notation
 
-This package additionally provides the `@htl_str` notation which has the
-advantage of being more succinct than `@htl` macro.
+This package additionally provides the `@htl_str` non-standard string
+literal, which is more succinct than the `@htl` macro.
 
     using HypertextLiteral: @htl, @htl_str
-
-    macro print(expr) :(display("text/html", $expr)); end
-
-```julia
-name = "World"
-
-htl"<span>Hello $name</span>"
-#-> htl"<span>Hello $name</span>"
-```
 
 Strings prefixed by `htl` are processed by `@htl_str`.
 
     name = "World"
 
-    @print htl"<span>Hello $name</span>"
+    htl"<span>Hello $name</span>"
     #-> <span>Hello World</span>
 
-    @print @htl_str("<span>Hello \$name</span>")
+    @htl_str "<span>Hello \$name</span>"
     #-> <span>Hello World</span>
 
 Other than a handful of exceptions, `htl"<tag/>"` and `@htl("<tag/>")`
@@ -48,9 +39,7 @@ We could construct a table header from this schema.
     fields = T.parameters[1]
     #-> (:idx, Symbol("A <Value>"))
 
-    head = @htl("<tr>$([@htl("<th>$x") for x in fields])")
-
-    @print head
+    head = @htl "<tr>$([@htl("<th>$x") for x in fields])"
     #-> <tr><th>idx<th>A &lt;Value>
 
 Then, we need to compute a template for each row.
@@ -64,7 +53,7 @@ Using `eval` with `@htl_str` we could construct our template function.
 
     eval(:(tablerow(row) = @htl_str $row_template))
 
-    @print tablerow(database[1])
+    tablerow(database[1])
     #-> <tr><td>1<td>A&amp;B
 
 A template for the entire table could be constructed.
@@ -78,7 +67,7 @@ A template for the entire table could be constructed.
 
 Then, finally, this could be used.
 
-    @print print_table(database)
+    print_table(database)
     #-> <table><tr><th>idx<th>A &lt;Value><tr><td>1<td>A&amp;B</table>
 
 Of course, one should be careful about using `eval` to ensure that the
@@ -90,24 +79,24 @@ Unlike `@htl`, `htl` uses `@raw_str` escaping rules. In particular, so
 long as a double-quote character does not come before a slash, the slash
 itself need not be escaped.
 
-    @print htl"<span>\some\path</span>"
+    htl"<span>\some\path</span>"
     #-> <span>\some\path</span>
 
 To represent the dollar-sign, use use HTML character entity `#&36;`.
 
     amount = 42
 
-    @print htl"<span>They paid &#36;$amount</span>"
+    htl"<span>They paid &#36;$amount</span>"
     #-> <span>They paid &#36;42</span>
 
 Unlike macros, this syntax does not nest.
 
-    @print htl"Hello $(htl"World")"
+    htl"Hello $(htl"World")"
     #-> ERROR: syntax: cannot juxtapose string literal
 
 Triple double-quoted syntax can be used as a work around.
 
-    @print htl"""Hello $(htl"World")"""
+    htl"""Hello $(htl"World")"""
     #-> Hello World
 
 However, this trick works only one level deep. Hence, there are some
@@ -120,7 +109,7 @@ Since the implementers of the notation have some control over the
 parsing, there are some benefits. First, we can reliably detect string
 literals (Julia #38501) before v1.6. This is fixed in Julia 1.6+
 
-    @print htl"""<span>$("A&B")</span>"""
+    htl"""<span>$("A&B")</span>"""
     #-> <span>A&amp;B</span>
 
 Second, there is one less round of parenthesis needed for tuples, named
@@ -129,10 +118,10 @@ building attributes.
 
     name = "Hello"
 
-    @print htl"<tag $(user=name,)/>"
+    htl"<tag $(user=name,)/>"
     #-> <tag user='Hello'/>
 
-    @print htl"<span>$(n for n in 1:3)</span>"
+    print(htl"<span>$(n for n in 1:3)</span>")
     #-> <span>123</span>
 
 Beyond these differences, this could just be a matter of preference; or
@@ -144,10 +133,10 @@ Due to `@raw_str` escaping, string literal forms are a bit quirky. Use
 the triple double-quoted form if your content has a double quote. Avoid
 slashes preceding a double quote, instead use the `&#47;` HTML entity.
 
-    @print htl"\"\t\\"
+    htl"\"\t\\"
     #-> "\t\
 
-    @print htl"(\\\")"
+    htl"(\\\")"
     #-> (\")
 
 Even though we could permit interpretation of arrays notation, we stick

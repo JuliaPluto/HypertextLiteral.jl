@@ -80,7 +80,7 @@ example, the following style will display `missing` as `"N/A"`.
 | `[1, 2]`             | [1, 2]           | 1 2             | 12              |
 | `nothing`            | undefined        |                 |                 |
 | `missing`            | null             | missing         | <span class="Base-Missing">missing</span> |
-| `(a = 1, b = 2)`     | {"a": 1, "b": 2} | a: 1; b: 2;     | <span class="Core-NamedTuple">(a = 1, b = 2)</span> |
+| `(a = 1, b = 2)` or `Dict(:a => 1, :b => 2)` | {"a": 1, "b": 2} | a: 1; b: 2;     | <span class="Core-NamedTuple">(a = 1, b = 2)</span> |
 
 If this default behavior is inconvenient:
 

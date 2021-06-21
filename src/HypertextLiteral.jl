@@ -1,8 +1,26 @@
 """
     HypertextLiteral
 
-This library provides a `@htl` macro which implements interopolation
-that is aware of hypertext escape context.
+The `HypertextLiteral` module exports the `@htl` macro which implements
+interpolation aware of hypertext escape context. It also provides for
+escaping of JavaScript within the `<script>` tag and `on` attributes.
+
+```jldoctest
+julia> v = "Brown \\\"M&M's\\\"!";
+
+julia> @htl "<span>\$v</span>"
+<span>Brown &quot;M&amp;M&apos;s&quot;!</span>
+
+julia> @htl "<script>console.log(\$v)</script>"
+<script>console.log("Brown \\\"M&M's\\\"!")</script>
+
+julia> @htl "<div onclick='console.log(\$v)'>\\nLook in the bowl...</div>"
+<div onclick='console.log(&quot;Brown \\&quot;M&amp;M&apos;s\\&quot;!&quot;)'>
+Look in the bowl...</div>
+```
+
+See also: [`@htl_str`](@HypertextLiteral.@htl_str),
+          [`JavaScript`](@HypertextLiteral.JavaScript)
 """
 module HypertextLiteral
 

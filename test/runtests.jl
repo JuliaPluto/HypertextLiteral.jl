@@ -45,31 +45,34 @@ ENV["COLUMNS"] = "72"
 package_path(x) = relpath(joinpath(dirname(abspath(PROGRAM_FILE)), "..", x))
 default = package_path.(["README.md", "docs/src"])
 
-if isempty(ARGS)
+@testset "HypertextLiteral" begin
 
-    @testset "HypertextLiteral" begin
-
-    @info "Running doctests..."
-    DocMeta.setdocmeta!(
-        HypertextLiteral,
-        :DocTestSetup,
-        quote
-            using HypertextLiteral:
-                @htl, @htl_str
-                Reprint, Render, Bypass, EscapeProxy,
-                attribute_value, content, attribute_pair,
-                inside_tag, rawtext
-            using Dates
-        end)
-    with_logger(Logging.ConsoleLogger(stderr, Logging.Warn)) do
-        doctest(HypertextLiteral)
+    if isempty(ARGS) || "doctest" in ARGS
+        @info "Running doctest..."
+        DocMeta.setdocmeta!(
+            HypertextLiteral,
+            :DocTestSetup,
+            quote
+                using HypertextLiteral:
+                    @htl, @htl_str,
+                    Reprint, Render, Bypass, EscapeProxy,
+                    attribute_value, content, attribute_pair,
+                    inside_tag
+                using Dates
+            end)
+        with_logger(Logging.ConsoleLogger(stderr, Logging.Warn)) do
+            doctest(HypertextLiteral)
+        end
     end
 
-    @info "Running narrative tests..."
-    NarrativeTest.testset(; default=default, subs=subs)
-
+    if isempty(ARGS)
+        @info "Running narrative tests..."
+        NarrativeTest.testset(; default=default, subs=subs)
+    else
+        filter!(!=("doctest"), ARGS)
+        if !isempty(ARGS)
+            @info "Running narrative tests..."
+            NarrativeTest.testset(ARGS; subs=subs)
+        end
     end
-
-else
-    NarrativeTest.testset(ARGS; subs=subs)
 end

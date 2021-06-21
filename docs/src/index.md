@@ -9,24 +9,23 @@ supports interpolation sensible to the needs of HTML generation.
 Template substitution works just as regular string interpolation, only
 that the results are properly escaped.
 
-    v = """Brown "M&M's"!""";
+    v = "<1 Brown \"M&M's\"!";
 
     @htl "<span>$v</span>"
-    #-> <span>Brown &quot;M&amp;M&apos;s&quot;!</span>
+    #-> <span>&lt;1 Brown &quot;M&amp;M&apos;s&quot;!</span>
 
 Within a `<script>` tag, where ampersand escaping is not indicated, this
 same variable is provided a translation to Javascript.
 
     @htl "<script>v = $v</script>"
-    #-> <script>v = "Brown \"M&M's\"!"</script>
+    #-> <script>v = "<1 Brown \"M&M's\"!"</script>
 
 Within attributes starting with `on`, values are translated to
 Javascript and then ampersand escaped.
 
-    @htl "<button onclick='alert($v)'>\nLook in the bowl...</button>"
+    @htl "<div onclick='alert($v)'>"
     #=>
-    <button onclick='alert(&quot;Brown \&quot;M&amp;M&apos;s\&quot;!&quot;)'>
-    Look in the bowl...</button>
+    <div onclick='alert(&quot;&lt;1 Brown \&quot;M&amp;M&apos;s\&quot;!&quot;)'>
     =#
 
 Boolean attributes are supported.
@@ -54,20 +53,15 @@ Dictionaries are translated CSS style within attributes and the
     @htl "<style>input {$style}</style>"
     #-> <style>input {padding-left: 2em; width: 20px;}</style>
 
-## Interpolation Summary
+Within element content, most datatypes are serialized in a `<span>` tag.
 
-| Native Julia         | Script Context     | Attribute Value | Element Content |
-|:-------------------- |:------------------ |:--------------- |:--------------- |
-| `"\"M&M\"'s"`        | `"\"M&M\"'s"`      | M&amp;M&apos;s  | M&amp;M&apos;s  |
-| `Inf`                | `Infinity`         | Inf             | Inf             |
-| `NaN`                | `NaN`              | NaN             | NaN             |
-| `[1, 2]`             | `[1, 2]`           | 1 2             | 12              |
-| `nothing`            | `undefined`        |                 |                 |
-| `missing`            | `null`             | missing         | <span class="Base-Missing">missing</span> |
-| `(a = 1, b = 2)`     | `{"a": 1, "b": 2}` | a: 1; b: 2;     | <span class="Core-NamedTuple">(a = 1, b = 2)</span> |
+    using Dates
 
-The automatic wrapping permits CSS to be used to style output. The
-following style will display `missing` as `"N/A"`.
+    @htl("<div>$(Date("2021-07-28"))</div>")
+    #-> <div><span class="Dates-Date">2021-07-28</span></div>
+
+This automatic wrapping permits CSS to be used to style output. For
+example, the following style will display `missing` as `"N/A"`.
 
 ```HTML
     <style>
@@ -76,11 +70,26 @@ following style will display `missing` as `"N/A"`.
     </style>
 ```
 
+## Interpolation Summary
+
+| Native Julia         | Script Context   | Attribute Value | Element Content |
+|:-------------------- |:---------------- |:--------------- |:--------------- |
+| `"\"M&M\"'s"`        | "\"M&M\"'s"      | M&amp;M&apos;s  | M&amp;M&apos;s  |
+| `Inf`                | Infinity         | Inf             | Inf             |
+| `NaN`                | NaN              | NaN             | NaN             |
+| `[1, 2]`             | [1, 2]           | 1 2             | 12              |
+| `nothing`            | undefined        |                 |                 |
+| `missing`            | null             | missing         | <span class="Base-Missing">missing</span> |
+| `(a = 1, b = 2)`     | {"a": 1, "b": 2} | a: 1; b: 2;     | <span class="Core-NamedTuple">(a = 1, b = 2)</span> |
+
 If this default behavior is inconvenient:
 
 * `coalesce()` can be used to provide an alternative for `missing`;
 * `something()` provides a substitution for `nothing`; and
-* `string()` will bypass these type translations altogether.
+* `string()` will use the default string translation w/o `<span>` tag.
+
+There is also a non-standard string literal, `@htl_str` that is not
+exported. It can be used with dynamically constructed templates.
 
 ## Table of Contents
 

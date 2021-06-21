@@ -14,9 +14,16 @@ Selectors.matcher(::Type{DefaultLanguage}, node, page, doc) =
 Selectors.runner(::Type{DefaultLanguage}, node, page, doc) =
     page.mapping[node] = Markdown.Code("julia", node.code)
 
+custom_footer = """
+Powered by [Documenter.jl](https://github.com/JuliaDocs/Documenter.jl),
+[NarrativeTest.jl](https://github.com/MechanicalRabbit/NarrativeTest.jl),
+and the [Julia Programming Language](https://julialang.org/).
+"""
+
 makedocs(
     sitename = "HypertextLiteral.jl",
-    format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true")),
+    format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true"),
+                             footer=custom_footer),
     pages = [
         "Overview" => "index.md",
         "Element Content" => "content.md",

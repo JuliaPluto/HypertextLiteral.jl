@@ -163,6 +163,11 @@ Empty comments are permitted.
     @htl "<!---->"
     #-> <!---->
 
+Comments should not exist within a script tag.
+
+    @htl("<script><!-- comment --></script>")
+    #-> ERROR: LoadError: "script escape or comment is not implemented"⋮
+
 Comments need to be well formed.
 
     @htl "<!-> "

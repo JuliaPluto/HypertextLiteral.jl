@@ -19,13 +19,39 @@ boolean, and floating point values are handled. As special cases,
     @htl "<script>var x = $v</script>"
     #-> <script>var x = [true, 1, 1.0, undefined, null]</script>
 
-Julia named tuples and dictionaries are serialized as a Javascript
-object. Symbols are converted to string values.
+This translation attempts to convert numbers properly.
+
+    v = (-Inf, Inf, NaN, 6.02214e23)
+
+    @htl "<script>var x = $v</script>"
+    #-> <script>var x = [-Infinity, Infinity, NaN, 6.02214e23]</script>
+
+Dictionaries are serialized as a Javascript object. Symbols are
+converted to string values.
 
     v = Dict(:min=>1, :max=>8)
 
     @htl "<script>var x = $v</script>"
     #-> <script>var x = {"max": 8, "min": 1}</script>
+
+Besides dictionary objects, we support named tuples.
+
+    v = (min=1, max=8)
+
+    @htl "<script>var x = $v</script>"
+    #-> <script>var x = {"min": 1, "max": 8}</script>
+
+String values are escaped to avoid `<script>`, `</script>`, and `<!--`.
+
+    content = """<script>alert("no injection!")</script>"""
+
+    @htl "<script>v = $content</script>"
+    #-> <script>v = "<\script>alert(\"no injection!\")<\/script>"</script>
+
+    content = """--><!-- no injection!"""
+
+    @htl "<script>v = $content</script>"
+    #-> <script>v = "--><\!-- no injection!"</script>
 
 ## JavaScript
 
@@ -39,9 +65,9 @@ printed directly, without escaping using a wrapper similar to `HTML`:
     @htl "<script>$expr</script>"
     #-> <script>console.log("Hello World")</script>
 
-The `JavaScript` wrapper indicates the content should be printed within
-a `"text/javascript"` context. Even so, it does help catch content which
-is not properly escaped for use within a `<script>` tag.
+The `JavaScript` wrapper indicates the content should be directly
+displayed within a `"text/javascript"` context. We try to catch content
+which is not properly escaped for use within a `<script>` tag.
 
     expr = """<script>console.log("Hello World")</script>"""
 
@@ -81,22 +107,31 @@ The `JavaScript` wrapper can be used to suppress this conversion.
     @htl "<div onclick='$expr'>"
     #-> <div onclick='console.log(&quot;Hello World&quot;)'>
 
-This interpolation rule does not apply to unquoted attribute values.
-Moreover, special treatment of booleans still applies in this case.
+This interpolation does not happen with unquoted attribute values.
 
     expr = """console.log("Hello World")"""
 
     @htl "<div onclick=$expr>"
     #-> <div onclick='console.log(&quot;Hello World&quot;)'>
 
+Special treatment for booleans still applies for unquoted attributes
+that begin with `on`.
+
     @htl "<div onclick=$(nothing)>...</div>"
     #-> <div>...</div>
 
+    @htl "<div onclick=$(true)>...</div>"
+    #-> <div onclick=''>...</div>
+
 ## Extensions
 
-Within the `script` tag, content is not `"text/html"`, instead, it is
-treated as `"text/javascript"`. Custom objects which are `showable` as
-`"text/javascript"` can be printed without any escaping in this context.
+If an object is not showable as `"text/javascript"` then you will get
+the following exception.
+
+    @htl("<script>$(π)</script>")
+    #-> …ERROR: "Irrational{:π} is not showable as text/javascript"⋮
+
+This can be overcome with a `show()` method for `"text/javascript"`,
 
     struct Log
         data
@@ -106,11 +141,14 @@ treated as `"text/javascript"`. Custom objects which are `showable` as
         print(io, "console.log(", c.data, ")")
     end
 
-    print(@htl """<script>$(Log("undefined"))</script>""")
-    #-> <script>console.log(undefined)</script>
+However, like `JavaScript` wrapper, you take full control of ensuring
+this content is relevant to the context.
 
-Alternatively, one could implement `print_script` to provide a
-representation for this context.
+    print(@htl """<script>$(Log(missing))</script>""")
+    #-> <script>console.log(missing)</script>
+
+Alternatively, one could implement `print_script`, recursively calling
+this function on datatypes which require further translation.
 
     import HypertextLiteral: print_script
 
@@ -120,53 +158,20 @@ representation for this context.
         print(io, ")")
     end
 
-    print(@htl """<script>$(Log(nothing))</script>""")
-    #-> <script>console.log(undefined)</script>
+    print(@htl """<script>$(Log(missing))</script>""")
+    #-> <script>console.log(null)</script>
 
-This content must not only be valid Javascript, but also escaped so that
-`<script>`, `</script>`, and `<!--` literal values do not appear. When
-using `print_script` this work is performed automatically.
-
-    content = """<script>alert("hello")</script>"""
-
-    print(@htl "<script>$(Log(content))</script>")
-    #-> <script>console.log("<\script>alert(\"hello\")<\/script>")</script>
+This method is how we provide support for datatypes in `Base` without
+committing type piracy by implementing `show` for `"text/javascript"`.
 
 ## Edge Cases
 
-Within a `<script>` tag, the script open and close tags are escaped.
-
-    v = "<script>nested</script>"
-
-    @htl "<script>var x = $v</script>"
-    #-> <script>var x = "<\script>nested<\/script>"</script>
-
 Within a `<script>` tag, comment start (`<!--`) must also be escaped.
 Moreover, capital `<Script>` and permutations are included. We only scan
-the first character after the left-than character.
+the first character after the left-than (`<`) symbol, so there may be
+strictly unnecessary escaping.
 
     v = "<!-- <Script> <! 3<4 </ <s !>"
 
     @htl "<script>var x = $v</script>"
     #-> <script>var x = "<\!-- <\Script> <\! 3<4 <\/ <\s !>"</script>
-
-Within a `<script>` tag, we want to ensure that numbers are properly
-converted.
-
-    v = (-Inf, Inf, NaN, 6.02214e23)
-
-    @htl "<script>var x = $v</script>"
-    #-> <script>var x = [-Infinity, Infinity, NaN, 6.02214e23]</script>
-
-Besides dictionary objects, we support named tuples.
-
-    v = (min=1, max=8)
-
-    @htl "<script>var x = $v</script>"
-    #-> <script>var x = {"min": 1, "max": 8}</script>
-
-Comments should not exist within a script tag.
-
-    @htl("<script><!-- comment --></script>")
-    #-> ERROR: LoadError: "script escape or comment is not implemented"⋮
-

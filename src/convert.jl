@@ -16,7 +16,7 @@ tags, such as `<style>` and attribute values.
 Otherwise, this method simply uses the standard `print` representation
 for the given object.
 """
-print_value(io::IO, value) =
+print_value(io::IO, @nospecialize value) =
     print(io, value)
 print_value(io::IO, ::Nothing) =
     nothing
@@ -52,7 +52,6 @@ print_value(io::IO, items::Dict) = print_pairs(io, items)
 print_value(io::IO, items::NamedTuple) = print_pairs(io, pairs(items))
 print_value(io::IO, items::Tuple{Pair, Vararg{Pair}}) = print_pairs(io, items)
 
-
 """
     attribute_value(x)
 
@@ -70,7 +69,7 @@ end
 Base.print(ep::EscapeProxy, x::AttributeValue) =
     print_value(ep, x.content)
 
-attribute_value(x) = AttributeValue(x)
+attribute_value(@nospecialize x) = AttributeValue(x)
 
 """
     content(x)

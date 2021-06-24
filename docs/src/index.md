@@ -72,15 +72,33 @@ example, the following style will display `missing` as `"N/A"`.
 
 ## Interpolation Summary
 
-| Native Julia         | Script Context   | Attribute Value | Element Content |
-|:-------------------- |:---------------- |:--------------- |:--------------- |
-| `"\"M&M\"'s"`        | "\"M&M\"'s"      | M&amp;M&apos;s  | M&amp;M&apos;s  |
-| `Inf`                | Infinity         | Inf             | Inf             |
-| `NaN`                | NaN              | NaN             | NaN             |
-| `[1, 2]`             | [1, 2]           | 1 2             | 12              |
-| `nothing`            | undefined        |                 |                 |
-| `missing`            | null             | missing         | <span class="Base-Missing">missing</span> |
-| `(a = 1, b = 2)`     | {"a": 1, "b": 2} | a: 1; b: 2;     | <span class="Core-NamedTuple">(a = 1, b = 2)</span> |
+$(2+2)
+
+|                     | **Native Julia**         | **Interpolation**  |
+|:------------------- |:-------------------------|:------------------ |
+| **Element Content** | `"\"M&M\"'s"`            | `M&amp;M&apos;s`   |
+|                     | `:name`                  | `name`             |
+|                     | `[1, 2]` *or* `(1, 2)`   | `12`               |
+|                     | `nothing`                | *omitted*          |
+|                     | `missing`                | `<span class="Base-Missing">missing</span>` |
+|                     | `(a = 1, b = 2)`         | `<span class="Core-NamedTuple">(a = 1, b = 2)</span>` |
+|                     | `Dict(:a => 1, :b => 2)` | `<span class="Base-Dict">Dict(:a => 1, :b => 2)</span>` |
+| **Attribute Value** | `"\"M&M\"'s"`            | `M&amp;M&apos;s`   |
+|                     | `:name`                  | `name`             |
+|                     | `[1, 2]` *or* `(1, 2)`   | `1 2`              |
+|                     | `nothing`                | *omitted*          |
+|                     | `missing`                | `missing`          |
+|                     | `(a = 1, b = 2)`         | `a: 1; b: 2;`      |
+|                     | `Dict(:a => 1, :b => 2)` | `a: 1; b: 2;`      |
+| **Script Tag**      | `"\"M&M\"'s"`            | `"\"M&M\"'s"``     |
+|                     | `:name`                  | `name`             |
+|                     | `[1, 2]` *or* `(1, 2)`   | `[1, 2]`           |
+|                     | `nothing`                | `undefined`        |
+|                     | `missing`                | `null`             |
+|                     | `Inf`                    | `Infinity`         |
+|                     | `NaN`                    | `NaN`              |
+|                     | `(a = 1, b = 2)`         | `{"a": 1, "b": 2}` |
+|                     | `Dict(:a => 1, :b => 2)` | `{"a": 1, "b": 2}` |
 
 If this default behavior is inconvenient:
 

@@ -20,14 +20,6 @@ same variable is provided a translation to Javascript.
     @htl "<script>v = $v</script>"
     #-> <script>v = "<1 Brown \"M&M's\"!"</script>
 
-Within attributes starting with `on`, values are translated to
-Javascript and then ampersand escaped.
-
-    @htl "<div onclick='alert($v)'>"
-    #=>
-    <div onclick='alert(&quot;&lt;1 Brown \&quot;M&amp;M&apos;s\&quot;!&quot;)'>
-    =#
-
 Boolean attributes are supported.
 
     @htl "<input type='checkbox' selected=$(false) disabled=$(true)></input>"
@@ -71,8 +63,6 @@ example, the following style will display `missing` as `"N/A"`.
 ```
 
 ## Interpolation Summary
-
-$(2+2)
 
 |                     | **Native Julia**         | **Interpolation**  |
 |:------------------- |:-------------------------|:------------------ |

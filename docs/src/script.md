@@ -83,13 +83,21 @@ Similarly, a comment sequence is also forbidden.
 
 ## Script Attributes
 
-If a quoted attribute starts with `"on"`, then its interpolation is done
-as if it were in a `script` tag, only that the result is additionally
-ampersand escaped.
+Conversion of Julia values to JavaScript can be performed explicitly
+within attributes using `js()`, which is not exported by default.
+
+    using HypertextLiteral: js
 
     v = """Brown "M&M's"!""";
 
-    @htl "<div onclick='alert($v)'>"
+    @htl "<div onclick='alert($(js(v)))'>"
+    #-> <div onclick='alert(&quot;Brown \&quot;M&amp;M&apos;s\&quot;!&quot;)'>
+
+The `js()` function can be used independently.
+
+    msg = "alert($(js(v)))"
+
+    @htl "<div onclick=$msg>"
     #-> <div onclick='alert(&quot;Brown \&quot;M&amp;M&apos;s\&quot;!&quot;)'>
 
 Although strictly unnecessary, slash escaping to prevent `<\script>`
@@ -97,31 +105,8 @@ content is still provided.
 
     v = "<script>nested</script>"
 
-    @htl "<div onclick='alert($v)'>"
+    @htl "<div onclick='alert($(js(v)))'>"
     #-> <div onclick='alert(&quot;&lt;\script>nested&lt;\/script>&quot;)'>
-
-The `JavaScript` wrapper can be used to suppress this conversion.
-
-    expr = JavaScript("""console.log("Hello World")""")
-
-    @htl "<div onclick='$expr'>"
-    #-> <div onclick='console.log(&quot;Hello World&quot;)'>
-
-This interpolation does not happen with unquoted attribute values.
-
-    expr = """console.log("Hello World")"""
-
-    @htl "<div onclick=$expr>"
-    #-> <div onclick='console.log(&quot;Hello World&quot;)'>
-
-Special treatment for booleans still applies for unquoted attributes
-that begin with `on`.
-
-    @htl "<div onclick=$(nothing)>...</div>"
-    #-> <div>...</div>
-
-    @htl "<div onclick=$(true)>...</div>"
-    #-> <div onclick=''>...</div>
 
 ## Extensions
 

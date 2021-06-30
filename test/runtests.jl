@@ -54,7 +54,7 @@ default = package_path.(["README.md", "docs/src"])
             :DocTestSetup,
             quote
                 using HypertextLiteral:
-                    @htl, @htl_str,
+                    HypertextLiteral, @htl, @htl_str,
                     Reprint, Render, Bypass, EscapeProxy,
                     attribute_value, content, attribute_pair,
                     inside_tag

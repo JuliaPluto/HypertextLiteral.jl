@@ -1,57 +1,60 @@
 """
-    ScriptProxy(io)
+    ScriptTagProxy(io)
 
 This is a transparent proxy that ensures neither `<!--` nor `</script>`
 occur in the output stream.
 
 # Examples
 ```julia-repl
-julia> gp = ScriptProxy(stdout);
+julia> gp = ScriptTagProxy(stdout);
 julia> print(gp, "valid");
 valid
 julia> print(gp, "</script>")
 ERROR: "Content within a script tag must not contain `</script>`"
 ```
 """
-mutable struct ScriptProxy{T<:IO} <: IO where {T}
+mutable struct ScriptTagProxy{T<:IO} <: IO where {T}
     io::T
     index::Int
 
-    ScriptProxy(io::T) where T = new{T}(io::T, 0)
+    ScriptTagProxy(io::T) where T = new{T}(io::T, 0)
 end
 
 """
-    Script(data)
+    ScriptTag(data)
 
 This object prints `data` unescaped within a `<script>` tag, wrapped in
-a `ScriptProxy` that guards against invalid script content.
+a `ScriptTagProxy` that guards against invalid script content.
 """
-struct Script
+struct ScriptTag
     content
 end
 
-Base.print(ep::EscapeProxy, x::Script) =
-    print_script_lower(ScriptProxy(ep.io), x.content)
+Base.print(ep::EscapeProxy, x::ScriptTag) =
+    print_script_hook(ScriptTagProxy(ep.io), x.content)
 
 """ 
-    ScriptAttributeValue(data)
+    Script(data)
 
 This object renders Javascript `data` escaped within an attribute.
 """
-mutable struct ScriptAttributeValue
+mutable struct Script
     content::Any
 end
 
-Base.print(ep::EscapeProxy, x::ScriptAttributeValue) =
-    print_script_lower(ep, x.content)
+Base.print(io::IO, x::Script) =
+    print_script_hook(io, x.content)
+
+Base.show(io::IO, ::MIME"text/javascript", sv::Script) =
+    print(io, sv)
 
 """
-    script_attribute_value(x)
+    js(x)
 
 This method may be implemented to specify a printed representation
 suitable for use within a quoted attribute value starting with `on`.
 """
-script_attribute_value(x) = ScriptAttributeValue(x)
+js(x) = Script(x)
 
 """
     JavaScript(js) - shows `js` as `"text/javascript"`
@@ -64,12 +67,12 @@ Base.show(io::IO, ::MIME"text/javascript", js::JavaScript) =
     print(io, js.content)
 
 """
-    print_script_lower(io, value)
+    print_script_hook(io, value)
 
 Provides a hook to override `print_script` for custom Javascript
 runtimes, such as `Pluto.jl`, to provide their own value marshalling.
 """
-print_script_lower(io::IO, value) =
+print_script_hook(io::IO, value) =
    print_script(io, value)
 
 """
@@ -212,7 +215,7 @@ function scan_for_script(index::Int, octet::UInt8)::Int
     return 0
 end
 
-function Base.write(sp::ScriptProxy, octet::UInt8)
+function Base.write(sp::ScriptTagProxy, octet::UInt8)
     if 0 == sp.index
         if octet == Int('<')
             sp.index = 1
@@ -223,7 +226,7 @@ function Base.write(sp::ScriptProxy, octet::UInt8)
     return write(sp.io, octet)
 end
 
-function Base.unsafe_write(sp::ScriptProxy, input::Ptr{UInt8}, nbytes::UInt)
+function Base.unsafe_write(sp::ScriptTagProxy, input::Ptr{UInt8}, nbytes::UInt)
     cursor = input
     index = sp.index
     final = input + nbytes

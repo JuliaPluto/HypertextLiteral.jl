@@ -1,58 +1,40 @@
 """
-    StyleProxy(io)
+    StyleTagProxy(io)
 
 This is a transparent proxy that ensures neither `<!--` nor `</style>`
 occur in the output stream.
 
 # Examples
 ```julia-repl
-julia> gp = StyleProxy(stdout);
+julia> gp = StyleTagProxy(stdout);
 julia> print(gp, "valid");
 valid
 julia> print(gp, "</style>")
 ERROR: "Content within a style tag must not contain `</style>`"
 ```
 """
-mutable struct StyleProxy{T<:IO} <: IO where {T}
+mutable struct StyleTagProxy{T<:IO} <: IO where {T}
     io::T
     index::Int
 
-    StyleProxy(io::T) where T = new{T}(io::T, 0)
+    StyleTagProxy(io::T) where T = new{T}(io::T, 0)
 end
 
 
 """
-    Style(data)
+    StyleTag(data)
 
-This object prints `data` unescaped within a `<script>` tag, wrapped in
-a `StyleProxy` that guards against invalid script content.
+This object prints `data` unescaped within a `<style>` tag, wrapped in a
+`StyleTagProxy` that guards against invalid style content. Content is
+treated as if it had occurred within an attribute value, only that
+amperstand escaping is not used.
 """
-struct Style
+struct StyleTag
     content
 end
 
-Base.print(ep::EscapeProxy, x::Style) =
-    print_style_lower(StyleProxy(ep.io), x.content)
-
-"""
-    print_style_lower(io, value)
-
-Provides a hook to override `print_value` to provide custom CSS encoding.
-"""
-print_style_lower(io::IO, value) =
-   print_value(io, value)
-
-
-"""
-    CSS(js) - shows `js` as `"text/css"`
-"""
-struct CSS
-    content
-end
-
-Base.show(io::IO, ::MIME"text/css", css::CSS) =
-    print(io, css.content)
-
+Base.print(ep::EscapeProxy, x::StyleTag) =
+    print_value(StyleTagProxy(ep.io), x.content)
 
 function scan_for_style(index::Int, octet::UInt8)::Int
     if 1 == index
@@ -83,7 +65,7 @@ function scan_for_style(index::Int, octet::UInt8)::Int
     return 0
 end
 
-function Base.write(sp::StyleProxy, octet::UInt8)
+function Base.write(sp::StyleTagProxy, octet::UInt8)
     if 0 == sp.index
         if octet == Int('<')
             sp.index = 1
@@ -94,7 +76,7 @@ function Base.write(sp::StyleProxy, octet::UInt8)
     return write(sp.io, octet)
 end
 
-function Base.unsafe_write(sp::StyleProxy, input::Ptr{UInt8}, nbytes::UInt)
+function Base.unsafe_write(sp::StyleTagProxy, input::Ptr{UInt8}, nbytes::UInt)
     cursor = input
     index = sp.index
     final = input + nbytes

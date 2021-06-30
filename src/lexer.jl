@@ -53,9 +53,9 @@ function interpolate(args)
                 push!(parts, :(content($(esc(input)))))
             elseif state == STATE_RAWTEXT
                 if :script === element_tag
-                    push!(parts, :(Script($(esc(input)))))
+                    push!(parts, :(ScriptTag($(esc(input)))))
                 elseif :style === element_tag
-                    push!(parts, :(Style($(esc(input)))))
+                    push!(parts, :(StyleTag($(esc(input)))))
                 else
                     throw(DomainError(element_tag,
                       "Only script and style rawtext tags are supported."))
@@ -84,11 +84,7 @@ function interpolate(args)
                    state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
                 @assert parts[end] isa String
                 name = parts[end][attribute_start:attribute_end]
-                if match(r"^on"i, name) !== nothing
-                    push!(parts, :(script_attribute_value($(esc(input)))))
-                else
-                    push!(parts, :(attribute_value($(esc(input)))))
-                end
+                push!(parts, :(attribute_value($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME ||
                    state == STATE_AFTER_ATTRIBUTE_NAME
                 # strip space before interpolated element pairs

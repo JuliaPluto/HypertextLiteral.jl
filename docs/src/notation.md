@@ -82,7 +82,7 @@ itself need not be escaped.
     htl"<span>\some\path</span>"
     #-> <span>\some\path</span>
 
-To represent the dollar-sign, use use HTML character entity `#&36;`.
+To represent the dollar-sign, use HTML character entity `#&36;`.
 
     amount = 42
 

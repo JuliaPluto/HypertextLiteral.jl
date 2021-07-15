@@ -80,7 +80,7 @@ example, the following style will display `missing` as `"N/A"`.
 |                     | `missing`                | `missing`          |
 |                     | `(a = 1, b = 2)`         | `a: 1; b: 2;`      |
 |                     | `Dict(:a => 1, :b => 2)` | `a: 1; b: 2;`      |
-| **Script Tag**      | `"\"M&M\"'s"`            | `"\"M&M\"'s"``     |
+| **Script Tag**      | `"\"M&M\"'s"`            | `"\"M&M\"'s"`      |
 |                     | `:name`                  | `name`             |
 |                     | `[1, 2]` *or* `(1, 2)`   | `[1, 2]`           |
 |                     | `nothing`                | `undefined`        |

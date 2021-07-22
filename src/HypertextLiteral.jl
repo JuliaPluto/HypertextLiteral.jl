@@ -32,7 +32,7 @@ See also: [`@htl`](@ref), [`HypertextLiteral.@htl_str`](@ref)
 """
 module HypertextLiteral
 
-export @htl
+export @htl, @htl_str
 
 include("primitives.jl") # Wrap, Unwrap, EscapeProxy
 include("macro.jl")      # @htl macro and `Result` object

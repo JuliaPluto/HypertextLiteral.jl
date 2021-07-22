@@ -68,8 +68,15 @@ macro htl_str(expr::String)
         end
         push!(args, expr[start:prevind(expr, idx)])
         start = nextind(expr, idx)
+        if length(expr) >= start && expr[start] == '$'
+            push!(args, "\$")
+            start += 1
+            continue
+        end
         (nest, tail) = Meta.parse(expr, start; greedy=false)
-        @assert nest != nothing
+        if nest == nothing
+            throw("missing expression at $idx: $(expr[start:end])")
+        end
         if !(expr[start] == '(' || nest isa Symbol)
             throw(DomainError(nest,
              "interpolations must be symbols or parenthesized"))

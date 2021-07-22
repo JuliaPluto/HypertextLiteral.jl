@@ -26,13 +26,13 @@ makedocs(
                              footer=custom_footer),
     pages = [
         "Overview" => "index.md",
-        "Element Content" => "content.md",
-        "Attributes & Style" => "attribute.md",
-        "Script Interpolation" => "script.md",
-        "Design Rationale" => "design.md",
-        "The `htl` Notation" => "notation.md",
-        "Escaping Primitives" => "primitives.md",
-        "Package Reference" => "reference.md",
+        "content.md",
+        "attribute.md",
+        "script.md",
+        "notation.md",
+        "design.md",
+        "primitives.md",
+        "reference.md",
     ],
     modules = [HypertextLiteral])
 

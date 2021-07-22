@@ -21,8 +21,6 @@ need to be escaped.
     #-> <tag bare='book=&apos;Strunk &amp; White&apos;' />
 
 In this document, we discuss interpolation within attribute values.
-However, *quoted* attribute starting with `"on"` are interpolated as if
-they were inside a `<script>` tag.
 
 ## Boolean Attributes
 
@@ -103,9 +101,8 @@ Adjacent pairs are delimited by the semi-colon (`;`). Moreover, for
 
 ## General Case
 
-Beyond these rules for booleans, `nothing`, and collections, the
-interpolation of a Julia object within an attribute value is its printed
-representation.
+Beyond these rules for booleans, `nothing`, and collections, values
+are reproduced with their `print` representation.
 
     @htl("<div att=$((:a_symbol, "string", 42, 3.1415))/>")
     #-> <div att='a_symbol string 42 3.1415'/>
@@ -172,27 +169,21 @@ attribute names are passed along as-is.
 
 A `Pair` inside a tag is treated as an attribute.
 
-    @htl "<tag $(:att => :value)/>"
-    #-> <tag att='value'/>
-
-A `Dict` inside a tag is treated as an attribute.
-
-    @htl "<tag $(Dict(:att => :value))/>"
-    #-> <tag att='value'/>
+    @htl "<div $(:data_style => "green")/>"
+    #-> <div data-style='green'/>
 
 A `Symbol` or `String` inside a tag is an empty attribute.
 
-    @htl "<tag $(:att)/>"
-    #-> <tag att=''/>
+    @htl "<div $(:data_style)/>"
+    #-> <div data-style=''/>
 
     #? VERSION >= v"1.6.0-DEV"
-    @htl "<tag $("att")/>"
-    #-> <tag att=''/>
+    @htl "<div $("data_style")/>"
+    #-> <div data_style=''/>
 
-In some important cases one wishes to expand an object into a set of
-attributes. This can be done by implementing `inside_tag()`. For
-example, let's suppose we have an object that represents both a list of
-CSS classes and a custom style.
+To expand an object into a set of attributes, implement `inside_tag()`.
+For example, let's suppose we have an object that represents both a list
+of CSS classes and a custom style.
 
     using HypertextLiteral: attribute_pair, Reprint
 
@@ -222,8 +213,8 @@ value, only that ampersand escaping is not done.
     @htl """<style>span {$style}</style>"""
     #-> <style>span {padding-left: 2em; width: 20px;}</style>
 
-In this context, there is no escaping. However, content is validated to
-ensure it doesn't contain `"</style>"`.
+In this context, content is validated to ensure it doesn't contain
+`"</style>"`.
 
     expr = """<style>span {display: inline;}</style>"""
 

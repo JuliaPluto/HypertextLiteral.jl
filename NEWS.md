@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.9.0
+
+- Removing Javscript treatment from `on` attributes
+- Exporting `htl` non-standard string literal
+- In `htl` literal, doubling of `$` escapes `$`
+- Continued review of documentation
+
 ## v0.8.0
 
 - Restructructed documentation to improve navigation

@@ -126,8 +126,8 @@ This can be overcome with a `show()` method for `"text/javascript"`,
         print(io, "console.log(", c.data, ")")
     end
 
-However, like `JavaScript` wrapper, you take full control of ensuring
-this content is relevant to the context.
+Like the `HTML` wrapper, you take full control of ensuring this content
+is relevant to the context.
 
     print(@htl """<script>$(Log(missing))</script>""")
     #-> <script>console.log(missing)</script>

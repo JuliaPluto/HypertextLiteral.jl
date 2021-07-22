@@ -13,8 +13,9 @@ This package is implemented according to several design criteria.
 * With exception of boolean attributes (which must be removed to be
   false), templates are treated as-is and not otherwise modified.
 
-* Within a `<script>` tag and attributes starting with `on`, support
-  translation of Julia objects to Javascript.
+* Within `<script>`, support translation of Julia objects to JavaScript.
+  Enable this translation to be used within `on` and other contexts via
+  `HypertextLiteral.js` function.
 
 * Since the `style` and `class` attributes are so important in HTML
   construction, interpretations of Julia constructs should support
@@ -68,6 +69,65 @@ and attribute values.
 
     @htl "<tag att='$(nothing)'/>"
     #-> <tag att=''/>
+
+## Notable Features
+
+Attributes assigned a boolean value have specialized support.
+
+    @htl "<input type='checkbox' selected=$(false) disabled=$(true)></input>"
+    #-> <input type='checkbox' disabled=''></input>
+
+Dictionaries are translated to support CSS within attributes and the
+`<style>` tag. In this case, `snake_case` symbols become `kebab-case`.
+
+    style = Dict(:padding_left => "2em", :width => "20px")
+
+    @htl("<div style='font-size: 25px; $style'>...</div>")
+    #-> <div style='font-size: 25px; padding-left: 2em; width: 20px;'>...</div>
+
+    @htl "<style>input {$style}</style>"
+    #-> <style>input {padding-left: 2em; width: 20px;}</style>
+
+Within a `<script>` tag these macros provide a translation to Javascript.
+
+    v = "<1 Brown \"M&M's\"!";
+
+    @htl "<script>v = $v</script>"
+    #-> <script>v = "<1 Brown \"M&M's\"!"</script>
+
+JavaScript translation can be accessed via the `js` function.
+
+    using HypertextLiteral: js
+
+    @htl "<button onclick='alert($(js("M&M's")))'>"
+    #-> <button onclick='alert(&quot;M&amp;M&apos;s&quot;)'>
+
+The `@htl_str` form is useful for dynamically constructed templates.
+
+    templ = join("<td>\$$x</td>" for x in [:a,:b])
+    #-> "<td>\$a</td><td>\$b</td>"
+
+    (a, b) = (:A, :B);
+
+    eval(:(@htl_str($templ)))
+    #-> <td>A</td><td>B</td>
+
+Within element content, most datatypes are serialized within a `<span>` tag.
+
+    using Dates
+
+    @htl("<div>$(Date("2021-07-28"))</div>")
+    #-> <div><span class="Dates-Date">2021-07-28</span></div>
+
+This automatic wrapping permits CSS to be used to style output.
+For example, the following style will display `missing` as `"N/A"`.
+
+```HTML
+    <style>
+    span.Base-Missing {visibility: collapse;}
+    span.Base-Missing::before {content: "N/A"; visibility: visible;}
+    </style>
+```
 
 ## Lexer Tests
 

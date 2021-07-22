@@ -32,10 +32,11 @@ In this document, we discuss interpolation within regular tagged
 content. Interpolation within attribute values and within `<script>` or
 `<style>` tags is treated differently.
 
-## Simple Types
+## Strings & Numbers
 
 Strings, symbols, integers, booleans, and floating point values are
-interpolated as their standard printed representation.
+reproduced with their standard `print()` representation. Output produced
+in this way is properly escaped.
 
     @htl "<enabled>$(false)</enabled><color>$(:blue)</color>"
     #-> <enabled>false</enabled><color>blue</color>
@@ -49,8 +50,8 @@ We include `AbstractString` for the performant serialization of
     @htl "<slice>$(SubString("12345", 2:4))</slice>"
     #-> <slice>234</slice>
 
-All other types have special treatment. Explicit conversion to a
-`String` is a simple way to avoid the remaining rules.
+All other types, such as `Irrational`, have special treatment. Explicit
+conversion to a `String` is a simple way to avoid the remaining rules.
 
     #? VERSION >= v"1.3.0-DEV"
     @htl "<value>$(string(π))</value>"
@@ -66,14 +67,13 @@ be used in a nested manner, permitting us to build template functions.
     @htl "<div>3^2 is $(sq(3))</div>"
     #-> <div>3^2 is <span>9</span></div>
 
-Generally, any value `showable` as `"text/html"` will bypass ampersand
-escaping. Julia's built-in `HTML` object wraps any object in this way.
+Values `showable` as `"text/html"` will bypass ampersand escaping.
 
     @htl "<div>$(HTML("<span>unescaped 'literal'</span>"))</div>"
     #-> <div><span>unescaped 'literal'</span></div>
 
-Custom datatypes can be enhanced to work directly with this and similar
-libraries by implementing `show` for `"text/html"`.
+Custom datatypes can provide their own representation by implementing
+`show` for `"text/html"`.
 
     struct Showable data::String end
 
@@ -85,8 +85,7 @@ libraries by implementing `show` for `"text/html"`.
     print(@htl "<span>$(Showable("a&b"))</span>")
     #-> <span><showable>a&amp;b</showable></span>
 
-In this case, HypertextLiteral trusts that the content is properly
-escaped and simply reproduces it to the output.
+HypertextLiteral trusts that `"text/html"` content is properly escaped.
 
 ## Nothing
 
@@ -109,9 +108,9 @@ This design supports template functions that return `nothing`.
 
 Note that `missing` has default treatment, see below.
 
-## Vectors
+## Vectors & Tuples
 
-Within element content, vector elements are concatenated.
+Within element content, vector and tuple elements are concatenated (with no delimiter).
 
     @htl "<tag>$([1,2,3])</tag>"
     #-> <tag>123</tag>
@@ -154,8 +153,8 @@ Within element content, values are wrapped in a `<span>` tag.
     @htl """<div>$missing</div>"""
     #-> <div><span class="Base-Missing">missing</span></div>
 
-This automatic wrapping permits CSS to be used to style output. The
-following style will display `missing` as `"N/A"`.
+This wrapping lets CSS style output. The following renders `missing` as
+`"N/A"`.
 
 ```HTML
     <style>
@@ -164,7 +163,7 @@ following style will display `missing` as `"N/A"`.
     </style>
 ```
 
-The `class` attribute includes the module and type name.
+The `<span>` tag's `class` attribute includes the module and type name.
 
     using Dates
 
@@ -182,8 +181,10 @@ then it is not included in the `class`.
     print(@htl "<div>$(Custom("a&b"))</div>")
     #-> <div><span class="Custom">a&amp;b</span></div>
 
-This design choice permits CSS styling and other front-end handling of
-content without having to customize the behavior of this library.
+Bypassing `<span>` wrapping can be accomplished with `string()`.
+
+    print(@htl "<div>$(string(Custom("a&b")))</div>")
+    #-> <div>a&amp;b</div>
 
 ## Extensions
 
@@ -245,8 +246,8 @@ In fact, the `@htl` macro produces exactly this translation.
 
 ## Edge Cases
 
-Within element content, even though it isn't strictly necessary to
-ampersand escape the single and double quotes, we do so anyway.
+Within element content, even though it isn't strictly necessary, we
+ampersand escape the single and double quotes.
 
     v = "<'\"&"
 
@@ -291,8 +292,8 @@ Escaped content may also contain Unicode.
     @htl "<tag>$x</tag>"
     #-> <tag>⁅Hello⁆</tag>
 
-String interpolation is limited to symbols or parenthesized expressions.
-For more details on this see Julia #37817.
+String interpolation is limited to symbols or parenthesized expressions
+(see Julia #37817).
 
     @htl("$[1,2,3]")
     #=>

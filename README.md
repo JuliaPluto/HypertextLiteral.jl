@@ -5,7 +5,7 @@
 Julia string interpolation, only that it tracks hypertext escaping needs
 and provides handy conversions dependent upon context.*
 
-[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] [![Release Build][release-img]][release-url] [![Nightly Build][nightly-img]][nightly-url] [![Code Coverage][codecov-img]][codecov-url] [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
+[![Stable Docs][docs-stable-img]][docs-stable-url] [![Dev Docs][docs-dev-img]][docs-dev-url] [![Release Build][release-img]][release-url] [![Code Coverage][codecov-img]][codecov-url] [![Zulip Chat][chat-img]][chat-url] [![ISC License][license-img]][license-url]
 
 > This project is inspired by [Hypertext Literal][htl] by Mike Bostock
 > ([@mbostock][@mbostock]) available at [here][observablehq]. This work
@@ -59,14 +59,7 @@ JavaScript data within the Julia language, including:
 * Extension API for customizing object display in various contexts
 
 For more detail, please see the [documentation][docs-stable-url] and
-join us on [Julia's Zulip][chat-url]. Here is our current TODO list
-before we finalize 1.0 release.
-
-- [ ] complete documentation for function reference
-- [ ] document script tag and attribute interpolation customization
-- [ ] review edge case handling for JavaScript conversion, e.g. π
-- [ ] implement date conversion for Julia to JavaScript interpolation
-- [ ] finalize design regarding sequences, tuples, generators, vectors
+join us on [Julia's Zulip][chat-url].
 
 [htl]: https://github.com/observablehq/htl
 [@mbostock]: https://github.com/mbostock

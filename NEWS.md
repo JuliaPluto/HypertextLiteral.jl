@@ -1,5 +1,9 @@
 # Release Notes
 
+## v0.9.1
+
+- Fix #16: Error interpolating unicode into JS
+
 ## v0.9.0
 
 - Removing Javscript treatment from `on` attributes

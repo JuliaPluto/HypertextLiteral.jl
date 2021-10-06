@@ -152,7 +152,7 @@ function print_script(io::IO, value::AbstractString)
     final = lastindex(value)
     i = last = 1
     function emit(s::String)
-        print(io, SubString(value, last, i - 1))
+        print(io, SubString(value, last, prevind(value, i)))
         last = nextind(value, i)
         print(io, s)
     end

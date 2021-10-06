@@ -160,3 +160,10 @@ strictly unnecessary escaping.
 
     @htl "<script>var x = $v</script>"
     #-> <script>var x = "<\!-- <\Script> <\! 3<4 <\/ <\s !>"</script>
+
+It's important to handle unicode content properly.
+
+    s = "α\n"
+
+    @htl("<script>alert($(s))</script>")
+    #-> <script>alert("α\n")</script>

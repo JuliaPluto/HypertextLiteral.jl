@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Script Interpolation · HypertextLiteral.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">HypertextLiteral.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Overview</a></li><li><a class="tocitem" href="../content/">Element Content</a></li><li><a class="tocitem" href="../attribute/">Attributes &amp; Style</a></li><li class="is-active"><a class="tocitem" href>Script Interpolation</a><ul class="internal"><li><a class="tocitem" href="#JavaScript"><span>JavaScript</span></a></li><li><a class="tocitem" href="#Script-Attributes"><span>Script Attributes</span></a></li><li><a class="tocitem" href="#Extensions"><span>Extensions</span></a></li><li><a class="tocitem" href="#Edge-Cases"><span>Edge Cases</span></a></li></ul></li><li><a class="tocitem" href="../notation/"><code>htl</code> String Literal</a></li><li><a class="tocitem" href="../design/">Design Rationale</a></li><li><a class="tocitem" href="../primitives/">Escaping Primitives</a></li><li><a class="tocitem" href="../reference/">Package Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Script Interpolation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Script Interpolation</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/HypertextLiteral.jl/blob/master/docs/src/script.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Script-Interpolation"><a class="docs-heading-anchor" href="#Script-Interpolation">Script Interpolation</a><a id="Script-Interpolation-1"></a><a class="docs-heading-anchor-permalink" href="#Script-Interpolation" title="Permalink"></a></h1><p>Within a <code>&lt;script&gt;</code> tag, Julia values are serialized to their equivalent Javascript.  String literal values are rendered as double-quoted values.</p><pre><code class="language-julia hljs">using HypertextLiteral
+
+v = &quot;&quot;&quot;Brown &quot;M&amp;M&#39;s&quot;!&quot;&quot;&quot;;
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = &quot;Brown \&quot;M&amp;M&#39;s\&quot;!&quot;&lt;/script&gt;</code></pre><p>Julia tuples and vectors are serialized as Javascript array. Integers, boolean, and floating point values are handled. As special cases, <code>nothing</code> is represented using <code>undefined</code> and <code>missing</code> using <code>null</code>.</p><pre><code class="language-julia hljs">v = Any[true, 1, 1.0, nothing, missing]
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = [true, 1, 1.0, undefined, null]&lt;/script&gt;</code></pre><p>This translation attempts to convert numbers properly.</p><pre><code class="language-julia hljs">v = (-Inf, Inf, NaN, 6.02214e23)
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = [-Infinity, Infinity, NaN, 6.02214e23]&lt;/script&gt;</code></pre><p>Dictionaries are serialized as a Javascript object. Symbols are converted to string values.</p><pre><code class="language-julia hljs">v = Dict(:min=&gt;1, :max=&gt;8)
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = {&quot;max&quot;: 8, &quot;min&quot;: 1}&lt;/script&gt;</code></pre><p>Besides dictionary objects, we support named tuples.</p><pre><code class="language-julia hljs">v = (min=1, max=8)
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = {&quot;min&quot;: 1, &quot;max&quot;: 8}&lt;/script&gt;</code></pre><p>String values are escaped to avoid <code>&lt;script&gt;</code>, <code>&lt;/script&gt;</code>, and <code>&lt;!--</code>.</p><pre><code class="language-julia hljs">content = &quot;&quot;&quot;&lt;script&gt;alert(&quot;no injection!&quot;)&lt;/script&gt;&quot;&quot;&quot;
+
+@htl &quot;&lt;script&gt;v = $content&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;v = &quot;&lt;\script&gt;alert(\&quot;no injection!\&quot;)&lt;\/script&gt;&quot;&lt;/script&gt;
+
+content = &quot;&quot;&quot;--&gt;&lt;!-- no injection!&quot;&quot;&quot;
+
+@htl &quot;&lt;script&gt;v = $content&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;v = &quot;--&gt;&lt;\!-- no injection!&quot;&lt;/script&gt;</code></pre><h2 id="JavaScript"><a class="docs-heading-anchor" href="#JavaScript">JavaScript</a><a id="JavaScript-1"></a><a class="docs-heading-anchor-permalink" href="#JavaScript" title="Permalink"></a></h2><p>Sometimes you already have content that is valid Javascript. This can be printed directly, without escaping using a wrapper similar to <code>HTML</code>:</p><pre><code class="language-julia hljs">using HypertextLiteral: JavaScript
+
+expr = JavaScript(&quot;&quot;&quot;console.log(&quot;Hello World&quot;)&quot;&quot;&quot;)
+
+@htl &quot;&lt;script&gt;$expr&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;console.log(&quot;Hello World&quot;)&lt;/script&gt;</code></pre><p>The <code>JavaScript</code> wrapper indicates the content should be directly displayed within a <code>&quot;text/javascript&quot;</code> context. We try to catch content which is not properly escaped for use within a <code>&lt;script&gt;</code> tag.</p><pre><code class="language-julia hljs">expr = &quot;&quot;&quot;&lt;script&gt;console.log(&quot;Hello World&quot;)&lt;/script&gt;&quot;&quot;&quot;
+
+@htl &quot;&lt;script&gt;$(JavaScript(expr))&lt;/script&gt;&quot;
+#-&gt; …ERROR: &quot;Content within a script tag must not contain `&lt;/script&gt;`&quot;⋮</code></pre><p>Similarly, a comment sequence is also forbidden.</p><pre><code class="language-julia hljs">expr = &quot;&lt;!-- invalid comment --&gt;&quot;
+
+@htl &quot;&lt;script&gt;$(JavaScript(expr))&lt;/script&gt;&quot;
+#-&gt; …ERROR: &quot;Content within a script tag must not contain `&lt;!--`&quot;⋮</code></pre><h2 id="Script-Attributes"><a class="docs-heading-anchor" href="#Script-Attributes">Script Attributes</a><a id="Script-Attributes-1"></a><a class="docs-heading-anchor-permalink" href="#Script-Attributes" title="Permalink"></a></h2><p>Conversion of Julia values to JavaScript can be performed explicitly within attributes using <code>js()</code>, which is not exported by default.</p><pre><code class="language-julia hljs">using HypertextLiteral: js
+
+v = &quot;&quot;&quot;Brown &quot;M&amp;M&#39;s&quot;!&quot;&quot;&quot;;
+
+@htl &quot;&lt;div onclick=&#39;alert($(js(v)))&#39;&gt;&quot;
+#-&gt; &lt;div onclick=&#39;alert(&amp;quot;Brown \&amp;quot;M&amp;amp;M&amp;apos;s\&amp;quot;!&amp;quot;)&#39;&gt;</code></pre><p>The <code>js()</code> function can be used independently.</p><pre><code class="language-julia hljs">msg = &quot;alert($(js(v)))&quot;
+
+@htl &quot;&lt;div onclick=$msg&gt;&quot;
+#-&gt; &lt;div onclick=&#39;alert(&amp;quot;Brown \&amp;quot;M&amp;amp;M&amp;apos;s\&amp;quot;!&amp;quot;)&#39;&gt;</code></pre><p>Although strictly unnecessary, slash escaping to prevent <code>&lt;\script&gt;</code> content is still provided.</p><pre><code class="language-julia hljs">v = &quot;&lt;script&gt;nested&lt;/script&gt;&quot;
+
+@htl &quot;&lt;div onclick=&#39;alert($(js(v)))&#39;&gt;&quot;
+#-&gt; &lt;div onclick=&#39;alert(&amp;quot;&amp;lt;\script&gt;nested&amp;lt;\/script&gt;&amp;quot;)&#39;&gt;</code></pre><h2 id="Extensions"><a class="docs-heading-anchor" href="#Extensions">Extensions</a><a id="Extensions-1"></a><a class="docs-heading-anchor-permalink" href="#Extensions" title="Permalink"></a></h2><p>If an object is not showable as <code>&quot;text/javascript&quot;</code> then you will get the following exception.</p><pre><code class="language-julia hljs">@htl(&quot;&lt;script&gt;$(π)&lt;/script&gt;&quot;)
+#-&gt; …ERROR: &quot;Irrational{:π} is not showable as text/javascript&quot;⋮</code></pre><p>This can be overcome with a <code>show()</code> method for <code>&quot;text/javascript&quot;</code>,</p><pre><code class="language-julia hljs">struct Log
+    data
+end
+
+function Base.show(io::IO, mime::MIME&quot;text/javascript&quot;, c::Log)
+    print(io, &quot;console.log(&quot;, c.data, &quot;)&quot;)
+end</code></pre><p>Like the <code>HTML</code> wrapper, you take full control of ensuring this content is relevant to the context.</p><pre><code class="language-julia hljs">print(@htl &quot;&quot;&quot;&lt;script&gt;$(Log(missing))&lt;/script&gt;&quot;&quot;&quot;)
+#-&gt; &lt;script&gt;console.log(missing)&lt;/script&gt;</code></pre><p>Alternatively, one could implement <code>print_script</code>, recursively calling this function on datatypes which require further translation.</p><pre><code class="language-julia hljs">import HypertextLiteral: print_script
+
+function print_script(io::IO, c::Log)
+    print(io, &quot;console.log(&quot;)
+    print_script(io, c.data)
+    print(io, &quot;)&quot;)
+end
+
+print(@htl &quot;&quot;&quot;&lt;script&gt;$(Log(missing))&lt;/script&gt;&quot;&quot;&quot;)
+#-&gt; &lt;script&gt;console.log(null)&lt;/script&gt;</code></pre><p>This method is how we provide support for datatypes in <code>Base</code> without committing type piracy by implementing <code>show</code> for <code>&quot;text/javascript&quot;</code>.</p><h2 id="Edge-Cases"><a class="docs-heading-anchor" href="#Edge-Cases">Edge Cases</a><a id="Edge-Cases-1"></a><a class="docs-heading-anchor-permalink" href="#Edge-Cases" title="Permalink"></a></h2><p>Within a <code>&lt;script&gt;</code> tag, comment start (<code>&lt;!--</code>) must also be escaped. Moreover, capital <code>&lt;Script&gt;</code> and permutations are included. We only scan the first character after the left-than (<code>&lt;</code>) symbol, so there may be strictly unnecessary escaping.</p><pre><code class="language-julia hljs">v = &quot;&lt;!-- &lt;Script&gt; &lt;! 3&lt;4 &lt;/ &lt;s !&gt;&quot;
+
+@htl &quot;&lt;script&gt;var x = $v&lt;/script&gt;&quot;
+#-&gt; &lt;script&gt;var x = &quot;&lt;\!-- &lt;\Script&gt; &lt;\! 3&lt;4 &lt;\/ &lt;\s !&gt;&quot;&lt;/script&gt;</code></pre><p>It&#39;s important to handle unicode content properly.</p><pre><code class="language-julia hljs">s = &quot;α\n&quot;
+
+@htl(&quot;&lt;script&gt;alert($(s))&lt;/script&gt;&quot;)
+#-&gt; &lt;script&gt;alert(&quot;α\n&quot;)&lt;/script&gt;</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../attribute/">« Attributes &amp; Style</a><a class="docs-footer-nextpage" href="../notation/"><code>htl</code> String Literal »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a>, <a href="https://github.com/MechanicalRabbit/NarrativeTest.jl">NarrativeTest.jl</a>, and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Saturday 23 October 2021 16:12">Saturday 23 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

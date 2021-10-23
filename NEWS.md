@@ -1,5 +1,9 @@
 # Release Notes
 
+## v0.9.2
+
+- Fix #17: Attribute interpolation bug
+
 ## v0.9.1
 
 - Fix #16: Error interpolating unicode into JS

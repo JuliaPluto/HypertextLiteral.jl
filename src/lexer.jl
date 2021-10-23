@@ -82,8 +82,6 @@ function interpolate(args)
                   "interpolation is limited to a single component"))
             elseif state == STATE_ATTRIBUTE_VALUE_SINGLE_QUOTED ||
                    state == STATE_ATTRIBUTE_VALUE_DOUBLE_QUOTED
-                @assert parts[end] isa String
-                name = parts[end][attribute_start:attribute_end]
                 push!(parts, :(attribute_value($(esc(input)))))
             elseif state == STATE_BEFORE_ATTRIBUTE_NAME ||
                    state == STATE_AFTER_ATTRIBUTE_NAME

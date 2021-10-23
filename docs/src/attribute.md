@@ -355,3 +355,9 @@ exclude it to guard it against accidently forgetting a comma.
     ERROR: LoadError: DomainError with data_value = 42:
     assignments are not permitted in an interpolation⋮
     =#
+
+Interpolation of adjacent values should work.
+
+    x = 'X'; y = 'Y';
+    @htl("<span att='$x$y'/>")
+    #-> <span att='XY'/>

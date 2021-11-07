@@ -100,7 +100,7 @@ function interpolate(args)
                 end
                 append!(parts, rewrite_inside_tag(input))
             elseif state == STATE_TAG_OPEN
-                push!(parts, esc(input))
+                push!(parts, :(tag_name($(esc(input)))))
                 # Not setting tag-open so it doesn't try to parse this fetch the element-name later
                 # (Because we can't get the element name from a binding during macro analysis)
                 state = STATE_TAG_NAME
@@ -109,6 +109,9 @@ function interpolate(args)
                 state = STATE_TAG_NAME
             elseif state === STATE_TAG_NAME
                 push!(parts, :(tag_name($(esc(input)))))
+                # It might still be a open tag, but we can't parse it with
+                # bindings inside anyway, so setting state_tag_is_open to false
+                state_tag_is_open = false
             else
                 throw("unexpected binding $(state)")
             end

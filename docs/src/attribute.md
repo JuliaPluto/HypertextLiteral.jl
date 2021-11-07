@@ -215,6 +215,14 @@ you would normally put the tag name.
     @htl """<$tagname class=active></$tagname>"""
     #-> <htl-code-block class=active></htl-code-block>
 
+    tagname = "my-web-component"
+    @htl """<$tagname/>"""
+    #-> <my-web-component/>
+
+    tagname = "open-file"
+    @htl """<icon-$tagname/>"""
+    #-> <icon-open-file/>
+
 In case of custom components, you might want to extend the tagname.
 This also is possible.
 
@@ -258,6 +266,10 @@ and the rest can be anything but `/`, `>` and ` ` (space).
     @htl """<$empty></$empty>"""
     #-> ERROR: "A tag name can not be empty"
 
+    empty = ""
+    @htl """<$empty/>"""
+    #-> ERROR: "A tag name can not be empty"
+
 But I figured, better safe than sorry, let's only allow characters people commonly use.
 (We can always make this less restrictive, but making it more restrictive would be a breaking change)
 Also, until someone finds it necessary to implement this, we treat tags with a prefix as
@@ -265,6 +277,9 @@ tag names, thus requiring it to be non-empty and not start with a hyphen.
 
     technically_valid_but_weird = "Technically⨝ValidTag™"
     @htl """<$technically_valid_but_weird></$technically_valid_but_weird>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    @htl """<$technically_valid_but_weird/>"""
     #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
 
     technically_valid_starts_with_hyphen = "-secret-tag-name"

@@ -189,3 +189,26 @@ inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
 inside_tag(::Nothing) = no_content
+
+"""
+    tag_name(x)
+
+Tag names need to start with `/[a-z]/i`,
+and can't contain any spaces, `>` or `/`.
+Although technically all other characters would be valid,
+we only allow letters, numbers and hyphens for now.
+"""
+
+function tag_name(x::String)
+    if isempty(x)
+        throw("A tag name can not be empty")
+    elseif !occursin(r"^[a-z]"i, x)
+        throw("A tag name can only start with letters, not `$(x[1])`")
+    elseif occursin(r"[^a-z0-9-]", x)
+        throw("Content within a tag name can only contain latin letters, numbers or hyphens (`-`)")
+    else
+        x
+    end
+end
+tag_name(x::Symbol) = tag_name(string(x))
+tag_name(x::Any) = throw("Can't use complex objects as tag name")

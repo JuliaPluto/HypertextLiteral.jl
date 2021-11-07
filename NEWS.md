@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.9.3
+
+- Pull #18: Interpolating within a paired tags
+- Pull #19: Fix bug where <hr /></div> throws error
+- Pull #20: Interpolating within self-closing tag
+
 ## v0.9.2
 
 - Fix #17: Attribute interpolation bug

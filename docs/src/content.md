@@ -244,6 +244,92 @@ In fact, the `@htl` macro produces exactly this translation.
     print(@htl "<div>$(Custom("a&b"))</div>")
     #-> <div><custom>a&amp;b</custom></div>
 
+## Tag Names
+
+Interpolation works within tag names, both with symbols and strings.
+
+    tagname = "div"
+    @htl """<$tagname class=active></$tagname>"""
+    #-> <div class=active></div>
+
+    tagname = :div
+    @htl """<$tagname class=active></$tagname>"""
+    #-> <div class=active></div>
+
+    tagname = "htl-code-block"
+    @htl """<$tagname class=active></$tagname>"""
+    #-> <htl-code-block class=active></htl-code-block>
+
+    tagname = "my-web-component"
+    @htl """<$tagname/>"""
+    #-> <my-web-component/>
+
+    tagname = "open-file"
+    @htl """<icon-$tagname/>"""
+    #-> <icon-open-file/>
+
+    tagname = Symbol("open-file")
+    @htl """<icon-$tagname/>"""
+    #-> <icon-open-file/>
+
+    tagname = "code"
+    @htl """<htl-$tagname class=julia>import HypertextLiteral</htl-$tagname>"""
+    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
+
+    prefix = "htl"
+    @htl """<$prefix-code class=julia>import HypertextLiteral</$prefix-code>"""
+    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
+
+Because with tags there isn't much fancy interpolation work we can do,
+you can't put in any complex object.
+
+    complex_prefix = Dict(:class => :julia)
+    @htl """<$complex_prefix>import HypertextLiteral</$complex_prefix>"""
+    #-> ERROR: "Can't use complex objects as tag name"
+
+According to the HTML specification, only the first character has to be
+`/[a-z]/i`, and the rest can be anything but `/`, `>` and ` ` (space).
+We are a bit more restrictive.
+
+    contains_space = "import HypertextLiteral"
+    @htl """<$contains_space></$contains_space>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    contains_bigger_than = "a<div>"
+    @htl """<$contains_bigger_than></$contains_bigger_than>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    contains_slash = "files/extra.js"
+    @htl """<$contains_slash></$contains_slash>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    starts_with_hyphen = "-secret-tag-name"
+    @htl """<$starts_with_hyphen></$starts_with_hyphen>"""
+    #-> ERROR: "A tag name can only start with letters, not `-`"
+
+    empty = ""
+    @htl """<$empty></$empty>"""
+    #-> ERROR: "A tag name can not be empty"
+
+    empty = ""
+    @htl """<$empty/>"""
+    #-> ERROR: "A tag name can not be empty"
+
+    technically_valid_but_weird = "Technically⨝ValidTag™"
+    @htl """<$technically_valid_but_weird></$technically_valid_but_weird>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    @htl """<$technically_valid_but_weird/>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    technically_valid_starts_with_hyphen = "-secret-tag-name"
+    @htl """<prefix$technically_valid_starts_with_hyphen/>"""
+    #-> ERROR: "A tag name can only start with letters, not `-`"
+
+    technically_valid_but_empty = ""
+    @htl """<prefix-$technically_valid_but_empty/>"""
+    #-> ERROR: "A tag name can not be empty"
+
 ## Edge Cases
 
 Within element content, even though it isn't strictly necessary, we

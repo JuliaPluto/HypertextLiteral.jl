@@ -209,7 +209,7 @@ function interpolate(args)
                         i = prevind(input, i)
                     elseif ch === '='
                         state = STATE_BEFORE_ATTRIBUTE_VALUE
-                    elseif ch in ('"', '\"', '<')
+                    elseif ch in ('"', '\'', '<')
                         throw(DomainError(nearby(input, i-1),
                           "unexpected character in attribute name"))
                     else

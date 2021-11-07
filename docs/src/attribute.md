@@ -202,94 +202,6 @@ of CSS classes and a custom style.
     print(@htl "<div $style>Hello</div>")
     #-> <div class='one two' style='background-color: #92a8d1;'>Hello</div>
 
-## Tag name interpolation
-
-To dynamically set the tag name, you put the interpolation right where
-you would normally put the tag name.
-
-    tagname = "div"
-    @htl """<$tagname class=active></$tagname>"""
-    #-> <div class=active></div>
-
-    tagname = "htl-code-block"
-    @htl """<$tagname class=active></$tagname>"""
-    #-> <htl-code-block class=active></htl-code-block>
-
-    tagname = "my-web-component"
-    @htl """<$tagname/>"""
-    #-> <my-web-component/>
-
-    tagname = "open-file"
-    @htl """<icon-$tagname/>"""
-    #-> <icon-open-file/>
-
-In case of custom components, you might want to extend the tagname.
-This also is possible.
-
-    tagname = "code"
-    @htl """<htl-$tagname class=julia>import HypertextLiteral</htl-$tagname>"""
-    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
-
-    prefix = "htl"
-    @htl """<$prefix-code class=julia>import HypertextLiteral</$prefix-code>"""
-    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
-
-Because with tags there isn't much fancy interpolation work we can do,
-you can't put in any complex object.
-
-    complex_prefix = Dict(:class => :julia)
-    @htl """<$complex_prefix>import HypertextLiteral</$complex_prefix>"""
-    #-> ERROR: "Can't use complex objects as tag name"
-
-A tag name _can_ be very flexible, in Chrome `<a™^Î>` is a valid tag name.
-Stricly, only the first character has to be `/[a-z]/i`,
-and the rest can be anything but `/`, `>` and ` ` (space).
-(Yes, theoretically, you can have a `<` in your tag name).
-
-    contains_space = "import HypertextLiteral"
-    @htl """<$contains_space></$contains_space>"""
-    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
-
-    contains_bigger_than = "a<div>"
-    @htl """<$contains_bigger_than></$contains_bigger_than>"""
-    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
-
-    contains_slash = "files/extra.js"
-    @htl """<$contains_slash></$contains_slash>"""
-    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
-
-    starts_with_hyphen = "-secret-tag-name"
-    @htl """<$starts_with_hyphen></$starts_with_hyphen>"""
-    #-> ERROR: "A tag name can only start with letters, not `-`"
-
-    empty = ""
-    @htl """<$empty></$empty>"""
-    #-> ERROR: "A tag name can not be empty"
-
-    empty = ""
-    @htl """<$empty/>"""
-    #-> ERROR: "A tag name can not be empty"
-
-But I figured, better safe than sorry, let's only allow characters people commonly use.
-(We can always make this less restrictive, but making it more restrictive would be a breaking change)
-Also, until someone finds it necessary to implement this, we treat tags with a prefix as
-tag names, thus requiring it to be non-empty and not start with a hyphen.
-
-    technically_valid_but_weird = "Technically⨝ValidTag™"
-    @htl """<$technically_valid_but_weird></$technically_valid_but_weird>"""
-    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
-
-    @htl """<$technically_valid_but_weird/>"""
-    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
-
-    technically_valid_starts_with_hyphen = "-secret-tag-name"
-    @htl """<prefix$technically_valid_starts_with_hyphen></prefix$technically_valid_starts_with_hyphen>"""
-    #-> ERROR: "A tag name can only start with letters, not `-`"
-
-    technically_valid_empty = ""
-    @htl """<prefix-$technically_valid_empty></prefix-$technically_valid_empty>"""
-    #-> ERROR: "A tag name can not be empty"
-
 ## Style Tag
 
 Within a `<style>` tag, Julia values are interpolated using the same
@@ -423,6 +335,18 @@ Invalid attribute names are reported.
     @htl "<tag at<ribute='val'/>"
     #=>
     ERROR: LoadError: DomainError with t<ribute=…
+    unexpected character in attribute name⋮
+    =#
+
+    @htl "<tag at'ribute='val'/>"
+    #=>
+    ERROR: LoadError: DomainError with t'ribute=…
+    unexpected character in attribute name⋮
+    =#
+
+    @htl """<tag at"ribute='val'/>"""
+    #=>
+    ERROR: LoadError: DomainError with t"ribute=…
     unexpected character in attribute name⋮
     =#
 

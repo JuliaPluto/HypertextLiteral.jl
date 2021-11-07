@@ -189,3 +189,20 @@ inside_tag(values::NamedTuple) =
     inside_tag(pairs(values))
 
 inside_tag(::Nothing) = no_content
+
+"""
+    tag_name(x)
+
+This method may be implemented to specify a printed representation
+suitable for tag names.
+"""
+
+function tag_name(x::String)
+    if occursin(r"[^a-zA-Z_]", x)
+        throw("Content within a tag name can only contain [a-zA-Z_]")
+    else
+        x
+    end
+end
+tag_name(x::Symbol) = tag_name(string(x))
+tag_name(x::Any) = throw("Can't use complex objects as tag name")

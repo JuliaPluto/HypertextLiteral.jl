@@ -202,6 +202,36 @@ of CSS classes and a custom style.
     print(@htl "<div $style>Hello</div>")
     #-> <div class='one two' style='background-color: #92a8d1;'>Hello</div>
 
+## Tag name interpolation
+
+To dynamically set the tag name, you put the interpolation right where
+you would normally put the tag name.
+
+    tagname = "div"
+    @htl """<$tagname class=active></$tagname>"""
+    #-> <div class=active></div>
+
+In case of custom components, you might want to extend the tagname.
+This also is possible.
+
+    tagname = "code"
+    @htl """<htl-$tagname class=julia>import HypertextLiteral</htl-$tagname>"""
+    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
+
+    prefix = "htl"
+    @htl """<$prefix-code class=julia>import HypertextLiteral</$prefix-code>"""
+    #-> <htl-code class=julia>import HypertextLiteral</htl-code>
+
+Tag names are very strict, thus we can't use complex objects.
+
+    complex_prefix = Dict(:class => :julia)
+    @htl """<$complex_prefix>import HypertextLiteral</$complex_prefix>"""
+    #-> ERROR: "Can't use complex objects as tag name"
+
+    invalid_tag = "import HypertextLiteral"
+    @htl """<$invalid_tag></$invalid_tag>"""
+    #-> ERROR: "Content within a tag name can only contain [a-zA-Z_]"
+
 ## Style Tag
 
 Within a `<style>` tag, Julia values are interpolated using the same

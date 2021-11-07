@@ -99,6 +99,16 @@ function interpolate(args)
                     end
                 end
                 append!(parts, rewrite_inside_tag(input))
+            elseif state == STATE_TAG_OPEN
+                push!(parts, esc(input))
+                # Not setting tag-open so it doesn't try to parse this fetch the element-name later
+                # (Because we can't get the element name from a binding during macro analysis)
+                state = STATE_TAG_NAME
+            elseif state == STATE_END_TAG_OPEN
+                push!(parts, :(tag_name($(esc(input)))))
+                state = STATE_TAG_NAME
+            elseif state === STATE_TAG_NAME
+                push!(parts, :(tag_name($(esc(input)))))
             else
                 throw("unexpected binding $(state)")
             end

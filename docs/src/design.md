@@ -312,3 +312,8 @@ However, this macro requires a string literal.
     ERROR: LoadError: DomainError with f():
     a string literal is required⋮
     =#
+
+Bug that was in the code before, not sure how/where to narrate this.
+
+    @htl "<hr /></div>"
+    #-> "<hr /></div>"

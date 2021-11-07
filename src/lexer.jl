@@ -276,6 +276,10 @@ function interpolate(args)
                 elseif state == STATE_SELF_CLOSING_START_TAG
                     if ch === '>'
                         state = STATE_DATA
+                        # TODO Choose tokenizer here too? User thinks he is self-closing,
+                        # .... but if this is a <script> or <style> the browser will ignore the "self-closing" `/`
+                        # .... or maybe _just_ warn when a self closing script or style is encountered?
+                        state_tag_is_open = false
                     else
                         throw(DomainError(nearby(input, i-1),
                           "unexpected solidus in tag"))

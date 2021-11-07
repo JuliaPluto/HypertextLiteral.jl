@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>htl String Literal · HypertextLiteral.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">HypertextLiteral.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Overview</a></li><li><a class="tocitem" href="../content/">Element Content</a></li><li><a class="tocitem" href="../attribute/">Attributes &amp; Style</a></li><li><a class="tocitem" href="../script/">Script Interpolation</a></li><li class="is-active"><a class="tocitem" href><code>htl</code> String Literal</a><ul class="internal"><li><a class="tocitem" href="#Notable-Differences"><span>Notable Differences</span></a></li><li><a class="tocitem" href="#Dynamic-Templates"><span>Dynamic Templates</span></a></li><li><a class="tocitem" href="#Regression-Tests-and-Notes"><span>Regression Tests &amp; Notes</span></a></li></ul></li><li><a class="tocitem" href="../design/">Design Rationale</a></li><li><a class="tocitem" href="../primitives/">Escaping Primitives</a></li><li><a class="tocitem" href="../reference/">Package Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href><code>htl</code> String Literal</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href><code>htl</code> String Literal</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/HypertextLiteral.jl/blob/master/docs/src/notation.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="htl-String-Literal"><a class="docs-heading-anchor" href="#htl-String-Literal"><code>htl</code> String Literal</a><a id="htl-String-Literal-1"></a><a class="docs-heading-anchor-permalink" href="#htl-String-Literal" title="Permalink"></a></h1><p>This package additionally provides the <code>@htl_str</code> non-standard string literal.</p><pre><code class="language-julia hljs">using HypertextLiteral
+
+name = &quot;World&quot;
+
+htl&quot;&lt;span&gt;Hello $name&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;
+
+@htl_str &quot;&lt;span&gt;Hello \$name&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;Hello World&lt;/span&gt;</code></pre><h2 id="Notable-Differences"><a class="docs-heading-anchor" href="#Notable-Differences">Notable Differences</a><a id="Notable-Differences-1"></a><a class="docs-heading-anchor-permalink" href="#Notable-Differences" title="Permalink"></a></h2><p>Unlike <code>@htl</code>, the <code>htl</code> string literal uses <code>@raw_str</code> escaping rules. So long as a double-quote character does not come before a slash, the slash itself need not be escaped.</p><pre><code class="language-julia hljs">htl&quot;&lt;span&gt;\some\path&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;\some\path&lt;/span&gt;</code></pre><p>In this notation, <code>\&quot;</code> can be used to escape a double quote. However, other escape sequences are not expanded.</p><pre><code class="language-julia hljs">htl&quot;Hello\&quot;\nWorld\&quot;&quot;
+#-&gt; Hello&quot;\nWorld&quot;</code></pre><p>As a special case, the dollar-sign (<code>$</code>) can be escaped by doubling.</p><pre><code class="language-julia hljs">amount = 42
+
+htl&quot;&lt;span&gt;They paid $$$amount&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;They paid $42&lt;/span&gt;</code></pre><p>Alternatively, one can use the HTML character entity <code>#&amp;36;</code>.</p><pre><code class="language-julia hljs">htl&quot;&lt;span&gt;They paid &amp;#36;$amount&lt;/span&gt;&quot;
+#-&gt; &lt;span&gt;They paid &amp;#36;42&lt;/span&gt;</code></pre><p>Unlike the <code>@htl</code> macro, nesting doesn&#39;t work.</p><pre><code class="language-julia hljs">htl&quot;Hello $(htl&quot;World&quot;)&quot;
+#-&gt; ERROR: syntax: cannot juxtapose string literal</code></pre><p>Triple double-quoted syntax can be used in this case.</p><pre><code class="language-julia hljs">htl&quot;&quot;&quot;Hello $(htl&quot;World&quot;)&quot;&quot;&quot;
+#-&gt; Hello World</code></pre><p>However, this trick works only one level deep. Hence, there are some significant downsides to using this format, which are explored in detail at Julia #38948.</p><h2 id="Dynamic-Templates"><a class="docs-heading-anchor" href="#Dynamic-Templates">Dynamic Templates</a><a id="Dynamic-Templates-1"></a><a class="docs-heading-anchor-permalink" href="#Dynamic-Templates" title="Permalink"></a></h2><p>The <code>@htl_str</code> macro can be used to dynamically construct templates. Suppose you have a schema that is provided dynamically. Let&#39;s make a test database with exactly one row.</p><pre><code class="language-julia hljs">T = NamedTuple{(:idx, :value), Tuple{Int64, String}};
+
+database = [T((1, &quot;A&amp;B&quot;))];
+
+display(database)
+#=&gt;
+1-element Vector{NamedTuple{(:idx, :value), …}:
+ (idx = 1, value = &quot;A&amp;B&quot;)
+=#</code></pre><p>We could construct a table header from this schema.</p><pre><code class="language-julia hljs">fields = T.parameters[1]
+#-&gt; (:idx, :value)
+
+head = @htl &quot;&lt;tr&gt;$([@htl(&quot;&lt;th&gt;$x&quot;) for x in fields])&quot;
+#-&gt; &lt;tr&gt;&lt;th&gt;idx&lt;th&gt;value</code></pre><p>Then, we need to compute a template for each row.</p><pre><code class="language-julia hljs">row_template = &quot;&lt;tr&gt;$(join([&quot;&lt;td&gt;\$(row[$(repr(x))])&quot; for x in fields]))&quot;
+
+print(row_template)
+#-&gt; &lt;tr&gt;&lt;td&gt;$(row[:idx])&lt;td&gt;$(row[:value])</code></pre><p>Using <code>eval</code> with <code>@htl_str</code> we could construct our template function.</p><pre><code class="language-julia hljs">eval(:(tablerow(row) = @htl_str $row_template))
+
+tablerow(database[1])
+#-&gt; &lt;tr&gt;&lt;td&gt;1&lt;td&gt;A&amp;amp;B</code></pre><p>A template for the entire table could be constructed.</p><pre><code class="language-julia hljs">table_template = &quot;&lt;table&gt;$head\$([tablerow(row) for row in data])&lt;/table&gt;&quot;
+
+print(table_template)
+#-&gt; &lt;table&gt;&lt;tr&gt;&lt;th&gt;idx…$([tablerow(row) for row in data])&lt;/table&gt;
+
+eval(:(print_table(data) = @htl_str $table_template))</code></pre><p>Then, finally, this could be used.</p><pre><code class="language-julia hljs">print_table(database)
+#-&gt; &lt;table&gt;&lt;tr&gt;&lt;th&gt;idx&lt;th&gt;value&lt;tr&gt;&lt;td&gt;1&lt;td&gt;A&amp;amp;B&lt;/table&gt;</code></pre><h2 id="Regression-Tests-and-Notes"><a class="docs-heading-anchor" href="#Regression-Tests-and-Notes">Regression Tests &amp; Notes</a><a id="Regression-Tests-and-Notes-1"></a><a class="docs-heading-anchor-permalink" href="#Regression-Tests-and-Notes" title="Permalink"></a></h2><p>Due to <code>@raw_str</code> escaping, string literal forms are a bit quirky. Use the triple double-quoted form if your content has a double quote. Avoid slashes preceding a double quote, instead use the <code>&amp;#47;</code> HTML entity.</p><pre><code class="language-julia hljs">htl&quot;\&quot;\t\\&quot;
+#-&gt; &quot;\t\
+
+htl&quot;(\\\&quot;)&quot;
+#-&gt; (\&quot;)</code></pre><p>Even though we could permit interpretation of arrays notation, we stick with keeping this an error for consistency with the macro form.</p><pre><code class="language-julia hljs">htl&quot;$[1,2,3]&quot;
+#=&gt;
+ERROR: LoadError: DomainError with [1, 2, 3]:
+interpolations must be symbols or parenthesized⋮
+=#</code></pre><p>Let&#39;s also not permit top-level assignments.</p><pre><code class="language-julia hljs">htl&quot;$(k=value)&quot;
+#=&gt;
+ERROR: LoadError: DomainError with k = value:
+assignments are not permitted in an interpolation⋮
+=#</code></pre><p>Since the implementers of the notation have some control over the parsing, we can reliably detect string literals (Julia #38501).</p><pre><code class="language-julia hljs">htl&quot;&quot;&quot;&lt;span&gt;$(&quot;A&amp;B&quot;)&lt;/span&gt;&quot;&quot;&quot;
+#-&gt; &lt;span&gt;A&amp;amp;B&lt;/span&gt;</code></pre><p>There is one less round of parenthesis needed for tuples, named tuples and generators (Julia #38734).</p><pre><code class="language-julia hljs">name = &quot;Hello&quot;
+
+htl&quot;&lt;tag $(user=name,)/&gt;&quot;
+#-&gt; &lt;tag user=&#39;Hello&#39;/&gt;
+
+print(htl&quot;&lt;span&gt;$(n for n in 1:3)&lt;/span&gt;&quot;)
+#-&gt; &lt;span&gt;123&lt;/span&gt;</code></pre><p>Due to escaping rules, we interpret a dollar sign as beginning an expression, even if it might otherwise be preceded by a slash.</p><pre><code class="language-julia hljs">htl&quot;Hello\$#&quot;
+#=&gt;
+ERROR: LoadError: &quot;missing expression at 7: #&quot;⋮
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../script/">« Script Interpolation</a><a class="docs-footer-nextpage" href="../design/">Design Rationale »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a>, <a href="https://github.com/MechanicalRabbit/NarrativeTest.jl">NarrativeTest.jl</a>, and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Sunday 7 November 2021 23:45">Sunday 7 November 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

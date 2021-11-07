@@ -193,13 +193,19 @@ inside_tag(::Nothing) = no_content
 """
     tag_name(x)
 
-This method may be implemented to specify a printed representation
-suitable for tag names.
+Tag names need to start with `/[a-z]/i`,
+and can't contain any spaces, `>` or `/`.
+Although technically all other characters would be valid,
+we only allow letters, numbers and hyphens for now.
 """
 
 function tag_name(x::String)
-    if occursin(" ", x)
-        throw("Content within a tag name must not contain spaces")
+    if isempty(x)
+        throw("A tag name can not be empty")
+    elseif !occursin(r"^[a-z]"i, x)
+        throw("A tag name can only start with letters, not `$(x[1])`")
+    elseif occursin(r"[^a-z0-9-]", x)
+        throw("Content within a tag name can only contain latin letters, numbers or hyphens (`-`)")
     else
         x
     end

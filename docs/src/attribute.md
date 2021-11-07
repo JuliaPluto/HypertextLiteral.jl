@@ -226,15 +226,54 @@ This also is possible.
     @htl """<$prefix-code class=julia>import HypertextLiteral</$prefix-code>"""
     #-> <htl-code class=julia>import HypertextLiteral</htl-code>
 
-Tag names are very strict, thus we can't use complex objects.
+Because with tags there isn't much fancy interpolation work we can do,
+you can't put in any complex object.
 
     complex_prefix = Dict(:class => :julia)
     @htl """<$complex_prefix>import HypertextLiteral</$complex_prefix>"""
     #-> ERROR: "Can't use complex objects as tag name"
 
-    invalid_tag = "import HypertextLiteral"
-    @htl """<$invalid_tag></$invalid_tag>"""
-    #-> ERROR: "Content within a tag name must not contain spaces"
+A tag name _can_ be very flexible, in Chrome `<a™^Î>` is a valid tag name.
+Stricly, only the first character has to be `/[a-z]/i`,
+and the rest can be anything but `/`, `>` and ` ` (space).
+(Yes, theoretically, you can have a `<` in your tag name).
+
+    contains_space = "import HypertextLiteral"
+    @htl """<$contains_space></$contains_space>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    contains_bigger_than = "a<div>"
+    @htl """<$contains_bigger_than></$contains_bigger_than>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    contains_slash = "files/extra.js"
+    @htl """<$contains_slash></$contains_slash>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    starts_with_hyphen = "-secret-tag-name"
+    @htl """<$starts_with_hyphen></$starts_with_hyphen>"""
+    #-> ERROR: "A tag name can only start with letters, not `-`"
+
+    empty = ""
+    @htl """<$empty></$empty>"""
+    #-> ERROR: "A tag name can not be empty"
+
+But I figured, better safe than sorry, let's only allow characters people commonly use.
+(We can always make this less restrictive, but making it more restrictive would be a breaking change)
+Also, until someone finds it necessary to implement this, we treat tags with a prefix as
+tag names, thus requiring it to be non-empty and not start with a hyphen.
+
+    technically_valid_but_weird = "Technically⨝ValidTag™"
+    @htl """<$technically_valid_but_weird></$technically_valid_but_weird>"""
+    #-> ERROR: "Content within a tag name can only contain latin letters, numbers or hyphens (`-`)"
+
+    technically_valid_starts_with_hyphen = "-secret-tag-name"
+    @htl """<prefix$technically_valid_starts_with_hyphen></prefix$technically_valid_starts_with_hyphen>"""
+    #-> ERROR: "A tag name can only start with letters, not `-`"
+
+    technically_valid_empty = ""
+    @htl """<prefix-$technically_valid_empty></prefix-$technically_valid_empty>"""
+    #-> ERROR: "A tag name can not be empty"
 
 ## Style Tag
 

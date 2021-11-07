@@ -211,6 +211,10 @@ you would normally put the tag name.
     @htl """<$tagname class=active></$tagname>"""
     #-> <div class=active></div>
 
+    tagname = "htl-code-block"
+    @htl """<$tagname class=active></$tagname>"""
+    #-> <htl-code-block class=active></htl-code-block>
+
 In case of custom components, you might want to extend the tagname.
 This also is possible.
 

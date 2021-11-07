@@ -2,34 +2,34 @@
 
 This package is implemented according to several design criteria.
 
-* Operation of interpolated expressions (`$`) should (mostly) mirror
+- Operation of interpolated expressions (`$`) should (mostly) mirror
   what they would do with regular Julia strings, updated with hypertext
   escaping sensibilities including proper escaping.
 
-* Speed of construction is critically important. This library is
+- Speed of construction is critically important. This library is
   intended to be used deep within systems that generate extensive
   number of very large reports, interactively or in batch.
 
-* With exception of boolean attributes (which must be removed to be
+- With exception of boolean attributes (which must be removed to be
   false), templates are treated as-is and not otherwise modified.
 
-* Within `<script>`, support translation of Julia objects to JavaScript.
+- Within `<script>`, support translation of Julia objects to JavaScript.
   Enable this translation to be used within `on` and other contexts via
   `HypertextLiteral.js` function.
 
-* Since the `style` and `class` attributes are so important in HTML
+- Since the `style` and `class` attributes are so important in HTML
   construction, interpretations of Julia constructs should support
   these CSS attributes.
 
-* There should be a discoverable and well documented extension API that
+- There should be a discoverable and well documented extension API that
   permits custom data types to provide their own serialization
   strategies based upon syntactical context.
 
-* As much processing (e.g. hypertext lexical analysis) should be done
+- As much processing (e.g. hypertext lexical analysis) should be done
   during macro expansion to reduce runtime and to report errors early.
   We'll be slightly slower on interactive use to be fast in batch.
 
-* Full coverage of HTML syntax or reporting syntax or semantic errors
+- Full coverage of HTML syntax or reporting syntax or semantic errors
   within the HTML content is not a goal.
 
 ## Specific Design Decisions
@@ -312,3 +312,8 @@ However, this macro requires a string literal.
     ERROR: LoadError: DomainError with f():
     a string literal is required⋮
     =#
+
+Bug that was in the code before, not sure how/where to narrate this.
+
+    @htl "<hr /></div>"
+    #-> <hr /></div>

@@ -230,7 +230,7 @@ Tag names are very strict, thus we can't use complex objects.
 
     invalid_tag = "import HypertextLiteral"
     @htl """<$invalid_tag></$invalid_tag>"""
-    #-> ERROR: "Content within a tag name can only contain [a-zA-Z_]"
+    #-> ERROR: "Content within a tag name must not contain spaces"
 
 ## Style Tag
 

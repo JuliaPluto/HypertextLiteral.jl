@@ -198,8 +198,8 @@ suitable for tag names.
 """
 
 function tag_name(x::String)
-    if occursin(r"[^a-zA-Z_]", x)
-        throw("Content within a tag name can only contain [a-zA-Z_]")
+    if occursin(" ", x)
+        throw("Content within a tag name must not contain spaces")
     else
         x
     end

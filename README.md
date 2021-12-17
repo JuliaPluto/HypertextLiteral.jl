@@ -52,7 +52,7 @@ JavaScript data within the Julia language, including:
 * Performant escaping of interpolated values
 * Handles boolean valued attributes, such as `disabled`, `checked`
 * Serialization of `Pair` and `Tuple` objects as attribute pairs
-* Conversion of `snake_case` => `camel-case` for attribute names
+* Conversion of `snake_case` => `kebab-case` for attribute names
 * Support for CSS style formatting via `Pair`, `Tuple` and `Dict`
 * Translation of Julia values to Javascript within `script` tag
 * Direct inclusion of objects (like `HTML`) showable by `MIME"text/html"`

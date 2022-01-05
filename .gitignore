@@ -3,3 +3,4 @@
 *.jl.mem
 *.swp
 *.bak
+test/Manifest.toml

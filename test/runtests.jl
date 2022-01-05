@@ -55,9 +55,9 @@ default = package_path.(["README.md", "docs/src"])
             quote
                 using HypertextLiteral:
                     HypertextLiteral, @htl, @htl_str,
-                    Reprint, Render, Bypass, EscapeProxy,
-                    attribute_value, content, attribute_pair,
-                    inside_tag
+                    Reprint, PrintSequence, Render, Bypass, 
+                    EscapeProxy, attribute_value, content, 
+                    attribute_pair, inside_tag
                 using Dates
             end)
         with_logger(Logging.ConsoleLogger(stderr, Logging.Warn)) do

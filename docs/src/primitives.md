@@ -4,7 +4,7 @@ This is a regression test for components upon which HTL is constructed,
 the design centers around `EscapeProxy` which escapes content printed to
 it. There are several wrappers which drive special proxy handling.
 
-    using HypertextLiteral: EscapeProxy, Bypass, Reprint, Render
+    using HypertextLiteral: EscapeProxy, Bypass, Reprint, PrintSequence, Render
 
 ## EscapeProxy
 
@@ -47,6 +47,14 @@ Reprinted content is still subject to escaping.
 
     @echo print(ep, Reprint(io -> print(io, "(&'<\")")))
     #-> (&amp;&apos;&lt;&quot;)
+
+## PrintSequence
+
+This wrapper prints each of its contents. Unlike `Bypass`, escaping is still applied.
+
+    @echo print(ep, PrintSequence("hello ", Bypass("<tagged/>"), " <A&B>"))
+    #-> hello <tagged/> &lt;A&amp;B>
+
 
 ## Render
 

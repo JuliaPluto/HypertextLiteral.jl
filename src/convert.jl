@@ -94,17 +94,8 @@ serialized as: `<span class="Base-Missing">missing</span>`.
              cls = join(fullname(mod), "-") * "-" * cls
          end
          span = """<span class="$cls">"""
-         return :(reprint(Bypass($span), x, Bypass("</span>")))
+         return :(PrintSequence(Bypass($span), x, Bypass("</span>")))
      end
-end
-
-function reprint(xs...)
-    # generated functions cannot contain a closure
-    Reprint() do io::IO
-        for x in xs
-            print(io, x)
-        end
-    end
 end
 
 content(x::Union{AbstractString, Symbol}) = x
@@ -113,11 +104,7 @@ content(x::Union{AbstractFloat, Bool, Integer}) = x
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    Reprint() do io::IO
-        for x in xs
-            print(io, content(x))
-        end
-    end
+    PrintSequence((content(x) for x in xs)...)
 end
 
 #-------------------------------------------------------------------------
@@ -133,27 +120,27 @@ provided. If the value is `false` or `nothing` then the entire pair is
 not printed.  If the value is `true` than an empty string is produced.
 """
 
-no_content = Reprint(io::IO -> nothing)
+no_content = PrintSequence()
 
 function attribute_pair(name, value)
-    Reprint() do io::IO
-        print(io, " ")
-        print(io, name)
-        print(io, Bypass("='"))
-        print(io, attribute_value(value))
-        print(io, Bypass("'"))
-    end
+    PrintSequence(
+        " ",
+        name,
+        Bypass("='"),
+        attribute_value(value),
+        Bypass("'")
+    )
 end
 
 function attribute_pair(name, value::Bool)
     if value == false
         return no_content
     end
-    Reprint() do io::IO
-        print(io, " ")
-        print(io, name)
-        print(io, Bypass("=''"))
-    end
+    PrintSequence(
+        " ", 
+        name, 
+        Bypass("=''")
+    )
 end
 
 attribute_pair(name, value::Nothing) = no_content
@@ -177,12 +164,11 @@ function inside_tag(value::Union{AbstractString, Symbol})
 end
 
 function inside_tag(xs::AbstractDict)
-    Reprint() do io::IO
-        for (key, value) in xs
-            name = normalize_attribute_name(key)
-            print(io, attribute_pair(name, value))
-        end
-    end
+    PrintSequence((
+        let name = normalize_attribute_name(key)
+            attribute_pair(name, value)
+        end for (key, value) in xs)...
+    )
 end
 
 inside_tag(values::NamedTuple) =

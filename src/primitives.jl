@@ -8,6 +8,16 @@ end
 Base.print(io::IO, r::Reprint) = r.content(io)
 
 """
+    PrintSequence(xs...) - print each contained object when printed
+"""
+struct PrintSequence
+    contents::Tuple
+
+    PrintSequence(contents...) = new(contents)
+end
+Base.print(io::IO, r::PrintSequence) = print(io, r.contents...)
+
+"""
     Render(data) - printed object shows its text/html
 """
 struct Render{T}

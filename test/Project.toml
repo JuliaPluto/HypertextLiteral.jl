@@ -1,6 +1,7 @@
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Faker = "0efc519c-db33-5916-ab87-703215c3906f"
 Hyperscript = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 NarrativeTest = "9563631e-acd4-5dd8-bebb-4cf36518960d"

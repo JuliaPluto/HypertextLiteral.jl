@@ -38,7 +38,7 @@ Base.print(ep::EscapeProxy, x::ScriptTag) =
 
 This object renders Javascript `data` escaped within an attribute.
 """
-mutable struct Script
+struct Script
     content::Any
 end
 

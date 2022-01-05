@@ -62,7 +62,7 @@ attribute_value(x::String) = x
 attribute_value(x::Number) = x
 attribute_value(x::Symbol) = x
 
-mutable struct AttributeValue
+struct AttributeValue
     content::Any
 end
 

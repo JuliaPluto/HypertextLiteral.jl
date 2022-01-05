@@ -1,7 +1,7 @@
 """
     Reprint(fn) - apply the lambda function when printed
 """
-mutable struct Reprint
+struct Reprint
     content::Function
 end
 
@@ -31,7 +31,7 @@ Base.print(io::IO, r::Render) =
     Bypass(data) - printed object passes though EscapeProxy unescaped
 """
 
-mutable struct Bypass{T}
+struct Bypass{T}
     content::T
 end
 

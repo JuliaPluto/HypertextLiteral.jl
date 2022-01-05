@@ -96,29 +96,19 @@ macro htl_str(expr::String)
 end
 
 """
-    Result(fn)
+    Result(xs...)
 
-This object wraps a function produced by the `@htl` macro. This function
-prints a the evaluated to the given `io`. This object is also showable
-via `"text/html"` so it may be used in an HTML display context.
+This object wraps a sequence of objects produced by the `@htl` macro, 
+which are printed when the object is printed. This object is also 
+showable via `"text/html"` so it may be used in an HTML display context.
 """
 struct Result
-    content::Function
+    contents::Tuple
 
-    Result(fn::Function) = new(fn)
+    Result(contents...) = new(contents)
 end
 
-Result(ob) = Result(io::IO -> print(io, ob))
-
-function Result(xs...)
-    Result() do io::IO
-        for x in xs
-            print(io, x)
-        end
-    end
-end
-
-Base.show(io::IO, h::Result) = h.content(EscapeProxy(io))
-Base.show(io::IO, m::MIME"text/html", h::Result) = h.content(EscapeProxy(io))
-Base.show(io::EscapeProxy, h::Result) = h.content(io)
-Base.show(io::EscapeProxy, m::MIME"text/html", h::Result) = h.content(io)
+Base.show(io::EscapeProxy, h::Result) = print(io, h.contents...)
+Base.show(io::EscapeProxy, m::MIME"text/html", h::Result) = show(io, h)
+Base.show(io::IO, h::Result) = show(EscapeProxy(io), h)
+Base.show(io::IO, m::MIME"text/html", h::Result) = show(EscapeProxy(io), h)

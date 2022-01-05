@@ -45,7 +45,24 @@ ENV["COLUMNS"] = "72"
 package_path(x) = relpath(joinpath(dirname(abspath(PROGRAM_FILE)), "..", x))
 default = package_path.(["README.md", "docs/src"])
 
+macro htl_equality(expr)
+    htl_ex() = Expr(:macrocall, getfield(HypertextLiteral, Symbol("@htl")), __source__, deepcopy(expr))
+    :($(esc(htl_ex())) === $(esc(htl_ex())))
+end
+
 @testset "HypertextLiteral" begin
+    
+    @testset "Equality tests" begin
+        @info "Running equality tests..."
+        
+        @test @htl_equality "hello"
+        @test @htl_equality "hello $(123) world"
+        @test !@htl_equality "hello $(rand())"
+        @test !@htl_equality "hello $(Dict(:a => 1))"
+        @test @htl_equality "<div style=$((a=1,b=2))>a</div>"
+        @test @htl_equality "<div $((a=1,b=2))>a</div>"
+        @test @htl_equality "<script>let x = $((a=1,b=2));</script>"
+    end
 
     if isempty(ARGS) || "doctest" in ARGS
         @info "Running doctest..."

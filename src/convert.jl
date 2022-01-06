@@ -164,10 +164,11 @@ function inside_tag(value::Union{AbstractString, Symbol})
 end
 
 function inside_tag(xs::AbstractDict)
-    PrintSequence(Iterators.map(xs) do (key,value)
-        name = normalize_attribute_name(key)
-        attribute_pair(name, value)
-    end...)
+    PrintSequence((
+        let name = normalize_attribute_name(key)
+            attribute_pair(name, value)
+        end for (key, value) in xs)...
+    )
 end
 
 inside_tag(values::NamedTuple) =

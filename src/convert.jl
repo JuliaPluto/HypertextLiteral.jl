@@ -94,7 +94,7 @@ serialized as: `<span class="Base-Missing">missing</span>`.
              cls = join(fullname(mod), "-") * "-" * cls
          end
          span = """<span class="$cls">"""
-         return :(PrintSequence(Bypass($span), x, Bypass("</span>")))
+         return :(PrintSequence((Bypass($span), x, Bypass("</span>"))))
      end
 end
 
@@ -104,7 +104,7 @@ content(x::Union{AbstractFloat, Bool, Integer}) = x
 content(xs...) = content(xs)
 
 function content(xs::Union{Tuple, AbstractArray, Base.Generator})
-    PrintSequence((content(x) for x in xs)...)
+    PrintSequence(Iterators.map(content, xs))
 end
 
 #-------------------------------------------------------------------------
@@ -120,27 +120,27 @@ provided. If the value is `false` or `nothing` then the entire pair is
 not printed.  If the value is `true` than an empty string is produced.
 """
 
-no_content = PrintSequence()
+no_content = PrintSequence(())
 
 function attribute_pair(name, value)
-    PrintSequence(
+    PrintSequence((
         " ",
         name,
         Bypass("='"),
         attribute_value(value),
         Bypass("'")
-    )
+    ))
 end
 
 function attribute_pair(name, value::Bool)
     if value == false
         return no_content
     end
-    PrintSequence(
+    PrintSequence((
         " ", 
         name, 
         Bypass("=''")
-    )
+    ))
 end
 
 attribute_pair(name, value::Nothing) = no_content
@@ -164,11 +164,10 @@ function inside_tag(value::Union{AbstractString, Symbol})
 end
 
 function inside_tag(xs::AbstractDict)
-    PrintSequence((
-        let name = normalize_attribute_name(key)
-            attribute_pair(name, value)
-        end for (key, value) in xs)...
-    )
+    PrintSequence(Iterators.map(xs) do (key, value)
+        name = normalize_attribute_name(key)
+        attribute_pair(name, value)
+    end)
 end
 
 inside_tag(values::NamedTuple) =

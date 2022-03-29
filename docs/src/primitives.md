@@ -52,7 +52,7 @@ Reprinted content is still subject to escaping.
 
 This wrapper prints each of its contents. Unlike `Bypass`, escaping is still applied.
 
-    @echo print(ep, PrintSequence("hello ", Bypass("<tagged/>"), " <A&B>"))
+    @echo print(ep, PrintSequence(("hello ", Bypass("<tagged/>"), " <A&B>")))
     #-> hello <tagged/> &lt;A&amp;B>
 
 

@@ -8,14 +8,12 @@ end
 Base.print(io::IO, r::Reprint) = r.content(io)
 
 """
-    PrintSequence(xs...) - print each contained object when printed
+    PrintSequence(xs) - print each element of `xs` when printed
 """
 struct PrintSequence
-    contents::Tuple
-
-    PrintSequence(contents...) = new(contents)
+    contents
 end
-Base.print(io::IO, r::PrintSequence) = print(io, r.contents...)
+Base.print(io::IO, r::PrintSequence) = foreach(x -> print(io, x), r.contents)
 
 """
     Render(data) - printed object shows its text/html

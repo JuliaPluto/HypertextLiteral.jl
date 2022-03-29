@@ -265,7 +265,7 @@ nest_test() = begin
    return io
 end
 
-BenchmarkTools.DEFAULT_PARAMETERS.seconds = 20
+BenchmarkTools.DEFAULT_PARAMETERS.seconds = 5
 @info("interpolate: ", @benchmark reg_test())
 @info("Custom HTML: ", @benchmark cus_test())
 @info("Hyperscript: ", @benchmark hs_test())

@@ -1,5 +1,9 @@
 # Release Notes
 
+## v0.9.4
+
+- Pull #27: Make IO Context available inside `<script>`
+
 ## v0.9.3
 
 - Pull #18: Interpolating within a paired tags

@@ -13,7 +13,7 @@ julia> print(gp, "</style>")
 ERROR: "Content within a style tag must not contain `</style>`"
 ```
 """
-mutable struct StyleTagProxy{T<:IO} <: IO where {T}
+mutable struct StyleTagProxy{T<:IO} <: IOProxy where {T}
     io::T
     index::Int
 

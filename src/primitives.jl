@@ -27,6 +27,8 @@ end
 
 Base.print(io::IO, x::Bypass) = print(io, x.content)
 
+abstract type IOProxy <: IO end
+
 """
     EscapeProxy(io) - wrap an `io` to perform HTML escaping
 
@@ -44,7 +46,7 @@ julia> print(ep, Bypass("<tag/>"))
 <tag/>
 ```
 """
-struct EscapeProxy{T<:IO} <: IO
+struct EscapeProxy{T<:IO} <: IOProxy
     io::T
 end
 
@@ -108,3 +110,11 @@ function Base.unsafe_write(ep::EscapeProxy, input::Ptr{UInt8}, nbytes::UInt)
     end
     return written
 end
+
+# IO passthrough methods:
+Base.in(key_value::Pair, io::IOProxy) = in(key_value, io.io)
+Base.haskey(io::IOProxy, key) = haskey(io.io, key)
+Base.getindex(io::IOProxy, key) = getindex(io.io, key)
+Base.get(io::IOProxy, key, default) = get(io.io, key, default)
+Base.keys(io::IOProxy) = keys(io.io)
+Base.displaysize(io::IOProxy) = displaysize(io.io)

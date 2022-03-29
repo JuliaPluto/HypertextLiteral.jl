@@ -125,7 +125,7 @@ desirable for use inside an attribute value.
     struct Custom data::String end
 
     @htl "<tag att=$(Custom("A&B"))/>"
-    #-> <tag att='…Custom(&quot;A&amp;B&quot;)'/>
+    #-> <tag att='Custom(&quot;A&amp;B&quot;)'/>
 
 This can be sometimes addressed by implementing `Base.print()`.
 

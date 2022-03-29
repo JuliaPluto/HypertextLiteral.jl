@@ -10,11 +10,12 @@ it. There are several wrappers which drive special proxy handling.
 
 This utility class acts wraps an `IO` stream to provide HTML escaping.
 
-    io = IOBuffer()
+    io_buffer = IOBuffer()
+    io = IOContext(io_buffer, :hello => "world")
     ep = EscapeProxy(io)
 
     macro echo(expr)
-        :($expr; print(String(take!(io))))
+        :($expr; print(String(take!(io_buffer))))
     end
 
 The result of this proxy is that regular content printed to it is passed
@@ -23,6 +24,11 @@ along to the wrapped `IO`, after escaping the ampersand (`&`), less-than
 
     @echo print(ep, "(&'<\")")
     #-> (&amp;&apos;&lt;&quot;)
+
+Any [IO context properties](https://docs.julialang.org/en/v1/base/io-network/#Base.IOContext-Tuple{IO,%20Pair}) will be reflected by the `EscapeProxy`:
+
+    @echo print(ep, get(ep, :hello, "oops"))
+    #-> world
 
 ## Bypass
 

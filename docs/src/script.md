@@ -149,24 +149,6 @@ this function on datatypes which require further translation.
 This method is how we provide support for datatypes in `Base` without
 committing type piracy by implementing `show` for `"text/javascript"`.
 
-### IO Context
-
-Any [IO context properties](https://docs.julialang.org/en/v1/base/io-network/#Base.IOContext-Tuple{IO,%20Pair}) of the renderer can be used, as expected:
-
-    struct Hello end
-    
-    function Base.show(io::IO, ::MIME"text/javascript", ::Hello)
-        print(io, get(io, :hello, "oops"))
-    end
-    
-    h = @htl("""<script>const x = $(Hello())</script>""")
-    
-    repr(
-        MIME"text/html"(), h; 
-        context=(:hello => "world")
-    )
-    #-> "<script>const x = world</script>"
-
 ## Edge Cases
 
 Within a `<script>` tag, comment start (`<!--`) must also be escaped.
@@ -185,3 +167,21 @@ It's important to handle unicode content properly.
 
     @htl("<script>alert($(s))</script>")
     #-> <script>alert("α\n")</script>
+
+## Regression tests
+
+Any [IO context properties](https://docs.julialang.org/en/v1/base/io-network/#Base.IOContext-Tuple{IO,%20Pair}) of the renderer can be used, as expected:
+
+    struct Hello end
+    
+    function Base.show(io::IO, ::MIME"text/javascript", ::Hello)
+        print(io, get(io, :hello, "oops"))
+    end
+    
+    h = @htl("""<script>const x = $(Hello())</script>""")
+    
+    repr(
+        MIME"text/html"(), h; 
+        context=(:hello => "world")
+    )
+    #-> "<script>const x = world</script>"

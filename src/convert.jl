@@ -84,17 +84,17 @@ used. Otherwise, the result is printed within a `<span>` tag, using a
 `class` that includes the module and type name. Hence, `missing` is
 serialized as: `<span class="Base-Missing">missing</span>`.
 """
-@generated function content(x)
-     if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
-         return :(Render(x))
+function content(x::T) where {T}
+     if static_hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, T})
+         return Render(x)
      else
-         mod = parentmodule(x)
-         cls = string(nameof(x))
+         mod = parentmodule(T)
+         cls = string(nameof(T))
          if mod == Core || mod == Base || pathof(mod) !== nothing
              cls = join(fullname(mod), "-") * "-" * cls
          end
          span = """<span class="$cls">"""
-         return :(reprint(Bypass($span), x, Bypass("</span>")))
+         return reprint(Bypass(span), x, Bypass("</span>"))
      end
 end
 

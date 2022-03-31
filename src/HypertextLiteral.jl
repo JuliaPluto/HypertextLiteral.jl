@@ -32,6 +32,8 @@ See also: [`@htl`](@ref), [`HypertextLiteral.@htl_str`](@ref)
 """
 module HypertextLiteral
 
+using Tricks: static_hasmethod
+
 export @htl, @htl_str
 
 include("primitives.jl") # Wrap, Unwrap, EscapeProxy

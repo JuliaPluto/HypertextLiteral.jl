@@ -71,7 +71,8 @@ Base.print(ep::EscapeProxy, x::AttributeValue) =
 
 attribute_value(@nospecialize x) = AttributeValue(x)
 
-"""
+function content end
+@doc """
     content(x)
 
 This method may be implemented to specify a printed representation
@@ -83,19 +84,36 @@ implemented a way to show themselves as `text/html`, if so, this is
 used. Otherwise, the result is printed within a `<span>` tag, using a
 `class` that includes the module and type name. Hence, `missing` is
 serialized as: `<span class="Base-Missing">missing</span>`.
-"""
-@generated function content(x)
-     if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
-         return :(Render(x))
-     else
-         mod = parentmodule(x)
-         cls = string(nameof(x))
-         if mod == Core || mod == Base || pathof(mod) !== nothing
-             cls = join(fullname(mod), "-") * "-" * cls
-         end
-         span = """<span class="$cls">"""
-         return :(reprint(Bypass($span), x, Bypass("</span>")))
-     end
+""" content
+
+@static if VERSION >= v"1.3"
+    function content(x::T) where {T}
+        if static_hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, T})
+            return Render(x)
+        else
+            mod = parentmodule(T)
+            cls = string(nameof(T))
+            if mod == Core || mod == Base || pathof(mod) !== nothing
+                cls = join(fullname(mod), "-") * "-" * cls
+            end
+            span = """<span class="$cls">"""
+            return reprint(Bypass(span), x, Bypass("</span>"))
+        end
+    end
+else
+    @generated function content(x)
+        if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
+            return :(Render(x))
+        else
+            mod = parentmodule(x)
+            cls = string(nameof(x))
+            if mod == Core || mod == Base || pathof(mod) !== nothing
+                cls = join(fullname(mod), "-") * "-" * cls
+            end
+            span = """<span class="$cls">"""
+            return :(reprint(Bypass($span), x, Bypass("</span>")))
+        end
+    end
 end
 
 function reprint(xs...)

@@ -76,3 +76,18 @@ default = package_path.(["README.md", "docs/src"])
         end
     end
 end
+
+@static if VERSION >= v"1.3"
+    
+    struct Foo end
+    
+    @testset "invalidation" begin 
+        @test HypertextLiteral.content(Foo()) isa HypertextLiteral.Reprint # fallback
+
+        # Now define a html printing type 
+        @eval Base.show(io::IO, ::MIME"text/html", ::Foo) = "Foo"
+
+        # Previously this would not have worked because content is a generated function depending on hasmethod in the generator
+        @test repr(Base.invokelatest(HypertextLiteral.content, Foo())) == "HypertextLiteral.Render{Foo}(Foo())"
+    end
+end

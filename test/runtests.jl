@@ -80,8 +80,11 @@ end
 struct Foo end
 
 @testset "invalidation" begin 
-    @test repr(HypertextLiteral.content(Foo())) == "HypertextLiteral.Reprint(HypertextLiteral.var\"#6#7\"{Tuple{HypertextLiteral.Bypass{String}, Foo, HypertextLiteral.Bypass{String}}}((HypertextLiteral.Bypass{String}(\"<span class=\\\"Foo\\\">\"), Foo(), HypertextLiteral.Bypass{String}(\"</span>\"))))"
+    @test HypertextLiteral.content(Foo()) isa HypertextLiteral.Reprint # fallback
+    
+    # Now define a html printing type 
     @eval Base.show(io::IO, ::MIME"text/html", ::Foo) = "Foo"
+    
     # Previously this would not have worked because content is a generated function depending on hasmethod in the generator
     @test repr(Base.invokelatest(HypertextLiteral.content, Foo())) == "HypertextLiteral.Render{Foo}(Foo())"
 end

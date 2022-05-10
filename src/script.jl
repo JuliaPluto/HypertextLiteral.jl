@@ -13,7 +13,7 @@ julia> print(gp, "</script>")
 ERROR: "Content within a script tag must not contain `</script>`"
 ```
 """
-mutable struct ScriptTagProxy{T<:IO} <: IO where {T}
+mutable struct ScriptTagProxy{T<:IO} <: IOProxy where {T}
     io::T
     index::Int
 

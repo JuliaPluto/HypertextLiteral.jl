@@ -52,53 +52,6 @@ could also work within the `@htl` macro syntax.
 [1] There are also a few edge cases, see `@raw_str` documentation and
 Julia #22926 for more detail.
 """
-function fh(expr::String)
-    # Essentially this is an ad-hoc scanner of the string, splitting
-    # it by `$` to find interpolated parts and delegating the hard work
-    # to `Meta.parse`, treating everything else as a literal string.
-    args = Any[]
-    start = idx = 1
-    strlen = lastindex(expr)
-    DOLLAR_NOESCAPE = r"(^\$)|([^\\](\\\\)*\$)"
-    while true
-        if match(DOLLAR_NOESCAPE,expr[start:strlen]) === nothing
-           #chunk = expr[start:strlen] # unused varible can be removed
-	   println("done: $(expr[start:strlen])")
-           push!(args, expr[start:strlen])
-           break
-        end
-        idx = last(findnext(DOLLAR_NOESCAPE, expr, start)) # last char of match is "$"
-	println("found\$: $(expr[start:idx])")
-        push!(args, expr[start:prevind(expr, idx)])
-        start = nextind(expr, idx)
-        if length(expr) >= start && expr[start] == '$'
-	       println("push: $(start)")
-            push!(args, "\$")
-            start += 1
-            continue
-        end
-        (nest, tail) = Meta.parse(expr, start; greedy=false)
-        if nest === nothing
-            throw("missing expression at $idx: $(expr[start:end])")
-        end
-        if !(expr[start] == '(' || nest isa Symbol)
-            throw(DomainError(nest,
-             "interpolations must be symbols or parenthesized"))
-        end
-        if Meta.isexpr(nest, :(=))
-            throw(DomainError(nest,
-             "assignments are not permitted in an interpolation"))
-        end
-        if nest isa String
-            # this is an interpolated string literal
-            nest = Expr(:string, nest)
-        end
-        push!(args, nest)
-        start = tail
-    end
-    return interpolate(args)
-end
-
 macro htl_str(expr::String)
     # Essentially this is an ad-hoc scanner of the string, splitting
     # it by `$` to find interpolated parts and delegating the hard work

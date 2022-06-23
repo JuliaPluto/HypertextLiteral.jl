@@ -62,17 +62,13 @@ macro htl_str(expr::String)
     DOLLAR_NOESCAPE = r"(^\$)|([^\\](\\\\)*\$)"
     while true
         if match(DOLLAR_NOESCAPE,expr[start:strlen]) === nothing
-           #chunk = expr[start:strlen] # unused varible can be removed
-	   #println("done: $(expr[start:strlen])")
            push!(args, expr[start:strlen])
            break
         end
         idx = last(findnext(DOLLAR_NOESCAPE, expr, start)) # last char of match is "$"
-	#println("found\$: $(expr[start:idx])")
         push!(args, expr[start:prevind(expr, idx)])
         start = nextind(expr, idx)
         if length(expr) >= start && expr[start] == '$'
-	       #println("push: $(start)")
             push!(args, "\$")
             start += 1
             continue

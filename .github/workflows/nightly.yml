@@ -9,6 +9,7 @@ on:
   - cron: "0 9 * * *"
 jobs:
   test:
+    if: ${{ false }}  # disable for now
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

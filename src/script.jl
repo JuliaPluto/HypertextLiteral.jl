@@ -95,13 +95,8 @@ The fallback behavior of `print_script` is to show the object as
 `"text/javascript"`. The `Javascript` wrapper will take any string
 and let it be printed in this way.
 """
-@generated function print_script(io::IO, value)
-     # workaround for Julia#18221
-     if hasmethod(show, Tuple{IO, MIME{Symbol("text/javascript")}, value})
-         return :(show(io, MIME"text/javascript"(), value))
-     end
-     throw("$(value) is not showable as text/javascript")
-end
+print_script(io::IO, value::Any) =
+    show(io, MIME"text/javascript"(), value)
 print_script(io::IO, ::Nothing) =
     print(io, "undefined")
 print_script(io::IO, ::Missing) =

@@ -5,8 +5,6 @@ on:
   pull_request:
     branches: [ master ]
   workflow_dispatch:
-  schedule:
-  - cron: "0 9 * * *"
 jobs:
   test:
     if: ${{ false }}  # disable for now

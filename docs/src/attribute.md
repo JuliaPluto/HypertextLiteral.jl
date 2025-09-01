@@ -278,7 +278,7 @@ When we normalize attribute names, we strip leading underscores.
 We don't expand into attributes things that don't look like attributes.
 
     @htl "<tag $(3)/>"
-    #-> ERROR: MethodError: no method matching inside_tag(::Int64)⋮
+    #-> ERROR: MethodError: no method matching for call to inside_tag(::Int64)⋮
 
 One can add additional attributes following a bare name.
 

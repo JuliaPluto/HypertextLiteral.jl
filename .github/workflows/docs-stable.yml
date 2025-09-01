@@ -1,14 +1,14 @@
 name: docs-stable
 on:
-  push:
-    tags: [v*]
+    push:
+        tags: [v*]
 jobs:
-  Documenter:
-    name: Documentation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: julia-actions/julia-buildpkg@latest
-      - uses: julia-actions/julia-docdeploy@latest
-        env:
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+    Documenter:
+        name: Documentation
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - uses: julia-actions/julia-buildpkg@latest
+            - uses: julia-actions/julia-docdeploy@latest
+              env:
+                  DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

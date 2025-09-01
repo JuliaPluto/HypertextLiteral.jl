@@ -4,3 +4,4 @@
 *.swp
 *.bak
 test/Manifest.toml
+.DS_Store

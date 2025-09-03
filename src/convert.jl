@@ -86,35 +86,20 @@ used. Otherwise, the result is printed within a `<span>` tag, using a
 serialized as: `<span class="Base-Missing">missing</span>`.
 """ content
 
-@static if VERSION >= v"1.3"
-    function content(x::T) where {T}
-        if static_hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, T})
-            return Render(x)
-        else
-            mod = parentmodule(T)
-            cls = string(nameof(T))
-            if mod == Core || mod == Base || pathof(mod) !== nothing
-                cls = join(fullname(mod), "-") * "-" * cls
-            end
-            span = """<span class="$cls">"""
-            return reprint(Bypass(span), x, Bypass("</span>"))
+function content(x::T) where {T}
+    if compat_hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, T})
+        return Render(x)
+    else
+        mod = parentmodule(T)
+        cls = string(nameof(T))
+        if mod == Core || mod == Base || pathof(mod) !== nothing
+            cls = join(fullname(mod), "-") * "-" * cls
         end
-    end
-else
-    @generated function content(x)
-        if hasmethod(show, Tuple{IO, MIME{Symbol("text/html")}, x})
-            return :(Render(x))
-        else
-            mod = parentmodule(x)
-            cls = string(nameof(x))
-            if mod == Core || mod == Base || pathof(mod) !== nothing
-                cls = join(fullname(mod), "-") * "-" * cls
-            end
-            span = """<span class="$cls">"""
-            return :(reprint(Bypass($span), x, Bypass("</span>")))
-        end
+        span = """<span class="$cls">"""
+        return reprint(Bypass(span), x, Bypass("</span>"))
     end
 end
+
 
 function reprint(xs...)
     # generated functions cannot contain a closure

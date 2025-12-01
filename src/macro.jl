@@ -59,13 +59,13 @@ macro htl_str(expr::String)
     args = Any[]
     start = idx = 1
     strlen = lastindex(expr)
+    DOLLAR_NOESCAPE = r"(^\$)|([^\\](\\\\)*\$)"
     while true
-        idx = findnext(isequal('$'), expr, start)
-        if idx == nothing
-           chunk = expr[start:strlen]
+        if match(DOLLAR_NOESCAPE,expr[start:strlen]) === nothing
            push!(args, expr[start:strlen])
            break
         end
+        idx = last(findnext(DOLLAR_NOESCAPE, expr, start)) # last char of match is "$"
         push!(args, expr[start:prevind(expr, idx)])
         start = nextind(expr, idx)
         if length(expr) >= start && expr[start] == '$'
@@ -74,7 +74,7 @@ macro htl_str(expr::String)
             continue
         end
         (nest, tail) = Meta.parse(expr, start; greedy=false)
-        if nest == nothing
+        if nest === nothing
             throw("missing expression at $idx: $(expr[start:end])")
         end
         if !(expr[start] == '(' || nest isa Symbol)

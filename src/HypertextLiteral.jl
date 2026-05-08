@@ -32,9 +32,7 @@ See also: [`@htl`](@ref), [`HypertextLiteral.@htl_str`](@ref)
 """
 module HypertextLiteral
 
-@static if VERSION >= v"1.3"
-    using Tricks: static_hasmethod
-end
+using Tricks: compat_hasmethod
 
 export @htl, @htl_str
 
